@@ -1,4 +1,3 @@
-
 package main
 
 import (
@@ -9,8 +8,8 @@ import (
 	"fmt"
 	"io"
 	"os"
-	"runtime"
 	"os/signal"
+	"runtime"
 	"time"
 	"unsafe"
 )
@@ -22,7 +21,7 @@ type Event struct {
 
 type Profile struct {
 	Time time.Time
-	Sig string
+	Sig  string
 	// key is stringified callsite address
 	Cs map[string]Callsite
 }
@@ -37,7 +36,7 @@ type Callsite struct {
 var (
 	e              []Event
 	calls          chan Event
-	quit chan int
+	quit           chan int
 	profiles       chan Profile
 	prof           Profile
 	elfSymbol      map[uint64]elf.Symbol
@@ -61,7 +60,7 @@ func init() {
 	calls = make(chan Event, 0)
 	sigs := make(chan os.Signal)
 	signal.Notify(sigs)
-	go func(){
+	go func() {
 		for s := range sigs {
 			prof.Time = time.Now()
 			prof.Sig = s.String()
@@ -199,7 +198,7 @@ func pop() {
 	e = e[:i]
 	result.Time += time.Now().UnixNano()
 	if i != 0 {
-		e[i - 1].Time -= result.Time
+		e[i-1].Time -= result.Time
 	} else {
 		calls <- result
 		quit <- 0

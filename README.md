@@ -10,7 +10,7 @@
 
 Use these arguments when compiling. For instance, if using a Makefile
 
-	CFLAGS += -finstrument-functions
+	CFLAGS += -finstrument-functions -g
 	LDLIBS += -pthread
 	OBJ += profiler.a
 
