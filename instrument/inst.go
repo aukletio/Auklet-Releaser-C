@@ -4,6 +4,7 @@ import "C"
 import (
 	"encoding/gob"
 	"net"
+	"fmt"
 	"time"
 	"unsafe"
 )
@@ -35,12 +36,15 @@ func init() {
 }
 
 func sendevent(fn, cs unsafe.Pointer, typ int) {
-	check(enc.Encode(event{
+	e := event{
 		Fn:   uint64(uintptr(fn)),
 		Cs:   uint64(uintptr(cs)),
 		Type: typ,
 		Time: time.Now().UnixNano(),
-	}))
+	}
+	fmt.Println("instrument:", e)
+	err := enc.Encode(e)
+	check(err)
 }
 
 //export __cyg_profile_func_enter

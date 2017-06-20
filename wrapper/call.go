@@ -27,7 +27,13 @@ func pop() Event {
 }
 
 func call(events chan Event, calls chan Call) {
-	defer close(calls)
+	defer func() {
+		if x := recover(); x != nil {
+			fmt.Println("wrapper: call:", x)
+		}
+
+		close(calls)
+	}()
 
 	for {
 		e, ok := <-events
@@ -36,7 +42,7 @@ func call(events chan Event, calls chan Call) {
 			return
 		}
 
-		fmt.Println(e)
+		fmt.Println("wrapper: got event", e)
 		switch e.Type {
 		case 0:
 			push(e)

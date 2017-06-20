@@ -24,6 +24,8 @@ func main() {
 	calls := make(chan Call, 100)
 
 	p := NewProfile(syms)
+	defer emit(*p)
+
 	go call(events, calls)
 	go relay("socket", events)
 	go run(cmd, child)
@@ -37,7 +39,6 @@ func main() {
 		case c, ok := <-calls:
 			if !ok {
 				//channel closed, child exited.
-				emit(*p)
 				return
 			}
 			p.addCall(c)
@@ -45,10 +46,10 @@ func main() {
 			// for ease of development, sending SIGINT will cause
 			// graceful exit
 			fmt.Println(s.String())
-			close(events)
+			return
 		case <-child:
 			fmt.Println("wrapper: child exited")
-			close(events)
+			return
 		}
 	}
 }

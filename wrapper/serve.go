@@ -15,6 +15,7 @@ func relay(addr string, events chan Event) {
 		}
 
 		server.Close()
+		close(events)
 	}()
 
 	server, err := net.Listen("unix", addr)
