@@ -1,5 +1,7 @@
 package main
 
+import "fmt"
+
 type Event struct {
 	Fn, Cs uint64
 	Type   int
@@ -11,20 +13,20 @@ type Call struct {
 	Time   int64
 }
 
-func push(s *[]Event, e Event) {
-	*s = append(*s, e)
+var s []Event
+
+func push(e Event) {
+	s = append(s, e)
 }
 
-func pop(s *[]Event) Event {
-	max := len(*s) - 1
-	top := (*s)[max]
-	*s = (*s)[:max]
+func pop() Event {
+	max := len(s) - 1
+	top := s[max]
+	s = s[:max]
 	return top
 }
 
-func call(events chan Event, calls chan Call) int64 {
-	s := make([]Event, 16)
-
+func call(events chan Event, calls chan Call) {
 	defer close(calls)
 
 	for {
@@ -34,11 +36,12 @@ func call(events chan Event, calls chan Call) int64 {
 			return
 		}
 
+		fmt.Println(e)
 		switch e.Type {
 		case 0:
-			push(&s, e)
+			push(e)
 		case 1:
-			f := pop(&s)
+			f := pop()
 			calls <- Call{
 				Fn:   e.Fn,
 				Cs:   e.Cs,

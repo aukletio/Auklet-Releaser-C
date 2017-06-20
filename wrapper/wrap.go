@@ -3,6 +3,7 @@ package main
 import (
 	"fmt"
 	"os"
+	"time"
 	"os/signal"
 	"syscall"
 )
@@ -19,34 +20,35 @@ func main() {
 	syms := symbols(cmd.Path)
 
 	child := make(chan struct{})
-	events := make(chan Event)
-	calls := make(chan Call)
-	profiles := make(chan Profile)
+	events := make(chan Event, 100)
+	calls := make(chan Call, 100)
 
 	p := NewProfile(syms)
-	go emit(profiles)
 	go call(events, calls)
-	go relay("profiler.sock", events)
+	go relay("socket", events)
 	go run(cmd, child)
 
+	tick := time.Tick(10 * time.Second)
 	for {
 		select {
 		case <-tick:
-			emit(p)
+			emit(*p)
 			// reset p
 		case c, ok := <-calls:
 			if !ok {
 				//channel closed, child exited.
+				emit(*p)
+				return
 			}
 			p.addCall(c)
 		case s := <-sigs:
+			// for ease of development, sending SIGINT will cause
+			// graceful exit
 			fmt.Println(s.String())
-			emit(p)
-			return
-		case <-child:
 			close(events)
-			emit(p)
-			return
+		case <-child:
+			fmt.Println("wrapper: child exited")
+			close(events)
 		}
 	}
 }

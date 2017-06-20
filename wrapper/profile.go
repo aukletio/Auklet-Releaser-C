@@ -44,21 +44,6 @@ func (prof *Profile) addCall(c Call) {
 	prof.Fn[name] = F
 }
 
-func (prof *Profile) accumulate(calls chan Call, profiles chan Profile) {
-	var c Call
-	tick := time.Tick(60 * time.Second)
-
-	for {
-		select {
-		case <-tick:
-			profiles <- prof
-			// clear prof callsites
-		case c = <-calls:
-			prof.addCall(c)
-		}
-	}
-}
-
 func emit(p Profile) {
 	p.Time = time.Now()
 	b, err := json.MarshalIndent(p, "", "    ")

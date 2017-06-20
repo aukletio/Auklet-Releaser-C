@@ -5,9 +5,9 @@ import (
 	"os/exec"
 )
 
-func run(cmd *exec.Cmd, quit chan int) {
+func run(cmd *exec.Cmd, quit chan struct{}) {
 	log, err := cmd.CombinedOutput()
 
 	fmt.Print(err, string(log))
-	quit <- 0
+	quit <- struct{}{}
 }

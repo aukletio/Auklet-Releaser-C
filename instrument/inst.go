@@ -9,13 +9,13 @@ import (
 )
 
 const (
-	start = iota
-	end   = iota
+	start = 0
+	end   = 1
 )
 
 type event struct {
 	Fn, Cs uint64
-	Typ    int
+	Type   int
 	Time   int64
 }
 
@@ -28,7 +28,7 @@ func init() {
 	var err error
 
 	// connect to the parent
-	c, err = net.Dial("unix", "profiler.sock")
+	c, err = net.Dial("unix", "socket")
 	check(err)
 
 	enc = gob.NewEncoder(c)
@@ -38,7 +38,7 @@ func sendevent(fn, cs unsafe.Pointer, typ int) {
 	check(enc.Encode(event{
 		Fn:   uint64(uintptr(fn)),
 		Cs:   uint64(uintptr(cs)),
-		Typ:  typ,
+		Type: typ,
 		Time: time.Now().UnixNano(),
 	}))
 }
