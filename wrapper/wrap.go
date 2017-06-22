@@ -2,13 +2,20 @@ package main
 
 import (
 	"fmt"
+	"net"
 	"os"
-	"time"
 	"os/signal"
 	"syscall"
+	"time"
+	"runtime/pprof"
 )
 
 func main() {
+	f, err := os.Create("cpuprofile")
+	check(err)
+	pprof.StartCPUProfile(f)
+	defer pprof.StopCPUProfile()
+
 	// handle signals
 	sigs := make(chan os.Signal)
 	signal.Notify(sigs, syscall.SIGINT)
@@ -20,22 +27,30 @@ func main() {
 	syms := symbols(cmd.Path)
 
 	child := make(chan struct{})
-	events := make(chan Event, 100)
-	calls := make(chan Call, 100)
+	events := make(chan Event, 1000)
+	calls := make(chan Call, 1000)
 
 	p := NewProfile(syms)
 	defer emit(*p)
 
 	go call(events, calls)
-	go relay("socket", events)
+	server, err := net.Listen("unix", "socket")
+	defer func() {
+		if server != nil {
+			server.Close()
+		}
+	}()
+	check(err)
+
+	go relay(server, events)
 	go run(cmd, child)
 
-	tick := time.Tick(10 * time.Second)
+	tick := time.Tick(1 * time.Minute)
 	for {
 		select {
 		case <-tick:
 			emit(*p)
-			// reset p
+			p.reset()
 		case c, ok := <-calls:
 			if !ok {
 				//channel closed, child exited.
