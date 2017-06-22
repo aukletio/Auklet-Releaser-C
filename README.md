@@ -1,20 +1,40 @@
-# APM Profiler Library
+# APM Profiler
 
-## Build
+The profiler consists of two components:
 
+- the instrument, which is a library that your program is linked against at
+  compile time
+- the wrapper, which executes and communicates with your program.
+
+## Linking a C/C++ program against the instrument library
+
+Build the instrument
+
+	cd instrument
 	make
 
-## Use in a C/C++ program
+Then copy `instrument.a` to the build directory of the C/C++ program you want to
+profile.
 
-	cp profiler.a /your/build/directory
+	cp instrument.a /your/build/directory
 
-Use these arguments when compiling. For instance, if using a Makefile
+Use the following toolchain arguments when compiling your program. For instance,
+if using a Makefile, you might add something like
 
 	CFLAGS += -finstrument-functions -g
 	LDLIBS += -pthread
-	OBJ += profiler.a
+	OBJ += instrument.a
 
-When in doubt, look at the provided Makefile, which builds a simple C program.
+When in doubt, look at `instrument/Makefile`, which builds a simple C program.
+
+## Building the Wrapper
+
+	cd wrapper
+	go build
+
+## Running the Profiler
+
+	./wrapper your-program args ...
 
 ## Functionality
 
@@ -32,6 +52,10 @@ execution since the last emitted profile.
 
 The period can be found by
 
-	grep Tick profiler.go
+	grep Tick wrapper/wrap.go
 
+## Notes
 
+- A program linked against the instrument can still be run by itself without the
+  wrapper. The instrumentation will still be present, but won't do anything
+  (aside from slow your program down).
