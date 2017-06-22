@@ -26,6 +26,10 @@ func NewProfile(syms map[uint64]string) *Profile {
 	return &p
 }
 
+func (prof *Profile) reset() {
+	prof.Fn = map[string]Function{}
+}
+
 func (prof *Profile) addCall(c Call) {
 	name, in := prof.name[c.Fn]
 	if !in {
