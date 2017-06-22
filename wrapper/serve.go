@@ -2,34 +2,24 @@ package main
 
 import (
 	"encoding/gob"
-	"fmt"
 	"io"
 	"net"
 )
 
-func relay(addr string, events chan Event) {
-	var server net.Listener
-	defer func() {
-		if x := recover(); x != nil {
-			fmt.Println(x)
-		}
-
-		server.Close()
-		close(events)
-	}()
-
-	server, err := net.Listen("unix", addr)
-	check(err)
+func relay(server net.Listener, events chan Event) {
+	defer close(events)
 
 	conn, err := server.Accept()
 	check(err)
 
-	var e Event
-
 	dec := gob.NewDecoder(conn)
 
-	for err != io.EOF {
-		err = dec.Decode(&e)
+	for {
+		var e Event
+		err := dec.Decode(&e)
+		if err == io.EOF {
+			return
+		}
 		events <- e
 	}
 }
