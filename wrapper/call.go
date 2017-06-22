@@ -42,19 +42,15 @@ func call(events chan Event, calls chan Call) {
 			return
 		}
 
-		fmt.Println("wrapper: got event", e)
-		switch e.Type {
-		case 0:
+		if e.Type == 0 {
 			push(e)
-		case 1:
+		} else {
 			f := pop()
 			calls <- Call{
 				Fn:   e.Fn,
 				Cs:   e.Cs,
-				Time: f.Time - e.Time,
+				Time: e.Time - f.Time,
 			}
-		default:
-			panic("unreached")
 		}
 	}
 }
