@@ -4,14 +4,8 @@ import "C"
 import (
 	"encoding/gob"
 	"net"
-	"fmt"
 	"time"
 	"unsafe"
-)
-
-const (
-	start = 0
-	end   = 1
 )
 
 type event struct {
@@ -26,13 +20,12 @@ var (
 )
 
 func init() {
-	var err error
-
 	// connect to the parent
+	var err error
 	c, err = net.Dial("unix", "socket")
-	check(err)
-
-	enc = gob.NewEncoder(c)
+	if err == nil {
+		enc = gob.NewEncoder(c)
+	}
 }
 
 func sendevent(fn, cs unsafe.Pointer, typ int) {
@@ -42,19 +35,23 @@ func sendevent(fn, cs unsafe.Pointer, typ int) {
 		Type: typ,
 		Time: time.Now().UnixNano(),
 	}
-	fmt.Println("instrument:", e)
+
 	err := enc.Encode(e)
 	check(err)
 }
 
 //export __cyg_profile_func_enter
 func __cyg_profile_func_enter(fn, cs unsafe.Pointer) {
-	sendevent(fn, cs, start)
+	if enc != nil {
+		sendevent(fn, cs, 0)
+	}
 }
 
 //export __cyg_profile_func_exit
 func __cyg_profile_func_exit(fn, cs unsafe.Pointer) {
-	sendevent(fn, cs, end)
+	if enc != nil {
+		sendevent(fn, cs, 1)
+	}
 }
 
 func check(err error) {
