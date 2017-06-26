@@ -8,44 +8,45 @@ import (
 
 type Profile struct {
 	Time time.Time
-	Fn   map[string]Function
+	Root *Node
 	name map[uint64]string
 }
 
-type Function struct {
-	Name   string
+type Node struct {
 	Ncalls int
 	Time   int64
+	Callee map[Frame]*Node
 }
 
-func NewProfile(syms map[uint64]string) *Profile {
-	p := Profile{}
-	p.Fn = make(map[string]Function)
-	p.name = syms
+func (cur *Node) addCall(c Call) {
+	switch len(c.Stack) {
+	case 0:
+		// Empty stack, something is wrong.
+		panic("unreached")
+	case 1:
+		// We reached the leaf. Time to add profile data.
+		cur.Ncalls++
+		cur.Time += c.Time
+		return
+	default:
+		// Eat the next stack level and continue.
+		f := c.Stack[0]
+		c.Stack = c.Stack[1:]
 
-	return &p
-}
+		// Allocate a map, if need be.
+		if cur.Callee == nil {
+			cur.Callee = make(map[Frame]*Node)
+		}
 
-func (prof *Profile) reset() {
-	prof.Fn = map[string]Function{}
-}
+		// Allocate a node for this frame, if need be.
+		next, in := cur.Callee[f]
+		if !in {
+			next = new(Node)
+			cur.Callee[f] = next
+		}
 
-func (prof *Profile) addCall(c Call) {
-	name, in := prof.name[c.Fn]
-	if !in {
-		fmt.Println("No symbol for function address", c.Fn)
-		panic(c.Fn)
+		next.addCall(c)
 	}
-
-	F, in := prof.Fn[name]
-	if !in {
-		// first time using this key
-		F.Name = name
-	}
-
-	F.Ncalls++
-	F.Time += c.Time
-	prof.Fn[name] = F
 }
 
 func emit(p Profile) {
@@ -54,3 +55,12 @@ func emit(p Profile) {
 	check(err)
 	fmt.Println(string(b))
 }
+
+func NewProfile(syms map[uint64]string) *Profile {
+	p := Profile{}
+	p.Root = new(Node)
+	p.name = syms
+
+	return &p
+}
+

@@ -50,13 +50,13 @@ func main() {
 		select {
 		case <-tick:
 			emit(*p)
-			p.reset()
+			p = NewProfile(syms)
 		case c, ok := <-calls:
 			if !ok {
 				//channel closed, child exited.
 				return
 			}
-			p.addCall(c)
+			p.Root.addCall(c)
 		case s := <-sigs:
 			// for ease of development, sending SIGINT will cause
 			// graceful exit
