@@ -1,19 +1,21 @@
 #include <stdio.h>
-#include <unistd.h>
+#include <stdlib.h>
 
-int f(int n)
+int
+fib(int n)
 {
-	return n + 1;
+	if (n < 2)
+		return n;
+	else
+		return fib(n - 1) + fib(n - 2);
 }
 
 int
 main(int argc, char **argv)
 {
-	int x;
-	for (int i = 0; i < 10; i++) {
-		x = f(i);
-		printf("%d\n", x);
-		sleep(1);
-	}
+	int val = 0;
+	if (argc > 1)
+		val = atoi(argv[1]);
+	fib(val);
 	return 0;
 }
