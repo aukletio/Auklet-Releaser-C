@@ -2,7 +2,6 @@ package main
 
 import (
 	"fmt"
-	"strconv"
 )
 
 type Frame struct {
@@ -68,12 +67,4 @@ func call(events chan Event, calls chan Call) {
 			}
 		}
 	}
-}
-
-// Since frames are used as map keys, and JSON does not allow structs as keys,
-// we have to marshal a frame to something JSON-friendly.
-func (f Frame) MarshalText() (text []byte, err error) {
-	fn := strconv.FormatUint(f.Fn, 16)
-	cs := strconv.FormatUint(f.Cs, 16)
-	return []byte(fn + " " + cs), nil
 }

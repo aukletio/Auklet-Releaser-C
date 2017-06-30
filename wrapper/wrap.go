@@ -23,15 +23,12 @@ func main() {
 	// define a command
 	cmd := command()
 
-	// read ELF symbols
-	syms := symbols(cmd.Path)
-
 	child := make(chan struct{})
 	events := make(chan Event, 1000)
 	calls := make(chan Call, 1000)
 
-	p := NewProfile(syms)
-	defer emit(*p)
+	p := NewProfile()
+	defer emit(p)
 
 	go call(events, calls)
 	server, err := net.Listen("unix", "socket")
@@ -49,14 +46,14 @@ func main() {
 	for {
 		select {
 		case <-tick:
-			emit(*p)
-			p = NewProfile(syms)
+			emit(p)
+			p = NewProfile()
 		case c, ok := <-calls:
 			if !ok {
 				//channel closed, child exited.
 				return
 			}
-			p.Root.addCall(c)
+			p.addCall(c)
 		case s := <-sigs:
 			// for ease of development, sending SIGINT will cause
 			// graceful exit
