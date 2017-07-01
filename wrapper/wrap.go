@@ -23,12 +23,17 @@ func main() {
 	// define a command
 	cmd := command()
 
+	// connect to server
+	client, err := connect()
+	check(err)
+	defer client.Disconnect(250)
+
 	child := make(chan struct{})
 	events := make(chan Event, 1000)
 	calls := make(chan Call, 1000)
 
 	p := NewProfile()
-	defer emit(p)
+	defer emit(client, p)
 
 	go call(events, calls)
 	server, err := net.Listen("unix", "socket")
@@ -46,7 +51,7 @@ func main() {
 	for {
 		select {
 		case <-tick:
-			emit(p)
+			emit(client, p)
 			p = NewProfile()
 		case c, ok := <-calls:
 			if !ok {

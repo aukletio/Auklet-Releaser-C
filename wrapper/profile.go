@@ -2,6 +2,7 @@ package main
 
 import (
 	"encoding/json"
+	mqtt "github.com/eclipse/paho.mqtt.golang"
 	"fmt"
 )
 
@@ -45,8 +46,9 @@ func (cur *Profile) addCall(c Call) {
 	}
 }
 
-func emit(p *Profile) {
-	b, err := json.MarshalIndent(*p, "", "    ")
+func emit(c mqtt.Client, p *Profile) {
+	payload, err := json.MarshalIndent(*p, "", "    ")
 	check(err)
-	fmt.Println(string(b))
+	publish(c, payload)
+	fmt.Println(string(payload))
 }
