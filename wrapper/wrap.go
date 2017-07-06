@@ -5,9 +5,9 @@ import (
 	"net"
 	"os"
 	"os/signal"
+	"runtime/pprof"
 	"syscall"
 	"time"
-	"runtime/pprof"
 )
 
 func main() {

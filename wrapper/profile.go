@@ -2,8 +2,8 @@ package main
 
 import (
 	"encoding/json"
-	mqtt "github.com/eclipse/paho.mqtt.golang"
 	"fmt"
+	mqtt "github.com/eclipse/paho.mqtt.golang"
 )
 
 type Profile struct {

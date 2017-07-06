@@ -2,8 +2,8 @@ package main
 
 import (
 	"bufio"
-	"io"
 	"fmt"
+	"io"
 	"os/exec"
 )
 
