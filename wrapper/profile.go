@@ -6,18 +6,29 @@ import (
 	mqtt "github.com/eclipse/paho.mqtt.golang"
 )
 
+// A program generally has a tree-like structure, where each node in the tree
+// represents a certain point in the callgraph. Linear paths through the
+// callgraph are called callchains. A Profile is a node in the callgraph which
+// contains aggregate yet context-specific data about program execution.
 type Profile struct {
+	// The Frame at the end of a given callchain is associated with the
+	// number of calls and total time spent at this point in the callgraph.
 	Frame
 	Ncalls  int
 	Time    int64
+
+	// This map is used to simplify the addCall() algorithm. A Profile is
+	// marshaled to JSON and thus a Go map[Frame] is unsuitable.
 	callee  map[Frame]*Profile
+
+	// Each leaf Frame has callees, representing possible continuations of
+	// the callchain.
 	Callees []*Profile
 }
 
 func NewProfile() *Profile {
 	p := new(Profile)
 	p.callee = make(map[Frame]*Profile)
-	//p.Callees = make([]*Profile, 0)
 	return p
 }
 

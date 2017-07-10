@@ -6,6 +6,7 @@ import (
 	"net"
 )
 
+// Decode events from the socket and relay them to an Event channel.
 func relay(server net.Listener, events chan Event) {
 	defer close(events)
 
@@ -18,6 +19,11 @@ func relay(server net.Listener, events chan Event) {
 		var e Event
 		err := dec.Decode(&e)
 		if err == io.EOF {
+
+			// There is a race condition between socket EOF and
+			// child exit. Nevertheless, if the socket closes, there
+			// is nothing left for relay() to do.
+
 			return
 		}
 		events <- e
