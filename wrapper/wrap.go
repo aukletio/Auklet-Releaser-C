@@ -2,69 +2,92 @@ package main
 
 import (
 	"net"
+	"flag"
 	"fmt"
 	"os"
-	"os/signal"
+	"os/exec"
+	//"os/signal"
 	"runtime/pprof"
-	"syscall"
+	//"syscall"
+
+	mqtt "github.com/eclipse/paho.mqtt.golang"
 )
 
+func check(err error) {
+	if err != nil {
+		panic(err)
+	}
+}
+
+func usage() {
+	fmt.Printf("usage: %v command [args ...]\n", os.Args[0])
+	os.Exit(0)
+}
+
 func main() {
-	// Handle SIGINT so that ^C causes a clean exit.
-	sigs := make(chan os.Signal)
-	signal.Notify(sigs, syscall.SIGINT)
+	var cpuprofile, network, quiet bool
 
-	// TODO: Use a command-line flag to start CPU profiling.
-	f, err := os.Create("cpuprofile")
-	check(err)
-	pprof.StartCPUProfile(f)
-	defer pprof.StopCPUProfile()
+	flag.BoolVar(&cpuprofile, "p", false, "compute wrapper cpu profile")
+	flag.BoolVar(&network, "n", false, "publish profiles to backend")
+	flag.BoolVar(&quiet, "q", false, "do not dump profiles to stdout")
 
-	cmd := command()
+	flag.Parse()
 
-	var done chan struct{}
+	if cpuprofile {
+		f, err := os.Create("cpuprofile")
+		check(err)
+		pprof.StartCPUProfile(f)
+		defer pprof.StopCPUProfile()
+	}
+
+	args := flag.Args()
+	if len(args) < 1 {
+		usage()
+	}
+	cmd := exec.Command(args[0], args[1:]...)
+
 
 	// TODO: Authenticate the command (associate with an existing release).
 	// If via HTTPS, do it here; if via MQTT, do it after calling
 	// connect(). Don't profile if not associated with a release.
 
-	// Try to connect to the backend so we can post profiles to it.
-	client, err := connect()
-	if err != nil {
+	// Open a socket to communicate with the child command.
+	server, err := net.Listen("unix", "socket")
+	check(err)
+	defer server.Close()
+
+	var client mqtt.Client
+	if network {
+		// Try to connect to the backend so we can post profiles to it.
+		client, err = connect()
+		check(err)
 		defer client.Disconnect(250)
-
-		// Open a socket to communicate with the child command.
-		server, err := net.Listen("unix", "socket")
-		if err != nil {
-			defer server.Close()
-
-			// Launch the profiler pipeline, since we should be able to receive
-			// events from the child command and post profiles to the backend.
-
-			events := make(chan Event, 1000)
-			calls := make(chan Call, 1000)
-
-			go call(events, calls)
-			go relay(server, events)
-			go accumulate(calls, client, sigs, done)
-		} else {
-			fmt.Println("no socket")
-			// Continue even without the socket. We should not prevent a
-			// program from being run just because we can't profile it.
-
-			// TODO: Consider telling the backend that the socket connection
-			// failed. That's odd.
-
-		}
-	} else {
-		fmt.Println("no backend")
-
-		// Continue even without a backend connection. We should not
-		// prevent a program from being run just because we failed
-		// to connect to the backend.
-
 	}
 
-	done = make(chan struct{})
-	run(cmd)
+	// Launch the profiler pipeline, since we should be able to receive
+	// events from the child command.
+
+	events := make(chan Event, 1000)
+	calls := make(chan Call, 1000)
+	profiles := make(chan *Profile)
+	done := make(chan struct{}, 2)
+
+	// relay() closes the events channel when the socket is closed. This
+	// causes the concurrent pipeline to shutdown (the calls and profiles
+	// channels are closed, too). Finally, emit() finishes its work and lets
+	// main() know when it's done.
+
+	go emit(profiles, client, !quiet, done)
+	go accumulate(calls, profiles)
+	go call(events, calls)
+	go relay(server, events)
+
+	// run() might end before or after the socket closes; we don't care
+	// which order. We wait for everything to shutdown properly before
+	// exiting.
+
+	go run(cmd, done)
+
+	<-done
+	<-done
 }

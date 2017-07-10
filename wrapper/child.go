@@ -8,7 +8,7 @@ import (
 )
 
 // Run a command and report when it exits.
-func run(cmd *exec.Cmd) {
+func run(cmd *exec.Cmd, done chan struct{}) {
 	// Set up pipes so we can see the command's text output.
 	stdout, err := cmd.StdoutPipe()
 	check(err)
@@ -27,12 +27,6 @@ func run(cmd *exec.Cmd) {
 		}
 	}
 
-	defer func() {
-		if x := recover(); x != nil {
-			fmt.Println(x)
-		}
-	}()
-
 	err = cmd.Start()
 	check(err)
 
@@ -40,10 +34,11 @@ func run(cmd *exec.Cmd) {
 	go thru(stdout)
 
 	err = cmd.Wait()
-	check(err)
 
 	// There is a race condition between child exit and socket EOF; we don't
 	// know which will happen first.  Nevertheless, if the child exits,
 	// there is no longer any stdout or stderr to print out (those files
 	// should close). run() should report the exit status of the command.
+	fmt.Println("wrapper: child exited:", err)
+	done <- struct{}{}
 }

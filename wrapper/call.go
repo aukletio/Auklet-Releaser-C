@@ -8,7 +8,7 @@ import (
 // Frames as arguments; Frames consist of a function address (a function
 // pointer) and a callsite address (the address of the call instruction).
 type Frame struct {
-	Fn, Cs uint64
+	Fn, Cs uint64 `json:",omitempty"`
 }
 
 // The instrument emits start (type 0) and end (type 1) events over the socket
@@ -63,7 +63,7 @@ func call(events chan Event, calls chan Call) {
 			// The socket gave an EOF. No more events will be
 			// generated; thus no more calls can be added to a
 			// profile.
-
+			fmt.Println("pipeline: call shutting down")
 			return
 		}
 
