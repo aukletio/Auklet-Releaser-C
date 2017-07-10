@@ -2,8 +2,8 @@ package main
 
 import (
 	"encoding/gob"
-	"io"
 	"fmt"
+	"io"
 	"net"
 )
 

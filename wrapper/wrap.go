@@ -1,9 +1,9 @@
 package main
 
 import (
-	"net"
 	"flag"
 	"fmt"
+	"net"
 	"os"
 	"os/exec"
 	//"os/signal"
@@ -45,7 +45,6 @@ func main() {
 		usage()
 	}
 	cmd := exec.Command(args[0], args[1:]...)
-
 
 	// TODO: Authenticate the command (associate with an existing release).
 	// If via HTTPS, do it here; if via MQTT, do it after calling

@@ -14,12 +14,12 @@ type Profile struct {
 	// The Frame at the end of a given callchain is associated with the
 	// number of calls and total time spent at this point in the callgraph.
 	Frame
-	Ncalls  int   `json:",omitempty"`
-	Time    int64 `json:",omitempty"`
+	Ncalls int   `json:",omitempty"`
+	Time   int64 `json:",omitempty"`
 
 	// This map is used to simplify the addCall() algorithm. A Profile is
 	// marshaled to JSON and thus a Go map[Frame] is unsuitable.
-	callee  map[Frame]*Profile
+	callee map[Frame]*Profile
 
 	// Each leaf Frame has callees, representing possible continuations of
 	// the callchain.
@@ -65,8 +65,10 @@ func emit(profiles chan *Profile, c mqtt.Client, dump bool, done chan struct{}) 
 			done <- struct{}{}
 			return
 		}
+
 		payload, err := json.MarshalIndent(*p, "", "    ")
 		check(err)
+
 		if c != nil {
 			publish(c, payload)
 		}
