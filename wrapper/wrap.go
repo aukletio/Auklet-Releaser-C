@@ -6,9 +6,7 @@ import (
 	"net"
 	"os"
 	"os/exec"
-	//"os/signal"
 	"runtime/pprof"
-	//"syscall"
 
 	mqtt "github.com/eclipse/paho.mqtt.golang"
 )

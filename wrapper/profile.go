@@ -17,12 +17,13 @@ type Profile struct {
 	Ncalls int   `json:",omitempty"`
 	Time   int64 `json:",omitempty"`
 
-	// This map is used to simplify the addCall() algorithm. A Profile is
-	// marshaled to JSON and thus a Go map[Frame] is unsuitable.
-	callee map[Frame]*Profile
+	// Each leaf Frame has a set of callees, representing possible
+	// continuations of the callchain.  Map callee is used to simplify the
+	// addCall() algorithm but is not marshaled to JSON; instead, a slice
+	// Callee is provided that contains the same data in the format
+	// preferred by the backend.
 
-	// Each leaf Frame has callees, representing possible continuations of
-	// the callchain.
+	callee map[Frame]*Profile
 	Callees []*Profile `json:",omitempty"`
 }
 
@@ -35,7 +36,7 @@ func NewProfile() *Profile {
 func (cur *Profile) addCall(c Call) {
 	switch len(c.Stack) {
 	case 0:
-		// We reached the leaf. Time to add profile data.
+		// We reached the top of the stack. Time to add profile data.
 		cur.Ncalls++
 		cur.Time += c.Time
 		return
