@@ -1,16 +1,20 @@
 CFLAGS += -finstrument-functions -g
-LDLIBS += -pthread
 
-main: main.c instrument.a
-	gcc -o $@ $^ ${CFLAGS} ${LDLIBS}
+all: main cmain
+
+main: main.c instrument.o
+	gcc -o $@ $^ ${CFLAGS}
 
 main.ll: main.c instrument.a
 	clang -o $@ $^ -S -emit-llvm ${CFLAGS}
 
-instrument.a: inst.go
-	go build -buildmode=c-archive -o $@ $^
+main: main.c instrument.o
+	gcc -o $@ $^ ${CFLAGS}
+
+instrument.o: inst.c
+	gcc -o $@ -c $<
 
 clean:
-	rm -f main instrument.a instrument.h main
+	rm -f main main instrument.o
 
 .PHONY: clean

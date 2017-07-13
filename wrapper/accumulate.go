@@ -5,20 +5,20 @@ import (
 	"time"
 )
 
-func accumulate(calls chan Call, profiles chan *Profile) {
+func accumulate(samples chan []Frame, profiles chan *Profile) {
 	p := NewProfile()
 
 	defer close(profiles)
 	tick := time.Tick(1 * time.Minute)
 	for {
 		select {
-		case c, ok := <-calls:
+		case s, ok := <-samples:
 			if !ok {
 				profiles <- p
 				fmt.Println("pipeline: accumulate shutting down")
 				return
 			}
-			p.addCall(c)
+			p.addSample(s)
 		case <-tick:
 			profiles <- p
 			p = NewProfile()

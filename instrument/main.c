@@ -15,6 +15,8 @@ hello(void)
 int
 main(int argc, char **argv)
 {
-	hello();
+	for (int i = 0; i < 1000000000; i++)
+		if (!(i % 10000))
+			hello();
 	return 0;
 }
