@@ -10,3 +10,20 @@ The profiler consists of three components:
   program in production
 
 See the component directories for specific information.
+
+# How to Build
+
+	cd wrapper
+	go build
+
+	cd ../releaser
+	go build
+
+	cd ../instrument
+	make
+
+# How to Test
+
+	cd wrapper
+	go test
+
