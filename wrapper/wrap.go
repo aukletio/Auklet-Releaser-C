@@ -62,22 +62,20 @@ func main() {
 	}
 
 	// Launch the profiler pipeline, since we should be able to receive
-	// events from the child command.
+	// samples from the child command.
 
-	events := make(chan Event, 1000)
-	calls := make(chan Call, 1000)
+	samples := make(chan []Frame, 100)
 	profiles := make(chan *Profile)
 	done := make(chan struct{}, 2)
 
-	// relay() closes the events channel when the socket is closed. This
-	// causes the concurrent pipeline to shutdown (the calls and profiles
-	// channels are closed, too). Finally, emit() finishes its work and lets
-	// main() know when it's done.
+	// relay() closes the samples channel when the socket is closed. This
+	// causes the concurrent pipeline to shutdown (profiles channels is
+	// closed, too). Finally, emit() finishes its work and lets main() know
+	// when it's done.
 
 	go emit(profiles, client, !quiet, done)
-	go accumulate(calls, profiles)
-	go call(events, calls)
-	go relay(server, events)
+	go accumulate(samples, profiles)
+	go relay(server, samples)
 
 	// run() might end before or after the socket closes; we don't care
 	// which order. We wait for everything to shutdown properly before

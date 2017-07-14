@@ -6,16 +6,20 @@ import (
 	mqtt "github.com/eclipse/paho.mqtt.golang"
 )
 
+type Frame struct {
+	Fn uint64 `json:",omitempty"`
+	Cs uint64 `json:",omitempty"`
+}
+
 // A program generally has a tree-like structure, where each node in the tree
 // represents a certain point in the callgraph. Linear paths through the
 // callgraph are called callchains. A Profile is a node in the callgraph which
 // contains aggregate yet context-specific data about program execution.
 type Profile struct {
 	// The Frame at the end of a given callchain is associated with the
-	// number of calls and total time spent at this point in the callgraph.
+	// sample Count for this point in the callgraph.
 	Frame
-	Ncalls int   `json:",omitempty"`
-	Time   int64 `json:",omitempty"`
+	Count int   `json:",omitempty"`
 
 	// Each leaf Frame has a set of callees, representing possible
 	// continuations of the callchain.  Map callee is used to simplify the
@@ -33,17 +37,16 @@ func NewProfile() *Profile {
 	return p
 }
 
-func (cur *Profile) addCall(c Call) {
-	switch len(c.Stack) {
+func (cur *Profile) addSample(s []Frame) {
+	switch len(s) {
 	case 0:
 		// We reached the top of the stack. Time to add profile data.
-		cur.Ncalls++
-		cur.Time += c.Time
+		cur.Count++
 		return
 	default:
 		// Eat a stack level and continue.
-		f := c.Stack[0]
-		c.Stack = c.Stack[1:]
+		f := s[0]
+		s= s[1:]
 
 		// Allocate a node for the next frame, if need be.
 		next, in := cur.callee[f]
@@ -54,7 +57,7 @@ func (cur *Profile) addCall(c Call) {
 			next.Frame = f
 		}
 
-		next.addCall(c)
+		next.addSample(s)
 	}
 }
 
