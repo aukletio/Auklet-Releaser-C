@@ -124,7 +124,8 @@ static void
 pop(Frame f)
 {
 	/* Don't bother resizing the stack, because we're going to need it
-	 * later. The stack is freed totally by fini. */
+	 * later. We currently do not free the stack because of a possible race
+	 * between our destructor and the instrumentee's destructors. */
 	if (len > 0)
 		--len;
 	else {
