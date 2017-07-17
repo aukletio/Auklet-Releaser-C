@@ -3,13 +3,12 @@ package main
 import (
 	"crypto/tls"
 	"crypto/x509"
-	"fmt"
-	mqtt "github.com/eclipse/paho.mqtt.golang"
 	"io/ioutil"
+
+	"github.com/Shopify/sarama"
 )
 
-// https://github.com/eclipse/paho.mqtt.golang/blob/master/cmd/sample/main.go
-func connect() (mqtt.Client, error) {
+func connect() (sarama.AsyncProducer, error) {
 	certpool := x509.NewCertPool()
 	pemCerts, err := ioutil.ReadFile("RootCA.crt")
 	dsc := "fd0a4b895f-certificate.pem.crt"
@@ -29,26 +28,22 @@ func connect() (mqtt.Client, error) {
 		Certificates:       []tls.Certificate{cert},
 	}
 
-	o := mqtt.NewClientOptions()
-	o.AddBroker("tcps://a18ej8ow70rah.iot.us-west-2.amazonaws.com:8883")
-	o.SetCleanSession(true)
-	o.SetClientID("ProfileTest")
-	o.SetTLSConfig(&tc)
+	// https://godoc.org/github.com/Shopify/sarama#ex-AsyncProducer--Goroutines
+	config := sarama.NewConfig()
+	config.Producer.Return.Successes = true
+	config.Net.TLS.Enable = true
+	config.Net.TLS.Config = &tc
+	config.ClientID = "ProfileTest"
 
-	c := mqtt.NewClient(o)
-	t := c.Connect()
-	t.Wait()
-	check(t.Error())
-
-	return c, t.Error()
+	return sarama.NewAsyncProducer([]string{"localhost:9092"}, config)
 }
 
-func publish(c mqtt.Client, payload []byte) {
-	topic := "sdkTest/sub"
-	qos := byte(0)
-	t := c.Publish(topic, qos, false, payload)
-	t.Wait()
-	if t.Error() != nil {
-		fmt.Println(t.Error())
+func publish(producer sarama.AsyncProducer, payload []byte) {
+	message := &sarama.ProducerMessage{
+		Topic: "sdkTest/sub",
+		Value: sarama.ByteEncoder(payload),
 	}
+	producer.Input() <- message
+
+	// TODO: Figure out what to do if sending a message fails.
 }

@@ -8,7 +8,7 @@ import (
 	"os/exec"
 	"runtime/pprof"
 
-	mqtt "github.com/eclipse/paho.mqtt.golang"
+	"github.com/Shopify/sarama"
 )
 
 func check(err error) {
@@ -44,21 +44,20 @@ func main() {
 	}
 	cmd := exec.Command(args[0], args[1:]...)
 
-	// TODO: Authenticate the command (associate with an existing release).
-	// If via HTTPS, do it here; if via MQTT, do it after calling
-	// connect(). Don't profile if not associated with a release.
+	// TODO: Authenticate the command (associate with an existing release)
+	// by computing a checksum of the command binary.
 
 	// Open a socket to communicate with the child command.
 	server, err := net.Listen("unix", "socket")
 	check(err)
 	defer server.Close()
 
-	var client mqtt.Client
+	var producer sarama.AsyncProducer
 	if network {
 		// Try to connect to the backend so we can post profiles to it.
-		client, err = connect()
+		producer, err = connect()
 		check(err)
-		defer client.Disconnect(250)
+		defer producer.Close()
 	}
 
 	// Launch the profiler pipeline, since we should be able to receive
@@ -73,7 +72,7 @@ func main() {
 	// closed, too). Finally, emit() finishes its work and lets main() know
 	// when it's done.
 
-	go emit(profiles, client, !quiet, done)
+	go emit(profiles, producer, !quiet, done)
 	go accumulate(samples, profiles)
 	go relay(server, samples)
 
