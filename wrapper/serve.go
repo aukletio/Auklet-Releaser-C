@@ -1,10 +1,10 @@
 package main
 
 import (
-	"fmt"
 	"bufio"
-	"strings"
+	"fmt"
 	"net"
+	"strings"
 )
 
 // Decode samples from the socket and relay them to an Sample channel.

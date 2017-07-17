@@ -3,7 +3,8 @@ package main
 import (
 	"encoding/json"
 	"fmt"
-	mqtt "github.com/eclipse/paho.mqtt.golang"
+
+	"github.com/Shopify/sarama"
 )
 
 type Frame struct {
@@ -19,7 +20,7 @@ type Profile struct {
 	// The Frame at the end of a given callchain is associated with the
 	// sample Count for this point in the callgraph.
 	Frame
-	Count int   `json:",omitempty"`
+	Count int `json:",omitempty"`
 
 	// Each leaf Frame has a set of callees, representing possible
 	// continuations of the callchain.  Map callee is used to simplify the
@@ -27,7 +28,7 @@ type Profile struct {
 	// Callee is provided that contains the same data in the format
 	// preferred by the backend.
 
-	callee map[Frame]*Profile
+	callee  map[Frame]*Profile
 	Callees []*Profile `json:",omitempty"`
 }
 
@@ -46,7 +47,7 @@ func (cur *Profile) addSample(s []Frame) {
 	default:
 		// Eat a stack level and continue.
 		f := s[0]
-		s= s[1:]
+		s = s[1:]
 
 		// Allocate a node for the next frame, if need be.
 		next, in := cur.callee[f]
@@ -61,7 +62,7 @@ func (cur *Profile) addSample(s []Frame) {
 	}
 }
 
-func emit(profiles chan *Profile, c mqtt.Client, dump bool, done chan struct{}) {
+func emit(profiles chan *Profile, producer sarama.AsyncProducer, dump bool, done chan struct{}) {
 	for {
 		p, ok := <-profiles
 		if !ok {
@@ -73,8 +74,8 @@ func emit(profiles chan *Profile, c mqtt.Client, dump bool, done chan struct{}) 
 		payload, err := json.MarshalIndent(*p, "", "    ")
 		check(err)
 
-		if c != nil {
-			publish(c, payload)
+		if producer != nil {
+			publish(producer, payload)
 		}
 
 		if dump {
