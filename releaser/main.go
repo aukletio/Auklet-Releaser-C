@@ -14,9 +14,9 @@ import (
 )
 
 type Release struct {
-	DeployHash string
-	Symbols    []elf.Symbol
-	Dwarf      []dwarf.LineEntry
+	DeployHash string            `json:"deploy_hash"`
+	Symbols    []elf.Symbol      `json:"symbols"`
+	Dwarf      []dwarf.LineEntry `json:"dwarf"`
 }
 
 func usage() {
