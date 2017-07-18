@@ -15,11 +15,23 @@ typedef struct {
 	void *fn, *cs;
 } Frame;
 
+typedef struct node {
+	Frame frame;
+	unsigned ncalls;
+	struct node **callee, *parent;
+	int cap, len;
+} Node;
+
 /* function declarations */
 __attribute__ ((constructor)) void init(void);
+static Node *newNode(Node *parent, Frame f);
 static void sample(int n);
+static void zeroNode(Node *n);
 static int dumpstack(char *samp);
+static void printNode(int indent, Node *n);
 static void push(Frame);
+static Node *hasCallee(Node *n, Frame f);
+static Node *appendCallee(Node *n, Frame f);
 static void pop(Frame);
 static void nop(Frame);
 void __cyg_profile_func_enter(void *fn, void *cs);
@@ -28,6 +40,9 @@ void __cyg_profile_func_exit(void *fn, void *cs);
 /* global variables */
 static void (*enter_action)(Frame f) = nop;
 static void (*exit_action)(Frame f) = nop;
+
+static Node *tree;
+static Node *tp;
 
 static Frame *stack;
 static int cap, len;
@@ -40,11 +55,22 @@ init(void)
 {
 	struct sockaddr_un remote;
 	struct itimerval new = {
-		.it_interval = {0, 100},
-		.it_value = {0, 100},
+		.it_interval = {0, 10000},
+		.it_value = {0, 10000},
 	}, old;
 	int length;
 
+	/* initialize the tree */
+	tree = (Node *)malloc(sizeof(Node));
+	if (!tree) {
+		printf("init: tree allocation failed\n");
+		exit(1);
+	}
+
+	tree = newNode(NULL, (Frame){0, 0});
+	tp = tree;
+
+	/* initialize the stack */
 	stack = (Frame *)malloc(10 * sizeof(Frame));
 	if (stack) {
 		cap = 10;
@@ -58,7 +84,7 @@ init(void)
 	enter_action = push;
 	exit_action = pop;
 	setitimer(ITIMER_PROF, &new, &old);
-	signal(SIGPROF, sample);
+	//signal(SIGPROF, sample);
 
 	if ((sock = socket(AF_UNIX, SOCK_STREAM, 0)) == -1) {
 		printf("init: no socket\n");
@@ -74,6 +100,28 @@ init(void)
 	}
 }
 
+static Node *
+newNode(Node *parent, Frame f)
+{
+	Node *new = (Node *)malloc(sizeof(Node));
+	if (!new) {
+		printf("newNode: malloc failed\n");
+		exit(1);
+	}
+
+	new->frame = f;
+	new->ncalls = 0;
+	new->parent = parent;
+
+	/* Callee lists are allocated lazily, when we attempt to append to
+	 * them. */
+	new->callee = NULL;
+	new->cap = 0;
+	new->len = 0;
+
+	return new;
+}
+
 void
 sample(int n)
 {
@@ -84,6 +132,8 @@ sample(int n)
 	if (send(sock, samp, length, 0) == -1) {
 		/* Could not send a sample. No big deal. */
 	}
+	printNode(0, tree);
+	printf("\n");
 }
 
 static int
@@ -100,10 +150,34 @@ dumpstack(char *buf)
 }
 
 static void
+printNode(int indent, Node *n)
+{
+	if (n == tp)
+		printf("→");
+	else
+		printf(" ");
+
+	printf("%8d ", n->ncalls);
+	for (int i = 0; i < indent; ++i)
+		printf(".   ");
+
+	printf("%p:%p\n", n->frame.fn, n->frame.cs);
+
+	for (int i = 0; i < n->len; ++i)
+		printNode(1 + indent, n->callee[i]);
+}
+
+static void
 push(Frame f)
 {
+	//printf("push: top\n");
+
+	Node *callee = hasCallee(tp, f);
 	Frame *new = NULL;
 	
+	/* Increment tp to the current node. */
+	tp = callee;
+
 	if (cap == len) {
 		/* The stack is full; we need to grow it. */
 		new = (Frame *)realloc(stack, (cap + 1) * sizeof(Frame));
@@ -118,11 +192,71 @@ push(Frame f)
 	
 	++len;
 	stack[len - 1] = f;
+	//printf("push: bottom\n");
+}
+
+static Node *
+hasCallee(Node *n, Frame f)
+{
+	//printf("hasCallee: n = %p, slice %d/%d %p\n", n, n->len, n->cap, n->callee);
+	Node *callee = NULL;
+	/* Search the callee list for the given frame. */
+	for (int i = 0; i < n->len; ++i) {
+		if (n->callee[i]->frame.cs == f.cs) {
+			callee = n->callee[i];
+			break;
+		}
+	}
+
+	if (!callee) {
+		/* This is the first time visiting this part of the program; we
+		 * need to grow the list of callees at the current location. */
+		callee = appendCallee(tp, f);
+	}
+
+	return callee;
+}
+
+static Node *
+appendCallee(Node *n, Frame f)
+{
+	Node **new, *node;
+	if (n->cap == n->len) {
+		/* Grow the slice to accommodate one more reference to a callee
+		 * Node. */
+		if (n->cap)
+			new = (Node **)realloc(n->callee, (1+n->cap)*sizeof(Node *));
+		else
+			new = (Node **)malloc(sizeof(Node *));
+
+		if (!new) {
+			printf("appendCallee: slice allocation failed\n");
+			exit(1);
+		}
+
+		n->callee = new;
+		++n->cap;
+	}
+
+	++n->len;
+	node = newNode(n, f);
+	n->callee[n->len - 1] = node;
+	return node;
 }
 
 static void
 pop(Frame f)
 {
+	//printf("pop: top:\n");
+
+	++tp->ncalls;
+	if (!tp->parent) {
+		printf("pop: called with null parent\n");
+		exit(1);
+	}
+
+	tp = tp->parent;
+
 	/* Don't bother resizing the stack, because we're going to need it
 	 * later. We currently do not free the stack because of a possible race
 	 * between our destructor and the instrumentee's destructors. */
@@ -133,6 +267,7 @@ pop(Frame f)
 		printf("pop: called with stack len <= 0");
 		exit(1);
 	}
+	//printf("pop: bottom:\n");
 }
 
 static void

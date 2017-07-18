@@ -9,14 +9,20 @@ cleanup(void)
 void
 hello(void)
 {
-	printf("hello, world\n");
+	printf("%p: hello, world\n", hello);
+}
+
+void
+goodbye(void)
+{
+	printf("%p: goodbye, world\n", goodbye);
 }
 
 int
 main(int argc, char **argv)
 {
-	for (int i = 0; i < 1000000000; i++)
-		if (!(i % 10000))
-			hello();
+	printf("%p: starting up\n", main);
+	hello();
+	goodbye();
 	return 0;
 }
