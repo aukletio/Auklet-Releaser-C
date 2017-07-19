@@ -14,7 +14,7 @@ import (
 )
 
 type Release struct {
-	DeployHash string            `json:"deploy_hash"`
+	DeployHash string            `json:"checksum"`
 	Symbols    []elf.Symbol      `json:"symbols"`
 	Dwarf      []dwarf.LineEntry `json:"dwarf"`
 }
