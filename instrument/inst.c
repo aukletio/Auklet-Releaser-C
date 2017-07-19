@@ -27,8 +27,8 @@ __attribute__ ((constructor)) void init(void);
 static Node *newNode(Node *parent, Frame f);
 static void sample(int n);
 static void zeroNode(Node *n);
-static int dumpstack(char *samp);
-static void printNode(int indent, Node *n);
+static int dumpstack(Node *n, char *buf);
+static int printNode(int indent, Node *n);
 static void push(Frame);
 static Node *hasCallee(Node *n, Frame f);
 static Node *appendCallee(Node *n, Frame f);
@@ -41,13 +41,12 @@ void __cyg_profile_func_exit(void *fn, void *cs);
 static void (*enter_action)(Frame f) = nop;
 static void (*exit_action)(Frame f) = nop;
 
-static Node *tree;
-static Node *tp;
-
-static Frame *stack;
-static int cap, len;
+static Node *tree, *tp;
 
 static int sock;
+
+/* macros */
+#define SAMPLE_PD 10000
 
 /* function definitions */
 __attribute__ ((constructor)) void
@@ -55,36 +54,18 @@ init(void)
 {
 	struct sockaddr_un remote;
 	struct itimerval new = {
-		.it_interval = {0, 10000},
-		.it_value = {0, 10000},
+		.it_interval = {0, SAMPLE_PD},
+		.it_value = {0, SAMPLE_PD},
 	}, old;
 	int length;
 
 	/* initialize the tree */
-	tree = (Node *)malloc(sizeof(Node));
-	if (!tree) {
-		printf("init: tree allocation failed\n");
-		exit(1);
-	}
-
 	tree = newNode(NULL, (Frame){0, 0});
 	tp = tree;
 
-	/* initialize the stack */
-	stack = (Frame *)malloc(10 * sizeof(Frame));
-	if (stack) {
-		cap = 10;
-		len = 0;
-	} else {
-		printf("init: stack allocation failed\n");
-		exit(1);
-	}
-
-	/* Enable instrumentation and sampling. */
+	/* Enable instrumentation. */
 	enter_action = push;
 	exit_action = pop;
-	setitimer(ITIMER_PROF, &new, &old);
-	//signal(SIGPROF, sample);
 
 	if ((sock = socket(AF_UNIX, SOCK_STREAM, 0)) == -1) {
 		printf("init: no socket\n");
@@ -98,6 +79,12 @@ init(void)
 		printf("init: no connection\n");
 		return;
 	}
+
+	/* Turn on the sampler only if we're connected. This is useful when
+	 * profiling the instrument with gprof, which must be able to install
+	 * its own SIGPROF handler. */
+	setitimer(ITIMER_PROF, &new, &old);
+	signal(SIGPROF, sample);
 }
 
 static Node *
@@ -126,29 +113,48 @@ void
 sample(int n)
 {
 	char samp[256];
-	int length = dumpstack(samp);
+	int length = dumpstack(tp, samp);
+	length += sprintf(samp + length, "\r\n");
 
 	/* Send a stack sample over the socket. */
 	if (send(sock, samp, length, 0) == -1) {
 		/* Could not send a sample. No big deal. */
 	}
-	printNode(0, tree);
-	printf("\n");
 }
 
 static int
-dumpstack(char *buf)
+dumpstack(Node *n, char *buf)
 {
 	int wc = 0;
-	for (int i = 0; i < len; ++i) {
-		wc += sprintf(buf + wc, "%lx:%lx ",
-		              (unsigned long)stack[i].fn,
-		              (unsigned long)stack[i].cs);
+
+	/* If the current node is not an (immediate) child of the root of the
+	 * tree, dump its parent first. This both avoids dumping the meaningless
+	 * tree root and formats the sample so that the stack grows rightward.
+	 */
+
+	if (n->parent != tree) {
+		wc += dumpstack(n->parent, buf);
 	}
-	wc += sprintf(buf + wc, "\n");
+
+	/* All values are hex encoded to save a little space. */
+	wc += sprintf(buf + wc, "%lx:%lx:%x ",
+	              (unsigned long)n->frame.fn,
+	              (unsigned long)n->frame.cs,
+	              n->ncalls);
+
+	/* It's convenient, but hacky, to clear the counters here, while we're
+	 * walking the tree. Counters are cleared only after samples are taken.
+	 * Only counters which get sampled get cleared; some counters will
+	 * rarely be sampled and therefore rarely cleared, but that should not
+	 * be a problem. If there is risk of overflow, `unsigned long`s could
+	 * be used. */
+	n->ncalls = 0;
+
 	return wc;
 }
 
+/* printNode is useful when debugging; it prints a Node and all of its children
+ * to stdout in a human-readable way. */
 static void
 printNode(int indent, Node *n)
 {
@@ -170,35 +176,16 @@ printNode(int indent, Node *n)
 static void
 push(Frame f)
 {
-	//printf("push: top\n");
-
 	Node *callee = hasCallee(tp, f);
 	Frame *new = NULL;
 	
-	/* Increment tp to the current node. */
+	/* Move tp to the current node. */
 	tp = callee;
-
-	if (cap == len) {
-		/* The stack is full; we need to grow it. */
-		new = (Frame *)realloc(stack, (cap + 1) * sizeof(Frame));
-		if (new) {
-			stack = new;
-			++cap;
-		} else {
-			printf("push: realloc failed\n");
-			exit(1);
-		}
-	}
-	
-	++len;
-	stack[len - 1] = f;
-	//printf("push: bottom\n");
 }
 
 static Node *
 hasCallee(Node *n, Frame f)
 {
-	//printf("hasCallee: n = %p, slice %d/%d %p\n", n, n->len, n->cap, n->callee);
 	Node *callee = NULL;
 	/* Search the callee list for the given frame. */
 	for (int i = 0; i < n->len; ++i) {
@@ -247,8 +234,6 @@ appendCallee(Node *n, Frame f)
 static void
 pop(Frame f)
 {
-	//printf("pop: top:\n");
-
 	++tp->ncalls;
 	if (!tp->parent) {
 		printf("pop: called with null parent\n");
@@ -256,18 +241,6 @@ pop(Frame f)
 	}
 
 	tp = tp->parent;
-
-	/* Don't bother resizing the stack, because we're going to need it
-	 * later. We currently do not free the stack because of a possible race
-	 * between our destructor and the instrumentee's destructors. */
-	if (len > 0)
-		--len;
-	else {
-		/* stack corruption! */
-		printf("pop: called with stack len <= 0");
-		exit(1);
-	}
-	//printf("pop: bottom:\n");
 }
 
 static void

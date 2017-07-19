@@ -21,6 +21,7 @@ type Profile struct {
 	// sample Count for this point in the callgraph.
 	Frame
 	Count int `json:",omitempty"`
+	Ncalls uint `json:",omitempty"`
 
 	// Each leaf Frame has a set of callees, representing possible
 	// continuations of the callchain.  Map callee is used to simplify the
@@ -38,7 +39,7 @@ func NewProfile() *Profile {
 	return p
 }
 
-func (cur *Profile) addSample(s []Frame) {
+func (cur *Profile) addSample(s []StackFrame) {
 	switch len(s) {
 	case 0:
 		// We reached the top of the stack. Time to add profile data.
@@ -50,13 +51,18 @@ func (cur *Profile) addSample(s []Frame) {
 		s = s[1:]
 
 		// Allocate a node for the next frame, if need be.
-		next, in := cur.callee[f]
+		next, in := cur.callee[f.Frame]
 		if !in {
 			next = NewProfile()
-			cur.callee[f] = next
+			cur.callee[f.Frame] = next
 			cur.Callees = append(cur.Callees, next)
-			next.Frame = f
+			next.Frame = f.Frame
 		}
+
+		// For _every_ StackFrame we process, we have to sum up the number
+		// of calls here; obviously it cannot be done in the base case,
+		// because that represents an empty StackFrame.
+		next.Ncalls += f.Ncalls
 
 		next.addSample(s)
 	}

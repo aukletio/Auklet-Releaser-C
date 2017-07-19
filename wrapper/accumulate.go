@@ -5,7 +5,7 @@ import (
 	"time"
 )
 
-func accumulate(samples chan []Frame, profiles chan *Profile) {
+func accumulate(samples chan []StackFrame, profiles chan *Profile) {
 	p := NewProfile()
 
 	defer close(profiles)

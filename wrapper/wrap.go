@@ -63,7 +63,7 @@ func main() {
 	// Launch the profiler pipeline, since we should be able to receive
 	// samples from the child command.
 
-	samples := make(chan []Frame, 100)
+	samples := make(chan []StackFrame, 100)
 	profiles := make(chan *Profile)
 	done := make(chan struct{}, 2)
 
