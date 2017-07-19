@@ -28,7 +28,7 @@ static Node *newNode(Node *parent, Frame f);
 static void sample(int n);
 static void zeroNode(Node *n);
 static int dumpstack(Node *n, char *buf);
-static int printNode(int indent, Node *n);
+static void printNode(int indent, Node *n);
 static void push(Frame);
 static Node *hasCallee(Node *n, Frame f);
 static Node *appendCallee(Node *n, Frame f);
