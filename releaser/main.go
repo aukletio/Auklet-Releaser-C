@@ -17,10 +17,11 @@ type Release struct {
 	DeployHash string            `json:"checksum"`
 	Symbols    []elf.Symbol      `json:"symbols"`
 	Dwarf      []dwarf.LineEntry `json:"dwarf"`
+	AppID string `json:"app_id"`
 }
 
 func usage() {
-	fmt.Printf("usage: %v -deploy deployfile -debug debugfile\n", os.Args[0])
+	fmt.Printf("usage: %v -appid appid -deploy deployfile -debug debugfile\n", os.Args[0])
 	os.Exit(1)
 }
 
@@ -133,16 +134,18 @@ func (rel *Release) release(deployName string) {
 }
 
 func main() {
-	var deployName, debugName string
+	var deployName, debugName, appID string
 	flag.StringVar(&deployName, "deploy", "", "ELF binary to be deployed")
 	flag.StringVar(&debugName, "debug", "", "ELF binary containing debug symbols")
+	flag.StringVar(&appID, "appid", "", "App ID under which to create a release")
 	flag.Parse()
 
-	if flag.NFlag() != 2 {
+	if flag.NFlag() != 3 {
 		usage()
 	}
 
 	rel := new(Release)
+	rel.AppID = appID
 
 	// get debug info and symbols
 	rel.symbolize(debugName)
