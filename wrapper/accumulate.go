@@ -1,7 +1,6 @@
 package main
 
 import (
-	"fmt"
 	"time"
 )
 
@@ -15,7 +14,6 @@ func accumulate(samples chan []StackFrame, profiles chan *Profile) {
 		case s, ok := <-samples:
 			if !ok {
 				profiles <- p
-				fmt.Println("pipeline: accumulate shutting down")
 				return
 			}
 			p.addSample(s)

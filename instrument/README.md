@@ -20,3 +20,10 @@ if using a Makefile, you might add something like
 	OBJ += instrument.o
 
 When in doubt, look at `Makefile`, which builds a simple C program.
+
+## How to Test
+
+Build the wrapper and instrument, then run
+
+	cd instrument
+	./test.sh

@@ -19,7 +19,6 @@ func relay(server net.Listener, samples chan []StackFrame) {
 		// child exit. Nevertheless, if the socket closes, there
 		// is nothing left for relay() to do.
 
-		fmt.Println("pipeline: socket EOF: initiating shutdown")
 		close(samples)
 	}()
 

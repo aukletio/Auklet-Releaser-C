@@ -36,3 +36,11 @@ A release object, at minimum, should consist of
 - md5 checksum of the deploy binary
 - ELF symbol table
 - DWARF data
+
+## How to Test
+
+	cd test
+	make
+	cd ..
+	./test.sh
+

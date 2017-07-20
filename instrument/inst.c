@@ -8,6 +8,8 @@
 #include <sys/types.h>
 #include <sys/un.h>
 
+/* macros */
+#define SAMPLE_PD 10000
 #define SOCK_PATH "socket"
 
 /* types */
@@ -45,9 +47,6 @@ static Node *tree, *tp;
 
 static int sock;
 
-/* macros */
-#define SAMPLE_PD 10000
-
 /* function definitions */
 __attribute__ ((constructor)) void
 init(void)
@@ -68,7 +67,6 @@ init(void)
 	exit_action = pop;
 
 	if ((sock = socket(AF_UNIX, SOCK_STREAM, 0)) == -1) {
-		printf("init: no socket\n");
 		return;
 	}
 
@@ -76,7 +74,6 @@ init(void)
 	strcpy(remote.sun_path, SOCK_PATH);
 	length = strlen(remote.sun_path) + sizeof(remote.sun_family);
 	if (connect(sock, (struct sockaddr *)&remote, length) == -1) {
-		printf("init: no connection\n");
 		return;
 	}
 

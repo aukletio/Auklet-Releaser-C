@@ -18,12 +18,16 @@ See the component directories for specific information.
 
 	cd ../releaser
 	go build
+	cd test
+	make
 
-	cd ../instrument
+	cd ../../instrument
 	make
 
 # How to Test
 
-	cd wrapper
-	go test
+	cd releaser
+	./test.sh
 
+	cd ../instrument
+	./test.sh

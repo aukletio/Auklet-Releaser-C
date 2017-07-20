@@ -72,7 +72,6 @@ func emit(profiles chan *Profile, producer sarama.AsyncProducer, dump bool, done
 	for {
 		p, ok := <-profiles
 		if !ok {
-			fmt.Println("pipeline: emit shutting down")
 			done <- struct{}{}
 			return
 		}

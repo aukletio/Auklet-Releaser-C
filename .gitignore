@@ -2,3 +2,4 @@ instrument/instrument.a
 instrument/instrument.h
 instrument/main
 wrapper/wrapper
+releaser/releaser
