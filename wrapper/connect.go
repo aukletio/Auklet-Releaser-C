@@ -37,13 +37,3 @@ func connect() (sarama.AsyncProducer, error) {
 
 	return sarama.NewAsyncProducer([]string{"localhost:9092"}, config)
 }
-
-func publish(producer sarama.AsyncProducer, payload []byte) {
-	message := &sarama.ProducerMessage{
-		Topic: "sdkTest/sub",
-		Value: sarama.ByteEncoder(payload),
-	}
-	producer.Input() <- message
-
-	// TODO: Figure out what to do if sending a message fails.
-}

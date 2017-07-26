@@ -9,7 +9,7 @@ main: main.c
 	gcc -o $@ $<
 
 instrument.o: inst.c
-	gcc -o $@ -c -g -pg $<
+	gcc -o $@ -c -g $<
 
 clean:
 	rm -f main main-instd instrument.o

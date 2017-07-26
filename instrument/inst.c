@@ -1,5 +1,7 @@
 /* headers */
+#include <errno.h>
 #include <signal.h>
+#include <stdarg.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -7,6 +9,7 @@
 #include <sys/time.h>
 #include <sys/types.h>
 #include <sys/un.h>
+#include <time.h>
 
 /* macros */
 #define SAMPLE_PD 10000
@@ -19,21 +22,34 @@ typedef struct {
 
 typedef struct node {
 	Frame frame;
-	unsigned ncalls;
+	unsigned ncalls, nsamples;
 	struct node **callee, *parent;
 	int cap, len;
+
+	/* A Node is empty if ncalls == nsamples == 0 and all of its callees are
+	 * empty. This flag allows marshal() to skip irrelevant branches of the
+	 * tree. */
+	int empty;
 } Node;
 
+typedef struct {
+	char *buf;
+	int cap, len;
+} String;
+
 /* function declarations */
-__attribute__ ((constructor)) void init(void);
+static __attribute__ ((constructor)) void init(void);
 static Node *newNode(Node *parent, Frame f);
 static void sample(int n);
-static void zeroNode(Node *n);
-static int dumpstack(Node *n, char *buf);
-static void printNode(int indent, Node *n);
+static void emit(int n);
+static void marshal(Node *n, String *s);
+static String *newString(unsigned size);
+static void grow(String *s);
+static int sappend(String *s, const char *format, ...);
 static void push(Frame);
-static Node *hasCallee(Node *n, Frame f);
+static Node *hasCallee(Node *n, void *cs);
 static Node *appendCallee(Node *n, Frame f);
+static void setnotempty(Node *n);
 static void pop(Frame);
 static void nop(Frame);
 void __cyg_profile_func_enter(void *fn, void *cs);
@@ -42,29 +58,50 @@ void __cyg_profile_func_exit(void *fn, void *cs);
 /* global variables */
 static void (*enter_action)(Frame f) = nop;
 static void (*exit_action)(Frame f) = nop;
-
 static Node *tree, *tp;
-
 static int sock;
 
 /* function definitions */
-__attribute__ ((constructor)) void
+static __attribute__ ((constructor)) void
 init(void)
 {
 	struct sockaddr_un remote;
-	struct itimerval new = {
+	struct itimerval sample_pd = {
 		.it_interval = {0, SAMPLE_PD},
 		.it_value = {0, SAMPLE_PD},
-	}, old;
+	}, tree_pd = {
+		.it_interval = {1, 0},
+		.it_value = {1, 0},
+	};
+	struct sigaction sample_act = {
+		.sa_handler = sample,
+	}, tree_act = {
+		.sa_handler = emit,
+	};
 	int length;
 
-	/* initialize the tree */
 	tree = newNode(NULL, (Frame){0, 0});
 	tp = tree;
 
-	/* Enable instrumentation. */
+	/* Enable instrumentation, even before we know whether we're
+	 * connected. */
 	enter_action = push;
 	exit_action = pop;
+
+	/* Configure timers. */
+	setitimer(ITIMER_VIRTUAL, &tree_pd, NULL);
+	setitimer(ITIMER_PROF, &sample_pd, NULL);
+
+	/* Configure signal handlers (that are triggered by timer expiration). */
+
+	/* Don't allow any signals to interrupt our signal handlers. This is
+	 * done especially to prevent marshal from being interrupted and
+	 * generating invalid JSON. */
+	sigfillset(&sample_act.sa_mask);
+	sigfillset(&tree_act.sa_mask);
+
+	sigaction(SIGPROF, &sample_act, NULL);
+	sigaction(SIGVTALRM, &tree_act, NULL);
 
 	if ((sock = socket(AF_UNIX, SOCK_STREAM, 0)) == -1) {
 		return;
@@ -76,12 +113,6 @@ init(void)
 	if (connect(sock, (struct sockaddr *)&remote, length) == -1) {
 		return;
 	}
-
-	/* Turn on the sampler only if we're connected. This is useful when
-	 * profiling the instrument with gprof, which must be able to install
-	 * its own SIGPROF handler. */
-	setitimer(ITIMER_PROF, &new, &old);
-	signal(SIGPROF, sample);
 }
 
 static Node *
@@ -95,6 +126,7 @@ newNode(Node *parent, Frame f)
 
 	new->frame = f;
 	new->ncalls = 0;
+	new->nsamples = 0;
 	new->parent = parent;
 
 	/* Callee lists are allocated lazily, when we attempt to append to
@@ -102,100 +134,158 @@ newNode(Node *parent, Frame f)
 	new->callee = NULL;
 	new->cap = 0;
 	new->len = 0;
-
+	new->empty = 1;
 	return new;
 }
 
-void
+static void
 sample(int n)
 {
-	char samp[256];
-	int length = dumpstack(tp, samp);
-	length += sprintf(samp + length, "\r\n");
+	++tp->nsamples;
+	setnotempty(tp);
+}
 
-	/* Send a stack sample over the socket. */
-	if (send(sock, samp, length, 0) == -1) {
-		/* Could not send a sample. No big deal. */
+static void
+emit(int n)
+{
+	static String *s = NULL;
+	if (!s)
+		s = newString(8000);
+	marshal(tree, s);
+	sappend(s, "\n");
+
+	/* Send a tree over the socket. */
+	if (send(sock, s->buf, s->len, 0) == -1) {
+		/* Could not send a tree. No big deal. */
+		printf("%s", s->buf);
+		printf("wc = %d\n", s->len);
 	}
+	s->len = 0;
+}
+
+static void
+marshal(Node *n, String *s)
+{
+	sappend(s, "{");
+
+	if (n->frame.fn)
+		sappend(s, "\"fn\":%ld,", (unsigned long)n->frame.fn);
+
+	if (n->frame.cs)
+		sappend(s, "\"cs\":%ld,", (unsigned long)n->frame.cs);
+
+	if (n->ncalls)
+		sappend(s, "\"ncalls\":%u,", n->ncalls);
+
+	if (n->nsamples)
+		sappend(s, "\"nsamples\":%u,", n->nsamples);
+
+	/* It's convenient, but hacky, to clear the counters here while we're
+	 * walking the tree. All counters are cleared after a tree is emitted,
+	 * so that the next tree begins at zero.  We also set the empty flag
+	 * so that future calls to marshal can skip empty branches. */
+	n->ncalls = 0;
+	n->nsamples = 0;
+	n->empty = 1;
+
+	if (n->len) {
+		sappend(s, "\"callees\":[");
+		for (int i = 0; i < n->len; ++i) {
+			if (n->callee[i]->empty)
+				continue;
+			marshal(n->callee[i], s);
+			sappend(s, ",");
+		}
+		if (',' == s->buf[s->len - 1])
+			s->len -= 1;
+		sappend(s, "]");
+	} else {
+		if (',' == s->buf[s->len - 1])
+			s->len -= 1;
+	}
+
+	sappend(s, "}");
+}
+
+static String *
+newString(unsigned size)
+{
+	String *s = (String *)malloc(sizeof(String));
+	char *new = (char *)malloc(size * sizeof(char));
+	if (!s || !new) {
+		printf("newString: allocation failed\n");
+		exit(1);
+	}
+
+	s->buf = new;
+	s->cap = size;
+	s->len = 0;
+	return s;
+}
+
+static void
+grow(String *s)
+{
+	char *new = (char *)realloc(s->buf, s->cap * 2 * sizeof(char));
+	if (!new) {
+		printf("grow: allocation failed\n");
+		exit(1);
+	}
+	s->buf = new;
+	s->cap *= 2;
 }
 
 static int
-dumpstack(Node *n, char *buf)
+sappend(String *s, const char *format, ...)
 {
-	int wc = 0;
+	/* Wrap snprintf so that the underlying buffer grows if it runs out of
+	 * space. */
+	va_list ap;
+	va_start(ap, format);
+	int wc;
 
-	/* If the current node is not an (immediate) child of the root of the
-	 * tree, dump its parent first. This both avoids dumping the meaningless
-	 * tree root and formats the sample so that the stack grows rightward.
-	 */
-
-	if (n->parent != tree) {
-		wc += dumpstack(n->parent, buf);
+retry:
+	wc = vsnprintf(s->buf + s->len, s->cap - s->len, format, ap);
+	if (s->cap - s->len <= wc) {
+		/* We ran out of buffer space. Allocate more and try again. */
+		grow(s);
+		goto retry;
 	}
 
-	/* All values are hex encoded to save a little space. */
-	wc += sprintf(buf + wc, "%lx:%lx:%x ",
-	              (unsigned long)n->frame.fn,
-	              (unsigned long)n->frame.cs,
-	              n->ncalls);
-
-	/* It's convenient, but hacky, to clear the counters here, while we're
-	 * walking the tree. Counters are cleared only after samples are taken.
-	 * Only counters which get sampled get cleared; some counters will
-	 * rarely be sampled and therefore rarely cleared, but that should not
-	 * be a problem. If there is risk of overflow, `unsigned long`s could
-	 * be used. */
-	n->ncalls = 0;
-
+	/* Successful write. Increment the slice length to indicate the
+	 * current length. */
+	va_end(ap);
+	s->len += wc;
 	return wc;
-}
-
-/* printNode is useful when debugging; it prints a Node and all of its children
- * to stdout in a human-readable way. */
-static void
-printNode(int indent, Node *n)
-{
-	if (n == tp)
-		printf("→");
-	else
-		printf(" ");
-
-	printf("%8d ", n->ncalls);
-	for (int i = 0; i < indent; ++i)
-		printf(".   ");
-
-	printf("%p:%p\n", n->frame.fn, n->frame.cs);
-
-	for (int i = 0; i < n->len; ++i)
-		printNode(1 + indent, n->callee[i]);
 }
 
 static void
 push(Frame f)
 {
-	Node *callee = hasCallee(tp, f);
-	Frame *new = NULL;
-	
-	/* Move tp to the current node. */
-	tp = callee;
-}
-
-static Node *
-hasCallee(Node *n, Frame f)
-{
-	Node *callee = NULL;
-	/* Search the callee list for the given frame. */
-	for (int i = 0; i < n->len; ++i) {
-		if (n->callee[i]->frame.cs == f.cs) {
-			callee = n->callee[i];
-			break;
-		}
-	}
-
+	Node *callee = hasCallee(tp, f.cs);
 	if (!callee) {
 		/* This is the first time visiting this part of the program; we
 		 * need to grow the list of callees at the current location. */
 		callee = appendCallee(tp, f);
+	}
+
+	/* Move tp to the current Node. */
+	tp = callee;
+}
+
+static Node *
+hasCallee(Node *n, void *cs)
+{
+	Node *callee = NULL;
+
+	/* Search the callee list for the given callsite.  It suffices to check
+	 * the callsite alone, since two different functions will never share a
+	 * callsite. */
+	for (int i = 0; i < n->len; ++i) {
+		if (n->callee[i]->frame.cs == cs) {
+			callee = n->callee[i];
+			break;
+		}
 	}
 
 	return callee;
@@ -218,8 +308,8 @@ appendCallee(Node *n, Frame f)
 			exit(1);
 		}
 
-		n->callee = new;
 		++n->cap;
+		n->callee = new;
 	}
 
 	++n->len;
@@ -229,9 +319,19 @@ appendCallee(Node *n, Frame f)
 }
 
 static void
+setnotempty(Node *n)
+{
+	n->empty = 0;
+	if (n->parent && n->parent->empty)
+		setnotempty(n->parent);
+}
+
+static void
 pop(Frame f)
 {
 	++tp->ncalls;
+	setnotempty(tp);
+
 	if (!tp->parent) {
 		printf("pop: called with null parent\n");
 		exit(1);

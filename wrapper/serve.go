@@ -2,50 +2,41 @@ package main
 
 import (
 	"bufio"
+	"encoding/json"
 	"fmt"
 	"net"
-	"strings"
+
+	"github.com/Shopify/sarama"
 )
 
-type StackFrame struct {
-	Frame
-	Ncalls uint
+type Node struct {
+	Fn, Cs           uint64 `json:",omitempty"`
+	Ncalls, Nsamples uint   `json:",omitempty"`
+	Callees          []Node `json:",omitempty"`
 }
 
-// Decode samples from the socket and relay them to an Sample channel.
-func relay(server net.Listener, samples chan []StackFrame) {
-	defer func() {
-		// There is a race condition between socket EOF and
-		// child exit. Nevertheless, if the socket closes, there
-		// is nothing left for relay() to do.
-
-		close(samples)
-	}()
-
+func relay(server net.Listener, producer sarama.AsyncProducer, done chan struct{}) {
 	conn, err := server.Accept()
 	check(err)
 
-	// Each line represents a sample.
 	line := bufio.NewScanner(conn)
 	for line.Scan() {
-		var s []StackFrame
-
-		// Each space-delimited word in a line represents a Frame.
-		frame := bufio.NewScanner(strings.NewReader(line.Text()))
-		frame.Split(bufio.ScanWords)
-		for frame.Scan() {
-			var f StackFrame
-			// Each colon-delimited word in a Frame represents an
-			// address.
-			addr := strings.Split(frame.Text(), ":")
-			_, err := fmt.Sscanf(addr[0], "%x", &f.Fn)
-			check(err)
-			_, err = fmt.Sscanf(addr[1], "%x", &f.Cs)
-			check(err)
-			_, err = fmt.Sscanf(addr[2], "%x", &f.Ncalls)
-			check(err)
-			s = append(s, f)
+		var n Node
+		err := json.Unmarshal(line.Bytes(), &n)
+		if err != nil {
+			fmt.Println(line.Text())
+			panic(err)
+		} else {
+			fmt.Println("wrapper: got", len(line.Bytes()), "B of valid JSON")
 		}
-		samples <- s
+		if producer != nil {
+			message := &sarama.ProducerMessage{
+				Topic: "sdkTest/sub",
+				Value: sarama.ByteEncoder(line.Bytes()),
+			}
+			producer.Input() <- message
+		}
 	}
+
+	done <- struct{}{}
 }
