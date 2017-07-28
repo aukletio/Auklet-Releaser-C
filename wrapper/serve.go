@@ -15,7 +15,7 @@ type Node struct {
 	Callees          []Node `json:",omitempty"`
 }
 
-func relay(server net.Listener, producer sarama.AsyncProducer, done chan struct{}) {
+func relay(server net.Listener, producer sarama.SyncProducer, done chan struct{}) {
 	conn, err := server.Accept()
 	check(err)
 
@@ -29,12 +29,13 @@ func relay(server net.Listener, producer sarama.AsyncProducer, done chan struct{
 		} else {
 			fmt.Println("wrapper: got", len(line.Bytes()), "B of valid JSON")
 		}
+
 		if producer != nil {
-			message := &sarama.ProducerMessage{
-				Topic: "sdkTest/sub",
+			p, o, err := producer.SendMessage(&sarama.ProducerMessage{
+				Topic: "test",
 				Value: sarama.ByteEncoder(line.Bytes()),
-			}
-			producer.Input() <- message
+			})
+			fmt.Printf("partition %v, offset %v, %v\n", p, o, err)
 		}
 	}
 

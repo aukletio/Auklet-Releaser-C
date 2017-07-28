@@ -6,6 +6,7 @@ import (
 	"net"
 	"os"
 	"os/exec"
+	"os/signal"
 	"runtime/pprof"
 
 	"github.com/Shopify/sarama"
@@ -23,6 +24,9 @@ func usage() {
 }
 
 func main() {
+	sigs := make(chan os.Signal)
+	signal.Notify(sigs)
+
 	var cpuprofile, network, quiet bool
 
 	flag.BoolVar(&cpuprofile, "p", false, "compute wrapper cpu profile")
@@ -52,7 +56,7 @@ func main() {
 	check(err)
 	defer server.Close()
 
-	var producer sarama.AsyncProducer
+	var producer sarama.SyncProducer
 	if network {
 		// Try to connect to the backend so we can post profiles to it.
 		producer, err = connect()
@@ -61,6 +65,13 @@ func main() {
 	}
 
 	done := make(chan struct{}, 2)
+	go func() {
+		for s := range sigs {
+			fmt.Println(s)
+			server.Close()
+		}
+	}()
+
 	go relay(server, producer, done)
 	go run(cmd, done)
 	<-done

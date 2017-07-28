@@ -63,6 +63,9 @@ main(int argc, char **argv)
 	ns = 0;
 	if (argc > 1)
 		ns = atoi(argv[1]);
+	if (ns < 0)
+		for (;;)
+			cpuHogger(cpuHog1, ns);
 	cpuHogger(cpuHog1, ns);
 	return 0;
 }
