@@ -10,10 +10,10 @@
 #include <sys/types.h>
 #include <sys/un.h>
 #include <time.h>
+#include <unistd.h>
 
 /* macros */
 #define SAMPLE_PD 10000
-#define SOCK_PATH "socket"
 
 /* types */
 typedef struct {
@@ -108,7 +108,7 @@ init(void)
 	}
 
 	remote.sun_family = AF_UNIX;
-	strcpy(remote.sun_path, SOCK_PATH);
+	sprintf(remote.sun_path, "socket-%d", getppid());
 	length = strlen(remote.sun_path) + sizeof(remote.sun_family);
 	if (connect(sock, (struct sockaddr *)&remote, length) == -1) {
 		return;
