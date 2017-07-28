@@ -1,4 +1,5 @@
 /* headers */
+#include <stdio.h>
 #include <stdlib.h>
 #include <time.h>
 
@@ -51,9 +52,17 @@ cpuHog2(void)
 	salt2 = foo;
 }
 
+__attribute__ ((constructor)) void
+startup(void)
+{
+	printf("constructor\n");
+	cpuHogger(cpuHog2, ns);
+}
+
 __attribute__ ((destructor)) void
 cleanup(void)
 {
+	printf("destructor\n");
 	cpuHogger(cpuHog2, ns);
 }
 

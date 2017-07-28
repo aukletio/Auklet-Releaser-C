@@ -40,6 +40,10 @@ typedef struct {
 /* function declarations */
 static __attribute__ ((constructor)) void init(void);
 static Node *newNode(Node *parent, Frame f);
+static void killNode(Node *n);
+static __attribute__ ((destructor)) void fini(void);
+static void cleanup(void);
+static void cleanupterm(int n);
 static void sample(int n);
 static void emit(int n);
 static void marshal(Node *n, String *s);
@@ -73,11 +77,16 @@ init(void)
 		.it_interval = {1, 0},
 		.it_value = {1, 0},
 	};
+	int termsig[] = {
+		SIGHUP, SIGINT, SIGKILL, SIGPIPE, SIGTERM, SIGUSR1, SIGUSR2,
+	};
 	struct sigaction sample_act = {
 		.sa_handler = sample,
 	}, tree_act = {
 		.sa_handler = emit,
-	};
+	}, term_act = {
+		.sa_handler = cleanupterm,
+	}, old_act;
 	int length;
 
 	tree = newNode(NULL, (Frame){0, 0});
@@ -99,9 +108,22 @@ init(void)
 	 * generating invalid JSON. */
 	sigfillset(&sample_act.sa_mask);
 	sigfillset(&tree_act.sa_mask);
+	sigfillset(&term_act.sa_mask);
 
 	sigaction(SIGPROF, &sample_act, NULL);
 	sigaction(SIGVTALRM, &tree_act, NULL);
+
+	/* For every signal for which termination is the  default action, we
+	 * want to clean up in a predictable way. */
+	for (int i = 0; i < sizeof(termsig)/sizeof(termsig[0]); ++i) {
+		sigaction(termsig[i], NULL, &old_act);
+		if (SIG_DFL != old_act.sa_handler) {
+			/* A non-default handler must have been installed. Don't
+			 * override it. */
+			continue;
+		}
+		sigaction(termsig[i], &term_act, NULL);
+	}
 
 	if ((sock = socket(AF_UNIX, SOCK_STREAM, 0)) == -1) {
 		return;
@@ -113,6 +135,36 @@ init(void)
 	if (connect(sock, (struct sockaddr *)&remote, length) == -1) {
 		return;
 	}
+}
+
+static __attribute__ ((destructor)) void
+fini(void)
+{
+	cleanup();
+
+	/* No need to call exit here; we assume the program is in the process of
+	 * terminating. */
+}
+
+static void
+cleanup(void)
+{
+	/* Disable instrumentation */
+	enter_action = nop;
+	exit_action = nop;
+
+	/* Emit final profile tree */
+	emit(0);
+
+	/* Free profile tree */
+	killNode(tree);
+}
+
+static void
+cleanupterm(int n)
+{
+	cleanup();
+	exit(1);
 }
 
 static Node *
@@ -136,6 +188,18 @@ newNode(Node *parent, Frame f)
 	new->len = 0;
 	new->empty = 1;
 	return new;
+}
+
+static void
+killNode(Node *n)
+{
+	/* Kill callees first */
+	for (int i = 0; i < n->len; ++i)
+		killNode(n->callee[i]);
+	free(n->callee);
+	n->callee = NULL;
+	free(n);
+	n = NULL;
 }
 
 static void
