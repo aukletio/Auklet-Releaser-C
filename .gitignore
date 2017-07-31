@@ -1,5 +1,6 @@
-instrument/instrument.a
-instrument/instrument.h
+instrument/instrument.o
+instrument/inst_test
 instrument/main
+instrument/main_instd
 wrapper/wrapper
 releaser/releaser

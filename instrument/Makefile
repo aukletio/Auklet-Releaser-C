@@ -1,6 +1,6 @@
 CFLAGS += -finstrument-functions -g
 
-all: main main-instd
+all: main main-instd inst_test
 
 main-instd: main.c instrument.o
 	gcc -o $@ $^ ${CFLAGS}
@@ -11,7 +11,13 @@ main: main.c
 instrument.o: inst.c
 	gcc -o $@ -c -g $<
 
-clean:
-	rm -f main main-instd instrument.o
+inst_test: inst_test.c
+	gcc -o $@ -I. $<
 
-.PHONY: all clean
+test: inst_test
+	@./$<
+
+clean:
+	rm -f main main-instd instrument.o inst_test
+
+.PHONY: all clean test
