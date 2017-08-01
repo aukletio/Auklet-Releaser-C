@@ -1,6 +1,6 @@
 instrument/instrument.o
 instrument/inst_test
 instrument/main
-instrument/main_instd
+instrument/main-instd
 wrapper/wrapper
 releaser/releaser
