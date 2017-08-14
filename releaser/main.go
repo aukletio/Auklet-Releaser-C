@@ -10,6 +10,7 @@ import (
 	"fmt"
 	"io"
 	"log"
+	"net/http"
 	"os"
 )
 
@@ -17,11 +18,19 @@ type Release struct {
 	DeployHash string            `json:"checksum"`
 	Symbols    []elf.Symbol      `json:"symbols"`
 	Dwarf      []dwarf.LineEntry `json:"dwarf"`
-	AppID string `json:"app_id"`
+	AppID      string            `json:"app_id"`
+}
+
+// The type BytesReadCloser allows bytes.Reader implement io.ReadCloser, which
+// is necessary for it to be used in an http.Request.
+type BytesReadCloser bytes.Reader
+
+func (s BytesReadCloser) Close() error {
+	return nil
 }
 
 func usage() {
-	fmt.Printf("usage: %v -appid appid -deploy deployfile -debug debugfile\n", os.Args[0])
+	fmt.Printf("usage: %v -apikey apikey -appid appid -deploy deployfile -debug debugfile\n", os.Args[0])
 	os.Exit(1)
 }
 
@@ -134,13 +143,14 @@ func (rel *Release) release(deployName string) {
 }
 
 func main() {
-	var deployName, debugName, appID string
+	var deployName, debugName, appID, apiKey string
 	flag.StringVar(&deployName, "deploy", "", "ELF binary to be deployed")
 	flag.StringVar(&debugName, "debug", "", "ELF binary containing debug symbols")
 	flag.StringVar(&appID, "appid", "", "App ID under which to create a release")
+	flag.StringVar(&apiKey, "apikey", "", "API key")
 	flag.Parse()
 
-	if flag.NFlag() != 3 {
+	if flag.NFlag() != 4 {
 		usage()
 	}
 
@@ -164,5 +174,24 @@ func main() {
 		panic(err)
 	}
 
-	fmt.Println(string(b))
+	body := bytes.NewReader(b)
+
+	endpoint := "https://api-staging.auklet.io/v1/releases/"
+
+	// Create a client to control request headers.
+	client := &http.Client{}
+	req, err := http.NewRequest("POST", endpoint, body)
+	if err != nil {
+		panic(err)
+	}
+	req.Header = map[string][]string{
+		"content-type": {"application/json"},
+		"apikey":       {apiKey},
+	}
+
+	resp, err := client.Do(req)
+	if err != nil {
+		panic(err)
+	}
+	fmt.Println(resp)
 }

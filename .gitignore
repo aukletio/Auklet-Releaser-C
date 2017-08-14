@@ -4,3 +4,4 @@ instrument/main
 instrument/main-instd
 wrapper/wrapper
 releaser/releaser
+releaser/secrets.sh
