@@ -1,0 +1,13 @@
+---
+engines:
+  gnu-complexity:
+    enabled: true
+  gofmt:
+    enabled: true
+  golint:
+    enabled: true
+  govet:
+    enabled: true
+ratings:
+  paths:
+  - "**.go"
