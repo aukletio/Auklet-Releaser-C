@@ -3,13 +3,13 @@ CFLAGS += -finstrument-functions -g
 all: main main-instd
 
 main-instd: main.c instrument.o
-	gcc -o $@ $^ ${CFLAGS}
+	gcc -v -o $@ $^ ${CFLAGS}
 
 main: main.c
-	gcc -o $@ $<
+	gcc -v -o $@ $<
 
 instrument.o: inst.c
-	gcc -o $@ -c -g $<
+	gcc -v -o $@ -c -g $<
 
 clean:
 	rm -f main main-instd instrument.o
