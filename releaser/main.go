@@ -12,13 +12,16 @@ import (
 	"log"
 	"net/http"
 	"os"
+	"os/exec"
 )
 
 type Release struct {
-	DeployHash string            `json:"checksum"`
-	Symbols    []elf.Symbol      `json:"symbols"`
-	Dwarf      []dwarf.LineEntry `json:"dwarf"`
-	AppID      string            `json:"app_id"`
+	AppID       string            `json:"app_id"`
+	DeployHash  string            `json:"checksum"`
+	CommitHash  string            `json:"commit_hash,omitempty"`
+	GitTopLevel string            `json:"git_top_level,omitempty"`
+	Dwarf       []dwarf.LineEntry `json:"dwarf"`
+	Symbols     []elf.Symbol      `json:"symbols"`
 }
 
 // The type BytesReadCloser allows bytes.Reader implement io.ReadCloser, which
@@ -81,6 +84,28 @@ func (rel *Release) symbolize(debugpath string) {
 			rel.Dwarf = append(rel.Dwarf, le)
 		}
 	}
+}
+
+func (rel *Release) git() error {
+	// Associate a release with the top-level directory of the Git repo.
+	gtl := exec.Command("git", "rev-parse", "--show-toplevel")
+	out, err := gtl.Output()
+	if err != nil {
+		// Not a git repo or don't have git
+		return err
+	}
+
+	rel.GitTopLevel = string(out[:len(out)-1])
+
+	// Associate the release with the current commit hash.
+	rph := exec.Command("git", "rev-parse", "HEAD")
+	out, err = rph.Output()
+	if err != nil {
+		return err
+	}
+
+	rel.CommitHash = string(out[:len(out)-1])
+	return nil
 }
 
 func hash(s *elf.Section) []byte {
@@ -163,6 +188,11 @@ func main() {
 	// reject ELF pairs with disparate sections
 	if !sectionsMatch(deployName, debugName) {
 		os.Exit(1)
+	}
+
+	err := rel.git()
+	if err != nil {
+		panic(err)
 	}
 
 	// create a release
