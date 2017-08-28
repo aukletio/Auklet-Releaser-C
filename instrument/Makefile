@@ -4,16 +4,16 @@ INSTFLAGS = -finstrument-functions
 all: main main-instd inst_test
 
 main-instd: main.c instrument.o
-	gcc -v -o $@ $^ ${INSTFLAGS} ${CFLAGS}
+	gcc ${CFLAGS} -o $@ $^ ${INSTFLAGS}
 
 main: main.c
-	gcc -v -o $@ $< ${CFLAGS}
+	gcc ${CFLAGS} -o $@ $<
 
 instrument.o: inst.c
-	gcc -v -o $@ -c -g $< ${CFLAGS}
+	gcc ${CFLAGS} -o $@ -c -g $<
 
 inst_test: inst_test.c
-	gcc -o $@ -I. $<
+	gcc ${CFLAGS} -o $@ -I. $<
 
 test: inst_test
 	@./$<
