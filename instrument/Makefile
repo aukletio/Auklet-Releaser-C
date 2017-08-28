@@ -1,15 +1,16 @@
-CFLAGS += -finstrument-functions -g
+CFLAGS = -g -std=c99 -pedantic -D_POSIX_C_SOURCE=200809L
+INSTFLAGS = -finstrument-functions
 
 all: main main-instd inst_test
 
 main-instd: main.c instrument.o
-	gcc -o $@ $^ ${CFLAGS}
+	gcc -v -o $@ $^ ${INSTFLAGS} ${CFLAGS}
 
 main: main.c
-	gcc -o $@ $<
+	gcc -v -o $@ $< ${CFLAGS}
 
 instrument.o: inst.c
-	gcc -o $@ -c -g $<
+	gcc -v -o $@ -c -g $< ${CFLAGS}
 
 inst_test: inst_test.c
 	gcc -o $@ -I. $<
