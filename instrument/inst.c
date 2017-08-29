@@ -15,6 +15,23 @@
 /* macros */
 #define len(x) (sizeof(x)/sizeof(x[0]))
 
+/* fault injector */
+#if defined(FAULT_RATE)
+	static void *
+	fault_inject(void *p)
+	{
+		if (rand() < RAND_MAX/FAULT_RATE) {
+			printf("fault injected\n");
+			return NULL;
+		} else {
+			return p;
+		}
+	}
+
+	#define malloc(size)       fault_inject(malloc(size))
+	#define realloc(ptr, size) fault_inject(realloc((ptr), (size)))
+#endif
+
 /* types */
 typedef struct {
 	void *fn, *cs;
@@ -540,6 +557,9 @@ inst_nop(Frame f)
 static __attribute__ ((constructor)) void
 init(void)
 {
+#if defined(FAULT_RATE)
+	srand(FAULT_RATE);
+#endif
 	run_enablers();
 }
 
