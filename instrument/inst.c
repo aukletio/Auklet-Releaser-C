@@ -18,18 +18,18 @@
 /* fault injector */
 #if defined(FAULT_RATE)
 	static void *
-	fault_inject(void *p)
+	fault_inject(void *ptr, size_t size)
 	{
 		if (rand() < RAND_MAX/FAULT_RATE) {
 			printf("fault injected\n");
 			return NULL;
 		} else {
-			return p;
+			return realloc(ptr, size);
 		}
 	}
 
-	#define malloc(size)       fault_inject(malloc(size))
-	#define realloc(ptr, size) fault_inject(realloc((ptr), (size)))
+	#define malloc(size)       fault_inject(NULL, (size))
+	#define realloc(ptr, size) fault_inject((ptr), (size))
 #endif
 
 /* types */
@@ -65,8 +65,8 @@ static int enable_dtor_cb(void);
 static void disable_dtor_cb(void);
 static int enable_sigactions(void);
 static void disable_sigactions(void);
-static int alloc_root(void);
-static void free_root(void);
+static int alloc_storage(void);
+static void free_storage(void);
 static int enable_socket(void);
 static void disable_socket(void);
 
@@ -97,9 +97,9 @@ static void dtor_cleanup(void);
 static void dtor_nop(void);
 
 /* global variables */
-static struct itimerval old_sample_timer, old_emit_timer;
 static int termsig[] = {SIGHUP, SIGINT, SIGPIPE, SIGTERM, SIGUSR1, SIGUSR2};
 static struct sigaction old_sample_act, old_emit_act, old_term_act[len(termsig)];
+static String s;
 static void (*dtor_cb)(void) = dtor_nop;
 static void (*enter_action)(Frame f) = inst_nop;
 static void (*exit_action)(Frame f) = inst_nop;
@@ -111,7 +111,7 @@ static struct {
 	void (*disabler)(void);
 } config[] = {
 	{"socket",     enable_socket,     disable_socket    },
-	{"root",       alloc_root,        free_root         },
+	{"storage",    alloc_storage,     free_storage      },
 	{"inst",       enable_inst,       disable_inst      },
 	{"dtor_cb",    enable_dtor_cb,    disable_dtor_cb   },
 	{"timers",     enable_timers,     disable_timers    },
@@ -175,9 +175,9 @@ enable_timers(void)
 		.it_value = emit_pd,
 	};
 
-	if (setitimer(ITIMER_VIRTUAL, &emit_timer, &old_emit_timer) == -1)
+	if (setitimer(ITIMER_VIRTUAL, &emit_timer, NULL) == -1)
 		goto error;
-	if (setitimer(ITIMER_PROF, &sample_timer, &old_sample_timer) == -1)
+	if (setitimer(ITIMER_PROF, &sample_timer, NULL) == -1)
 		goto error;
 	return 0;
 error:
@@ -188,13 +188,6 @@ error:
 static void
 disable_timers(void)
 {
-	if (setitimer(ITIMER_VIRTUAL, &old_emit_timer, NULL) == -1)
-		goto error;
-	if (setitimer(ITIMER_PROF, &old_sample_timer, NULL) == -1 )
-		goto error;
-	return;
-error:
-	perror("disable_timers");
 }
 
 static int
@@ -256,6 +249,8 @@ error:
 static void
 disable_sigactions(void)
 {
+	old_emit_act.sa_handler = SIG_IGN;
+	old_sample_act.sa_handler = SIG_IGN;
 	if (sigaction(SIGVTALRM, &old_emit_act, NULL) == -1)
 		goto error;
 	if (sigaction(SIGPROF, &old_sample_act, NULL) == -1)
@@ -269,21 +264,27 @@ error:
 }
 
 static int
-alloc_root(void)
+alloc_storage(void)
 {
 	tree = newNode(NULL, (Frame){0, 0});
 	if (!tree)
 		return 1;
 	tp = tree;
+
+	if (newString(&s, 8000))
+		return 1;
 	return 0;
 }
 
 static void
-free_root(void)
+free_storage(void)
 {
 	killNode(tree);
 	tree = NULL;
 	tp = NULL;
+
+	if (s.cap)
+		free(s.buf);
 }
 
 static int
@@ -385,8 +386,10 @@ appendCallee(Node *n, Frame f)
 		n->callee = new;
 	}
 
-	++n->len;
 	node = newNode(n, f);
+	if (!node)
+		return NULL;
+	++n->len;
 	n->callee[n->len - 1] = node;
 	return node;
 }
@@ -612,14 +615,6 @@ sig_emit(int n)
 static int
 emit(void)
 {
-	static String s;
-	if (!s.len) {
-		if (newString(&s, 8000)) {
-			printf("emit: newString failed\n");
-			goto error;
-		}
-	}
-
 	if (marshal(tree, &s)) {
 		printf("emit: marshal failed\n");
 		goto error;
