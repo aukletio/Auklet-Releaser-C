@@ -15,6 +15,7 @@ import (
 	"os/exec"
 )
 
+// A Release represents a release of a customer's app to be sent to the backend.
 type Release struct {
 	AppID       string            `json:"app_id"`
 	DeployHash  string            `json:"checksum"`
@@ -24,8 +25,8 @@ type Release struct {
 	Symbols     []elf.Symbol      `json:"symbols"`
 }
 
-// The type BytesReadCloser allows bytes.Reader implement io.ReadCloser, which
-// is necessary for it to be used in an http.Request.
+// A BytesReadCloser is a bytes.Reader that satisfies io.ReadCloser, which is
+// necessary for it to be used in an http.Request.
 type BytesReadCloser bytes.Reader
 
 func (s BytesReadCloser) Close() error {

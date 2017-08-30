@@ -5,10 +5,10 @@ import (
 	"fmt"
 	"net"
 	"os"
-	"strconv"
 	"os/exec"
 	"os/signal"
 	"runtime/pprof"
+	"strconv"
 
 	"github.com/Shopify/sarama"
 )
@@ -53,7 +53,7 @@ func main() {
 	// by computing a checksum of the command binary.
 
 	// Open a socket to communicate with the child command.
-	server, err := net.Listen("unix", "socket-" + strconv.Itoa(os.Getpid()))
+	server, err := net.Listen("unix", "socket-"+strconv.Itoa(os.Getpid()))
 	check(err)
 	defer server.Close()
 
