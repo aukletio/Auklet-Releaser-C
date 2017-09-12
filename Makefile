@@ -1,6 +1,11 @@
 all: build test
 
-build: wrapper releaser instrument
+build: wrapper releaser instrument depend
+
+depend:
+	mkdir -p ~/.go_project/src/github.com/${CIRCLE_PROJECT_USERNAME} && \
+	ln -s ${HOME}/${CIRCLE_PROJECT_REPONAME} ${HOME}/.go_project/src/github.com/${CIRCLE_PROJECT_USERNAME}/${CIRCLE_PROJECT_REPONAME} && \
+	go get -t -d -v ./...
 
 wrapper:
 	go install ./wrapper
@@ -14,4 +19,4 @@ instrument:
 test:
 	make -C test/src && cd test/target && ./run.sh
 
-.PHONY: all build wrapper releaser instrument test
+.PHONY: all depend build wrapper releaser instrument test
