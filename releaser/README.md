@@ -1,4 +1,4 @@
-# APM Releaser
+# Auklet Releaser
 
 Command `releaser` takes a deployable binary and a debuggable binary, checks to
 make sure they're "the same program" and that the debuggable binary is actually
@@ -39,11 +39,3 @@ A release object, at minimum, should consist of
 - checksum of the deploy binary
 - ELF symbol table
 - DWARF data
-
-## How to Test
-
-	cd test
-	make
-	cd ..
-	./test.sh
-

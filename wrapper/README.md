@@ -1,18 +1,17 @@
-# APM Wrapper
+# Auklet Wrapper
 
 A command-line program that executes and communicates with your program in
 production.
 
 ## Building the Wrapper
 
-	cd wrapper
-	go build
+	go install
 
 ## Running the Profiler
 
-First build the instrument and link against your program. Then run
+First install the instrument and link against your program. Then run
 
-	./wrapper [flags] your-program args ...
+	wrapper [flags] your-program args ...
 
 ## Command-line flags
 

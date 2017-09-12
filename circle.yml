@@ -1,7 +1,7 @@
 dependencies:
   override:
-    - sh ~/$CIRCLE_PROJECT_REPONAME/utilities/build.sh
+    - make -C ~/$CIRCLE_PROJECT_REPONAME/ build
 
 test:
   override:
-    - sh ~/$CIRCLE_PROJECT_REPONAME/utilities/circletestrunner.sh
+    - make -C ~/$CIRCLE_PROJECT_REPONAME/ test

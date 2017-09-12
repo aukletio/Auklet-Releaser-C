@@ -1,13 +1,7 @@
-CFLAGS = -g -std=c99 -pedantic -D_POSIX_C_SOURCE=200809L
-INSTFLAGS = -finstrument-functions
+INSTALL = /usr/local/lib
+CFLAGS = -g -std=c99 -pedantic -D_POSIX_C_SOURCE=200809L -D_GNU_SOURCE
 
-all: main main-instd inst_test
-
-main-instd: main.c instrument.o
-	gcc ${CFLAGS} -o $@ $^ ${INSTFLAGS}
-
-main: main.c
-	gcc ${CFLAGS} -o $@ $<
+all: install
 
 instrument.o: inst.c
 	gcc ${CFLAGS} -o $@ -c -g $<
@@ -18,7 +12,16 @@ inst_test: inst_test.c
 test: inst_test
 	@./$<
 
-clean:
-	rm -f main main-instd instrument.o inst_test
+libauklet.a: instrument.o
+	ar rcs $@ $<
 
-.PHONY: all clean test
+install: libauklet.a
+	sudo cp $< ${INSTALL}/
+
+uninstall:
+	rm -f ${INSTALL}/libauklet.a
+
+clean:
+	rm -f instrument.o inst_test libauklet.a
+
+.PHONY: all clean test install uninstall

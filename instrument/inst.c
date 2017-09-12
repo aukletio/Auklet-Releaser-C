@@ -7,7 +7,6 @@
 #include <string.h>
 #include <sys/socket.h>
 #include <sys/time.h>
-#include <sys/types.h>
 #include <sys/un.h>
 #include <time.h>
 #include <unistd.h>
@@ -170,7 +169,7 @@ enable_timers(void)
 	struct itimerval sample_timer = {
 		.it_interval = sample_pd,
 		.it_value = sample_pd,
-	}, emit_timer = { 
+	}, emit_timer = {
 		.it_interval = emit_pd,
 		.it_value = emit_pd,
 	};

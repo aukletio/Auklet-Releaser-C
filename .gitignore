@@ -1,7 +1,13 @@
-instrument/instrument.o
 instrument/inst_test
-instrument/main
-instrument/main-instd
-wrapper/wrapper
-releaser/releaser
-releaser/secrets.sh
+instrument/instrument.o
+instrument/libauklet.a
+
+# Credentials needed by wrapper at runtime on the target
+test/target/ck_ca
+test/target/ck_cert
+test/target/ck_private_key
+
+# Files needed by releaser on build machine
+test/src/main
+test/src/main-debug
+test/src/secrets.sh
