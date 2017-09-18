@@ -4,4 +4,4 @@ machine:
 
 dependencies:
   override:
-    - make -C ~/$CIRCLE_PROJECT_REPONAME/ depend build
+    - make -C ~/$CIRCLE_PROJECT_REPONAME/ depend all
