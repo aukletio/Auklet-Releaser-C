@@ -1,7 +1,7 @@
+machine:
+  environment:
+    GOBIN: $GOPATH/bin
+
 dependencies:
   override:
-    - make -C ~/$CIRCLE_PROJECT_REPONAME/ build
-
-test:
-  override:
-    - make -C ~/$CIRCLE_PROJECT_REPONAME/ test
+    - make -C ~/$CIRCLE_PROJECT_REPONAME/ depend build

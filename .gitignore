@@ -8,6 +8,6 @@ test/target/ck_cert
 test/target/ck_private_key
 
 # Files needed by releaser on build machine
-test/src/main
-test/src/main-debug
+test/src/snellius
+test/src/snellius-debug
 test/src/secrets.sh
