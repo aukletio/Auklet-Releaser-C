@@ -598,8 +598,10 @@ __cyg_profile_func_exit(void *fn, void *cs)
 static void
 sig_sample(int n)
 {
-	++tp->nsamples;
-	setnotempty(tp);
+	for (Node *n = tp; n != NULL; n = n->parent) {
+		++n->nsamples;
+		setnotempty(n);
+	}
 }
 
 static void
