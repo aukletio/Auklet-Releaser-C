@@ -27,7 +27,13 @@ releaser: releaser/*.go
 instrument: instrument/libauklet.a
 	sudo cp $< ${INST_INSTALL}
 
-.PHONY: profiler wrapper releaser instrument
+instrument-clean:
+	rm -f instrument/libauklet.a instrument/instrument.o
+
+instrument-uninstall:
+	sudo rm -f ${INST_INSTALL}/libauklet.a
+
+.PHONY: profiler wrapper releaser instrument instrument-clean instrument-uninstall
 
 instrument/libauklet.a: instrument/instrument.o
 	ar rcs $@ $<
@@ -50,7 +56,13 @@ test-release: test/src/snellius test/src/snellius-debug
 test-install: test/src/snellius
 	sudo cp $< /usr/local/bin/
 
-.PHONY: test test-release test-install
+test-clean:
+	rm -f test/src/snellius{,-debug}
+
+test-uninstall:
+	sudo rm -f /usr/local/bin/snellius
+
+.PHONY: test test-release test-install test-clean test-uninstall
 
 test/src/snellius: test/src/snellius-debug
 	cp $< $@
@@ -58,3 +70,9 @@ test/src/snellius: test/src/snellius-debug
 
 test/src/snellius-debug: test/src/snellius.c
 	gcc -o $@ $< ${CFLAGS} ${INSTFLAGS} ${INSTLIBS}
+
+clean: test-clean instrument-clean
+
+uninstall: test-uninstall instrument-uninstall
+
+.PHONY: clean
