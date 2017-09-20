@@ -24,8 +24,8 @@ function address and callsite, if they differ in their stacktrace.
 Callgraphs refer to functions by their addresses in the virtual memory space
 provided by the kernel. These addresses can later be "symbolized" with debugging
 and symbol information, which associates the function addresses with function
-names and source code locations.^[A basic callgraph generator and symbolizer
-script can be found [here][3]]
+names and source code locations. A basic callgraph generator and symbolizer
+script can be found [here][3].
 
 [3]: https://git.2f30.org/callgraph/files.html
 
