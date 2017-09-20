@@ -7,8 +7,9 @@ inaccurate.
 
 ## Compiling
 
-At compile-time, you simply need to pass the flag `-finstrument-functions` to
-your compiler.
+At compile-time, pass the flags `-finstrument-functions -g` to your compiler.
+The releaser needs debug information for your program; that's why the `-g` flag
+is required. 
 
 ## Linking
 
@@ -17,12 +18,29 @@ GCC, [the order of arguments matters][1].
 
 [1]: https://stackoverflow.com/questions/6247926/gcc-command-line-argument-pickiness
 
+## Releasing
+
+If you want to release a stripped executable (one without debug info), copy the
+debuggable executable before running `strip`:
+
+	cp x_debug x_stripped
+	strip x_stripped
+
+Then you can create a release.
+
+	releaser -appid $APP_ID -apikey $API_KEY -debug x_debug -deploy x_stripped
+
+If you want to release a debuggable executable, give `-debug` and `-deploy` the
+same filename.
+
+	releaser -appid $APP_ID -apikey $API_KEY -debug x_debug -deploy x_debug
+
 ## Troubleshooting
 
 Verify that the `-finstrument-functions` flag is working. Build your program
 with debug info (use `-g`). The command
 
-	nm my_executable | grep __cyg_profile_func_
+	nm x_debug | grep __cyg_profile_func_
 
 should show two functions.
 
