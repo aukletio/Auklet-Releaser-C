@@ -9,10 +9,10 @@ The basic mechanism for this is the compile-time GCC-compatible flag,
 into every function in the current compilation unit. These are used as "hooks"
 that enable the instrument to track your program's stack.
 
-[1]: https://gcc.gnu.org/onlinedocs/gcc/Common-Function-Attributes.html#Common-Function-Attributes
+[1]: https://gcc.gnu.org/onlinedocs/gcc-4.3.3/gcc/Code-Gen-Options.html
 
 The goal of the instrument is to generate a [callgraph][2], which is like a
-roadmap of your program's execution. In Auklet, a callgraph is an n-ary tree in
+roadmap of your program's execution. In Auklet, a callgraph is a tree in
 which each node corresponds to a particular function. Auklet's callgraph is more
 detailed than traditional directed-acyclic-graph (DAG) callgraphs, because it
 preserves callsite and stacktrace information. This means that a node in the
