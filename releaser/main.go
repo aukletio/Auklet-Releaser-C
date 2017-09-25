@@ -2,7 +2,7 @@ package main
 
 import (
 	"bytes"
-	"crypto/md5"
+	"crypto/sha512"
 	"debug/dwarf"
 	"debug/elf"
 	"encoding/json"
@@ -10,18 +10,31 @@ import (
 	"fmt"
 	"io"
 	"log"
+	"net/http"
 	"os"
+	"os/exec"
 )
 
+// A Release represents a release of a customer's app to be sent to the backend.
 type Release struct {
-	DeployHash string            `json:"checksum"`
-	Symbols    []elf.Symbol      `json:"symbols"`
-	Dwarf      []dwarf.LineEntry `json:"dwarf"`
-	AppID string `json:"app_id"`
+	AppID       string            `json:"app_id"`
+	DeployHash  string            `json:"checksum"`
+	CommitHash  string            `json:"commit_hash,omitempty"`
+	GitTopLevel string            `json:"absolute_path_prefix,omitempty"`
+	Dwarf       []dwarf.LineEntry `json:"dwarf"`
+	Symbols     []elf.Symbol      `json:"symbols"`
+}
+
+// A BytesReadCloser is a bytes.Reader that satisfies io.ReadCloser, which is
+// necessary for it to be used in an http.Request.
+type BytesReadCloser bytes.Reader
+
+func (s BytesReadCloser) Close() error {
+	return nil
 }
 
 func usage() {
-	fmt.Printf("usage: %v -appid appid -deploy deployfile -debug debugfile\n", os.Args[0])
+	log.Printf("usage: %v -apikey apikey -appid appid -deploy deployfile -debug debugfile\n", os.Args[0])
 	os.Exit(1)
 }
 
@@ -74,9 +87,33 @@ func (rel *Release) symbolize(debugpath string) {
 	}
 }
 
+func (rel *Release) git() error {
+	// Associate a release with the top-level directory of the Git repo.
+	gtl := exec.Command("git", "rev-parse", "--show-toplevel")
+	out, err := gtl.CombinedOutput()
+	if err != nil {
+		// Not a git repo or don't have git
+		log.Println(string(out))
+		panic(err)
+	}
+
+	rel.GitTopLevel = string(out[:len(out)-1])
+
+	// Associate the release with the current commit hash.
+	rph := exec.Command("git", "rev-parse", "HEAD")
+	out, err = rph.Output()
+	if err != nil {
+		log.Println(string(out))
+		panic(err)
+	}
+
+	rel.CommitHash = string(out[:len(out)-1])
+	return nil
+}
+
 func hash(s *elf.Section) []byte {
 	r := s.Open()
-	h := md5.New()
+	h := sha512.New512_224()
 	if _, err := io.Copy(h, r); err != nil {
 		log.Fatal(err)
 	}
@@ -104,13 +141,13 @@ func sectionsMatch(deployName, debugName string) bool {
 
 		debugsect := debugfile.Section(deploysect.Name)
 		if debugsect == nil {
-			fmt.Printf("debug file %v lacks section %v from deploy file %v\n",
+			log.Printf("releaser: debug file %v lacks section %v from deploy file %v\n",
 				debugName, deploysect.Name, deployName)
 			continue
 		}
 
 		if bytes.Compare(hash(deploysect), hash(debugsect)) != 0 {
-			fmt.Printf("section %-15v %-18v differs\n",
+			log.Printf("releaser: section %-15v %-18v differs\n",
 				deploysect.Name, deploysect.Type)
 			return false
 		}
@@ -125,7 +162,7 @@ func (rel *Release) release(deployName string) {
 	}
 	defer f.Close()
 
-	dh := md5.New()
+	dh := sha512.New512_224()
 	if _, err := io.Copy(dh, f); err != nil {
 		log.Fatal(err)
 	}
@@ -134,13 +171,14 @@ func (rel *Release) release(deployName string) {
 }
 
 func main() {
-	var deployName, debugName, appID string
+	var deployName, debugName, appID, apiKey string
 	flag.StringVar(&deployName, "deploy", "", "ELF binary to be deployed")
 	flag.StringVar(&debugName, "debug", "", "ELF binary containing debug symbols")
 	flag.StringVar(&appID, "appid", "", "App ID under which to create a release")
+	flag.StringVar(&apiKey, "apikey", "", "API key")
 	flag.Parse()
 
-	if flag.NFlag() != 3 {
+	if flag.NFlag() != 4 {
 		usage()
 	}
 
@@ -155,6 +193,8 @@ func main() {
 		os.Exit(1)
 	}
 
+	rel.git()
+
 	// create a release
 	rel.release(deployName)
 
@@ -163,6 +203,46 @@ func main() {
 	if err != nil {
 		panic(err)
 	}
-
 	fmt.Println(string(b))
+
+	body := bytes.NewReader(b)
+
+	urls := map[string]string{
+		"production": "https://api.auklet.io/v1/releases/",
+		"qa":         "https://api-qa.auklet.io/v1/releases/",
+		"staging":    "https://api-staging.auklet.io/v1/releases/",
+	}
+
+	endpoint := os.Getenv("AUKLET_RELEASE_ENDPOINT")
+	if endpoint == "" {
+		endpoint = "production"
+	}
+	url, in := urls[endpoint]
+	if !in {
+		panic("releaser: unknown endpoint: " + endpoint)
+	}
+
+	// Create a client to control request headers.
+	client := &http.Client{}
+	req, err := http.NewRequest("POST", url, body)
+	if err != nil {
+		panic(err)
+	}
+	req.Header = map[string][]string{
+		"content-type": {"application/json"},
+		"apikey":       {apiKey},
+	}
+
+	resp, err := client.Do(req)
+	if err != nil {
+		panic(err)
+	}
+	log.Println("releaser:", resp.Status)
+	log.Printf("releaser:\n" +
+	           "    appid: %v\n" +
+	           "    commithash: %v\n" +
+	           "    checksum: %v\n",
+	           rel.AppID,
+	           rel.CommitHash,
+	           rel.DeployHash)
 }

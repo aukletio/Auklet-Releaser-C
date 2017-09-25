@@ -10,9 +10,9 @@ import (
 
 func connect() (sarama.SyncProducer, error) {
 	certpool := x509.NewCertPool()
-	pemCerts, err := ioutil.ReadFile("RootCA.crt")
-	dsc := "fd0a4b895f-certificate.pem.crt"
-	dpk := "fd0a4b895f-private.pem.key"
+	pemCerts, err := ioutil.ReadFile("ck_ca")
+	dsc := "ck_cert"
+	dpk := "ck_private_key"
 	if err == nil {
 		certpool.AppendCertsFromPEM(pemCerts)
 	}
@@ -30,9 +30,15 @@ func connect() (sarama.SyncProducer, error) {
 
 	config := sarama.NewConfig()
 	config.Producer.Return.Successes = true
-	config.Net.TLS.Enable = false
+	config.Net.TLS.Enable = true
 	config.Net.TLS.Config = &tc
 	config.ClientID = "ProfileTest"
 
-	return sarama.NewSyncProducer([]string{"localhost:9092"}, config)
+	brokers := []string{
+		"dogsled-01.srvs.cloudkafka.com:9093",
+		"dogsled-02.srvs.cloudkafka.com:9093",
+		"dogsled-03.srvs.cloudkafka.com:9093",
+	}
+
+	return sarama.NewSyncProducer(brokers, config)
 }

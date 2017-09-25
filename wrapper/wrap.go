@@ -3,14 +3,14 @@ package main
 import (
 	"flag"
 	"fmt"
+	"log"
 	"net"
 	"os"
-	"strconv"
 	"os/exec"
 	"os/signal"
 	"runtime/pprof"
-
-	"github.com/Shopify/sarama"
+	"strconv"
+	"sync"
 )
 
 func check(err error) {
@@ -49,32 +49,31 @@ func main() {
 	}
 	cmd := exec.Command(args[0], args[1:]...)
 
-	// TODO: Authenticate the command (associate with an existing release)
-	// by computing a checksum of the command binary.
+	cksum := checksum(cmd.Path)
+	if !valid(cksum) {
+		log.Fatal("wrapper: invalid checksum")
+	}
 
 	// Open a socket to communicate with the child command.
-	server, err := net.Listen("unix", "socket-" + strconv.Itoa(os.Getpid()))
+	server, err := net.Listen("unix", "socket-"+strconv.Itoa(os.Getpid()))
 	check(err)
 	defer server.Close()
 
-	var producer sarama.SyncProducer
-	if network {
-		// Try to connect to the backend so we can post profiles to it.
-		producer, err = connect()
-		check(err)
-		defer producer.Close()
-	}
-
-	done := make(chan struct{}, 2)
 	go func() {
 		for s := range sigs {
-			fmt.Println(s)
+			log.Println(s)
 			server.Close()
+			os.Exit(0)
 		}
 	}()
 
-	go relay(server, producer, done)
-	go run(cmd, done)
-	<-done
-	<-done
+	var wg sync.WaitGroup
+	if network {
+		wg.Add(1)
+		go relay(server, cksum, &wg)
+	}
+
+	wg.Add(1)
+	go run(cmd, &wg)
+	wg.Wait()
 }

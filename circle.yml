@@ -1,7 +1,11 @@
+machine:
+  environment:
+    GOBIN: $GOPATH/bin
+
 dependencies:
   override:
-    - sh ~/$CIRCLE_PROJECT_REPONAME/utilities/build.sh
+    - make -C ~/$CIRCLE_PROJECT_REPONAME/ depend profiler test-install
 
 test:
   override:
-    - sh ~/$CIRCLE_PROJECT_REPONAME/utilities/circletestrunner.sh
+    - snellius 10000

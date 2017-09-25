@@ -1,29 +1,26 @@
-# APM Instrument
+# Auklet Instrument
 
 A C library that your program is linked against at compile time.
 
 ## Linking a C/C++ program against the instrument library
 
-Build the instrument by running
+Build and install the instrument by running
 
 	make
-
-Then copy `instrument.o` to the build directory of the C/C++ program you want to
-profile.
-
-	cp instrument.o /your/build/directory
 
 Use the following toolchain arguments when compiling your program. For instance,
 if using a Makefile, you might add something like
 
 	CFLAGS += -finstrument-functions
-	OBJ += instrument.o
+	LDLIBS += -lauklet
 
-When in doubt, look at `Makefile`, which builds a simple C program.
+If using CMake, your CMakeLists.txt might have
 
-## How to Test
+	set(CMAKE_CXX_FLAGS "-finstrument-functions")
+	target_link_libararies(my_executable auklet)
 
-Build the wrapper and instrument, then run
+See `test/` for an example project.
 
-	cd instrument
-	./test.sh
+## How to run unit tests
+
+	make test

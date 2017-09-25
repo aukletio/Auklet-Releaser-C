@@ -1,4 +1,4 @@
-# APM Releaser
+# Auklet Releaser
 
 Command `releaser` takes a deployable binary and a debuggable binary, checks to
 make sure they're "the same program" and that the debuggable binary is actually
@@ -7,7 +7,10 @@ is releasable.
 
 ## Usage
 
-	./releaser -deploy deployfile -debug debugfile
+Specify the instrumented binary to be deployed, the binary that contains debug
+info, the app ID, and the API key.
+
+	./releaser -deploy deployfile -debug debugfile -appid appid -apikey apikey
 
 ## Functionality
 
@@ -33,14 +36,6 @@ A release object, at minimum, should consist of
 
 - program name
 - release version
-- md5 checksum of the deploy binary
+- checksum of the deploy binary
 - ELF symbol table
 - DWARF data
-
-## How to Test
-
-	cd test
-	make
-	cd ..
-	./test.sh
-

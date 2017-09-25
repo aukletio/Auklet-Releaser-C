@@ -13,21 +13,8 @@ See the component directories for specific information.
 
 # How to Build
 
-	cd wrapper
-	go build
-
-	cd ../releaser
-	go build
-	cd test
-	make
-
-	cd ../../instrument
-	make
+	make build
 
 # How to Test
 
-	cd releaser
-	./test.sh
-
-	cd ../instrument
-	./test.sh
+	make test
