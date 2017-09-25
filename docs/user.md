@@ -17,7 +17,7 @@ The system that deploys your code (probably the same as what builds it) needs to
 have the releaser installed. For convenience, it should appear in `$PATH`. On
 Ubuntu, you can put it in `/usr/local/bin`.
 
-### Building
+## Building
 
 C and C++ programs are traditionally built in two stages: compilation and
 linking.
