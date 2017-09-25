@@ -95,11 +95,9 @@ position of the `-libauklet` flag.
   instrument assumes that it is in the child process of the wrapper. If you need
   to execute your program from a script, invoke the wrapper in the script:
 
-	#!/bin/sh
-
-	ENVAR='some important setting'
-
-	wrapper -n executable arg1 arg2
+      #!/bin/sh
+      ENVAR='some important setting'
+      wrapper -n executable arg1 arg2
 
 - The wrapper assumes that it has permission to create files in the current
   working directory.
