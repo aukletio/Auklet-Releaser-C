@@ -43,6 +43,8 @@ instrument/instrument.o: instrument/inst.c
 
 # Test program components
 test: test-release test-install
+
+test-run: test
 	cd test/target && ./run.sh
 
 test-release: test/src/snellius test/src/snellius-debug
