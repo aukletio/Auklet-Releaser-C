@@ -8,7 +8,7 @@ import (
 )
 
 // Run a command and report when it exits.
-func run(cmd *exec.Cmd, wg sync.WaitGroup) {
+func run(cmd *exec.Cmd, wg *sync.WaitGroup) {
 	defer wg.Done()
 
 	cmd.Stdout = os.Stdout

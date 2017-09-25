@@ -21,7 +21,7 @@ type Node struct {
 	CheckSum string `json:"checksum,omitempty"`
 }
 
-func relay(server net.Listener, sum string, wg sync.WaitGroup) {
+func relay(server net.Listener, sum string, wg *sync.WaitGroup) {
 	defer wg.Done()
 
 	conn, err := server.Accept()

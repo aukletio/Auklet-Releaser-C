@@ -70,10 +70,10 @@ func main() {
 	var wg sync.WaitGroup
 	if network {
 		wg.Add(1)
-		go relay(server, cksum, wg)
+		go relay(server, cksum, &wg)
 	}
 
 	wg.Add(1)
-	go run(cmd, wg)
+	go run(cmd, &wg)
 	wg.Wait()
 }
