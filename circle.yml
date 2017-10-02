@@ -1,0 +1,11 @@
+machine:
+  environment:
+    GOBIN: $GOPATH/bin
+
+dependencies:
+  override:
+    - make -C ~/$CIRCLE_PROJECT_REPONAME/ depend profiler test-install
+
+test:
+  override:
+    - snellius 10000
