@@ -19,7 +19,7 @@ import (
 type Release struct {
 	AppID       string            `json:"app_id"`
 	DeployHash  string            `json:"checksum"`
-	CommitHash  string            `json:"commit_hash,omitempty"`
+	CommitHash  string            `json:"scm_data,omitempty"`
 	GitTopLevel string            `json:"absolute_path_prefix,omitempty"`
 	Dwarf       []dwarf.LineEntry `json:"dwarf"`
 	Symbols     []elf.Symbol      `json:"symbols"`

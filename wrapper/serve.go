@@ -31,6 +31,11 @@ func relay(server net.Listener, sum string, wg *sync.WaitGroup) {
 	check(err)
 	defer producer.Close()
 
+	topic := map[string]string{
+		"qa":          "6eyc-profiler",
+		"new-staging": "f9l0-profiler",
+		"prod":        "f9en-profiler",
+	}
 	line := bufio.NewScanner(conn)
 	for line.Scan() {
 		var n Node
@@ -48,7 +53,7 @@ func relay(server net.Listener, sum string, wg *sync.WaitGroup) {
 		log.Println(string(b))
 
 		p, o, err := producer.SendMessage(&sarama.ProducerMessage{
-			Topic: "616t-default",
+			Topic: topic["prod"],
 			Value: sarama.ByteEncoder(b),
 		})
 		check(err)

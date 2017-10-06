@@ -18,7 +18,7 @@ func connect() (sarama.SyncProducer, error) {
 	}
 
 	cert, err := tls.LoadX509KeyPair(dsc, dpk)
-	//check(err)
+	check(err)
 
 	tc := tls.Config{
 		RootCAs:            certpool,
@@ -34,11 +34,25 @@ func connect() (sarama.SyncProducer, error) {
 	config.Net.TLS.Config = &tc
 	config.ClientID = "ProfileTest"
 
-	brokers := []string{
-		"dogsled-01.srvs.cloudkafka.com:9093",
-		"dogsled-02.srvs.cloudkafka.com:9093",
-		"dogsled-03.srvs.cloudkafka.com:9093",
+	broker := map[string][]string{
+		// new
+		"steamer": {
+			"steamer-01.srvs.cloudkafka.com:9093",
+			"steamer-02.srvs.cloudkafka.com:9093",
+			"steamer-03.srvs.cloudkafka.com:9093",
+		},
+		// new/qa
+		"dogsled": {
+			"dogsled-01.srvs.cloudkafka.com:9093",
+			"dogsled-02.srvs.cloudkafka.com:9093",
+			"dogsled-03.srvs.cloudkafka.com:9093",
+		},
+		// prod
+		"prod": {
+			"striped-water-wagon-01.srvs.cloudkafka.com:9093",
+			"striped-water-wagon-02.srvs.cloudkafka.com:9093",
+			"striped-water-wagon-03.srvs.cloudkafka.com:9093",
+		},
 	}
-
-	return sarama.NewSyncProducer(brokers, config)
+	return sarama.NewSyncProducer(broker["prod"], config)
 }
