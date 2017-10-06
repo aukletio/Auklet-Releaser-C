@@ -49,7 +49,7 @@ test-run: test
 
 test-release: test/src/snellius test/src/snellius-debug
 	. test/src/secrets.sh &&\
-	export AUKLET_RELEASE_ENDPOINT=staging &&\
+	export AUKLET_RELEASE_ENDPOINT=production &&\
 	releaser -appid $$APP_ID\
 	         -apikey $$API_KEY\
 	         -debug test/src/snellius-debug\
@@ -59,7 +59,7 @@ test-install: test/src/snellius
 	sudo cp $< /usr/local/bin/
 
 test-clean:
-	rm -f test/src/snellius{,-debug}
+	rm -f test/src/snellius test/src/snellius-debug
 
 test-uninstall:
 	sudo rm -f /usr/local/bin/snellius
