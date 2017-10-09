@@ -21,15 +21,11 @@ type Node struct {
 	CheckSum string `json:"checksum,omitempty"`
 }
 
-func relay(server net.Listener, sum string, wg *sync.WaitGroup) {
+func relay(s net.Listener, msg chan sarama.ProducerMessage, sum string, wg *sync.WaitGroup) {
 	defer wg.Done()
 
-	conn, err := server.Accept()
+	conn, err := s.Accept()
 	check(err)
-
-	producer, err := connect()
-	check(err)
-	defer producer.Close()
 
 	topic := map[string]string{
 		"qa":          "6eyc-profiler",
@@ -50,13 +46,23 @@ func relay(server net.Listener, sum string, wg *sync.WaitGroup) {
 		b, err := json.Marshal(n)
 		check(err)
 
-		log.Println(string(b))
-
-		p, o, err := producer.SendMessage(&sarama.ProducerMessage{
-			Topic: topic["prod"],
+		msg <- sarama.ProducerMessage{
+			Topic: topic["new-staging"],
 			Value: sarama.ByteEncoder(b),
-		})
+		}
+		log.Println(string(b))
+	}
+}
+
+// Produce all messages in one spot. When msg is closed, we finish.
+func produce(msg chan sarama.ProducerMessage) {
+	p, err := connect()
+	check(err)
+	defer p.Close()
+
+	for m := range msg {
+		pt, o, err := p.SendMessage(&m)
 		check(err)
-		log.Printf("wrapper: partition %v, offset %v, %v\n", p, o, err)
+		log.Printf("wrapper: produce: pt = %v, o = %v, err = %v\n", pt, o, err)
 	}
 }

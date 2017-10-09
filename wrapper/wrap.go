@@ -11,6 +11,8 @@ import (
 	"runtime/pprof"
 	"strconv"
 	"sync"
+
+	"github.com/Shopify/sarama"
 )
 
 func check(err error) {
@@ -67,13 +69,16 @@ func main() {
 		}
 	}()
 
+	msg := make(chan sarama.ProducerMessage)
+	go produce(msg)
+
 	var wg sync.WaitGroup
 	if network {
 		wg.Add(1)
-		go relay(server, cksum, &wg)
+		go relay(server, msg, cksum, &wg)
 	}
 
 	wg.Add(1)
-	go run(cmd, &wg)
+	go run(cmd, msg, &wg)
 	wg.Wait()
 }

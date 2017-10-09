@@ -54,5 +54,5 @@ func connect() (sarama.SyncProducer, error) {
 			"striped-water-wagon-03.srvs.cloudkafka.com:9093",
 		},
 	}
-	return sarama.NewSyncProducer(broker["prod"], config)
+	return sarama.NewSyncProducer(broker["steamer"], config)
 }
