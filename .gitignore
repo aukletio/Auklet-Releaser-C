@@ -1,13 +1,6 @@
-instrument/inst_test
-instrument/instrument.o
-instrument/libauklet.a
-
-# Credentials needed by wrapper at runtime on the target
-test/target/ck_ca
-test/target/ck_cert
-test/target/ck_private_key
-
-# Files needed by releaser on build machine
-test/src/snellius
-test/src/snellius-debug
-test/src/secrets.sh
+auklet.conf
+lib_test
+rt.o
+x
+x-dbg
+x.o

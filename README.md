@@ -13,7 +13,7 @@ See the component directories for specific information.
 
 # How to Build
 
-	make build
+	make
 
 # How to Test
 

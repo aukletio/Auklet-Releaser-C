@@ -1,12 +1,12 @@
 package main
 
 import (
+	"bufio"
 	"bytes"
 	"crypto/sha512"
 	"debug/dwarf"
 	"debug/elf"
 	"encoding/json"
-	"flag"
 	"fmt"
 	"io"
 	"log"
@@ -34,13 +34,14 @@ func (s BytesReadCloser) Close() error {
 }
 
 func usage() {
-	log.Printf("usage: %v -apikey apikey -appid appid -deploy deployfile -debug debugfile\n", os.Args[0])
+	log.Printf("usage: %v deployfile\n", os.Args[0])
 	os.Exit(1)
 }
 
 func (rel *Release) symbolize(debugpath string) {
 	debugfile, err := elf.Open(debugpath)
 	if err != nil {
+		log.Println("Debug filename must be <deployfile>-dbg")
 		log.Fatal(err)
 	}
 	defer debugfile.Close()
@@ -168,24 +169,43 @@ func (rel *Release) release(deployName string) {
 	}
 	deployhash := dh.Sum(nil)
 	rel.DeployHash = fmt.Sprintf("%x", deployhash)
+	log.Println("release():", deployName, rel.DeployHash)
 }
 
 func main() {
-	var deployName, debugName, appID, apiKey string
-	flag.StringVar(&deployName, "deploy", "", "ELF binary to be deployed")
-	flag.StringVar(&debugName, "debug", "", "ELF binary containing debug symbols")
-	flag.StringVar(&appID, "appid", "", "App ID under which to create a release")
-	flag.StringVar(&apiKey, "apikey", "", "API key")
-	flag.Parse()
-
-	if flag.NFlag() != 4 {
+	if len(os.Args) < 2 {
 		usage()
 	}
+	deployName := os.Args[1]
+	debugName := deployName + "-dbg"
+
+	url := func() string {
+		endpoint := os.Getenv("AUKLET_ENDPOINT")
+		if endpoint == "" {
+			log.Fatal("empty envar AUKLET_ENDPOINT")
+		}
+		f, err := os.Open(endpoint + "/url")
+		if err != nil {
+			panic(err)
+		}
+		defer f.Close()
+		s, err := bufio.NewReader(f).ReadString('\n')
+		if err != nil {
+			panic(err)
+		}
+		return s[:len(s)-1]
+	}() + "/releases/"
+	log.Println("releaser: url:", url)
 
 	rel := new(Release)
-	rel.AppID = appID
-
-	// get debug info and symbols
+	rel.AppID = os.Getenv("AUKLET_APP_ID")
+	if rel.AppID == "" {
+		log.Fatal("empty envar AUKLET_APP_ID")
+	}
+	apikey := os.Getenv("AUKLET_API_KEY")
+	if rel.AppID == "" {
+		log.Fatal("empty envar AUKLET_API_KEY")
+	}
 	rel.symbolize(debugName)
 
 	// reject ELF pairs with disparate sections
@@ -205,44 +225,30 @@ func main() {
 	}
 	fmt.Println(string(b))
 
-	body := bytes.NewReader(b)
-
-	urls := map[string]string{
-		"production": "https://api.auklet.io/v1/releases/",
-		"qa":         "https://api-qa.auklet.io/v1/releases/",
-		"staging":    "https://api-staging.auklet.io/v1/releases/",
-	}
-
-	endpoint := os.Getenv("AUKLET_RELEASE_ENDPOINT")
-	if endpoint == "" {
-		endpoint = "production"
-	}
-	url, in := urls[endpoint]
-	if !in {
-		panic("releaser: unknown endpoint: " + endpoint)
-	}
-
 	// Create a client to control request headers.
-	client := &http.Client{}
-	req, err := http.NewRequest("POST", url, body)
+	req, err := http.NewRequest("POST", url, bytes.NewReader(b))
 	if err != nil {
 		panic(err)
 	}
 	req.Header = map[string][]string{
 		"content-type": {"application/json"},
-		"apikey":       {apiKey},
+		"apikey":       {apikey},
 	}
 
+	client := &http.Client{}
 	resp, err := client.Do(req)
 	if err != nil {
 		panic(err)
 	}
 	log.Println("releaser:", resp.Status)
-	log.Printf("releaser:\n" +
-	           "    appid: %v\n" +
-	           "    commithash: %v\n" +
-	           "    checksum: %v\n",
-	           rel.AppID,
-	           rel.CommitHash,
-	           rel.DeployHash)
+	switch resp.StatusCode {
+	case 200: log.Println("not created")
+	}
+	log.Printf("releaser:\n"+
+		"    appid: %v\n"+
+		"    commithash: %v\n"+
+		"    checksum: %v\n",
+		rel.AppID,
+		rel.CommitHash,
+		rel.DeployHash)
 }
