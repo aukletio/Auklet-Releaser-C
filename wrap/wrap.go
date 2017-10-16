@@ -41,7 +41,7 @@ func gettopic(tf string) string {
 	if err != nil {
 		panic(err)
 	}
-	return s[:len(s) - 1]
+	return s[:len(s)-1]
 }
 
 func relay(s net.Listener, msg chan sarama.ProducerMessage, sum string, wg *sync.WaitGroup) {

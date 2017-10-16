@@ -242,7 +242,8 @@ func main() {
 	}
 	log.Println("releaser:", resp.Status)
 	switch resp.StatusCode {
-	case 200: log.Println("not created")
+	case 200:
+		log.Println("not created")
 	}
 	log.Printf("releaser:\n"+
 		"    appid: %v\n"+
