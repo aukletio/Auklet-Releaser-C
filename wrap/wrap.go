@@ -153,12 +153,12 @@ func checksum(path string) string {
 
 func valid(sum string) bool {
 	ep := gettopic("/url") + "/check_releases/" + sum
-	fmt.Println("wrapper: release check url:", ep)
+	log.Println("wrapper: release check url:", ep)
 	resp, err := http.Get(ep)
-	fmt.Println("wrapper: valid: response status:", resp.Status)
 	if err != nil {
 		log.Fatal(err)
 	}
+	log.Println("wrapper: valid: response status:", resp.Status)
 
 	switch resp.StatusCode {
 	case 200:
@@ -200,31 +200,37 @@ func check(err error) {
 }
 
 func usage() {
-	fmt.Printf("usage: %v command [args ...]\n", os.Args[0])
-	os.Exit(0)
+	log.Fatalf("usage: %v command [args ...]\n", os.Args[0])
 }
 
 var endpoint string
 
 func main() {
+	logger := os.Stdout
+	log.SetOutput(logger)
+
 	// Open a socket to communicate with the child command.
-	server, err := net.Listen("unix", "socket-"+strconv.Itoa(os.Getpid()))
+	logs, err := net.Listen("unixpacket", "log-"+strconv.Itoa(os.Getpid()))
 	check(err)
-	defer server.Close()
+	defer logs.Close()
+
+	data, err := net.Listen("unix", "data-"+strconv.Itoa(os.Getpid()))
+	check(err)
+	defer data.Close()
 
 	sigs := make(chan os.Signal)
 	signal.Notify(sigs)
 	go func() {
 		for s := range sigs {
-			log.Println(s)
-			server.Close()
-			os.Exit(0)
+			data.Close()
+			logs.Close()
+			log.Fatal(s)
 		}
 	}()
 
 	endpoint = os.Getenv("AUKLET_ENDPOINT")
 	if endpoint == "" {
-		panic("empty endpoint")
+		log.Fatal("empty endpoint")
 	}
 	args := os.Args
 	if len(args) < 2 {
@@ -242,7 +248,18 @@ func main() {
 
 	var wg sync.WaitGroup
 	wg.Add(1)
-	go relay(server, msg, cksum, &wg)
+	go func() {
+		defer wg.Done()
+		// conn satisfies io.Reader
+		conn, err := logs.Accept()
+		check(err)
+		t := io.TeeReader(conn, logger)
+		_, err = ioutil.ReadAll(t)
+		check(err)
+	}()
+
+	wg.Add(1)
+	go relay(data, msg, cksum, &wg)
 
 	wg.Add(1)
 	go run(cmd, msg, &wg)

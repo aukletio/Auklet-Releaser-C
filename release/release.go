@@ -223,7 +223,7 @@ func main() {
 	if err != nil {
 		panic(err)
 	}
-	fmt.Println(string(b))
+	//fmt.Println(string(b))
 
 	// Create a client to control request headers.
 	req, err := http.NewRequest("POST", url, bytes.NewReader(b))

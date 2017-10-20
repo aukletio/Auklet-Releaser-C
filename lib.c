@@ -3,6 +3,7 @@
  */
 
 /* headers */
+#include <errno.h>
 #include <pthread.h>
 #include <stdarg.h>
 #include <stdint.h>
@@ -64,6 +65,8 @@ static int marshaln(B *b, N *n);
 static int marshalc(B *b, N *n);
 static int marshal(B *b, N *n);
 
+static int log = 0; // stdout, initially
+
 /* function definitions */
 void
 mcheck(int (*op)(pthread_mutex_t *), pthread_mutex_t *m)
@@ -71,7 +74,7 @@ mcheck(int (*op)(pthread_mutex_t *), pthread_mutex_t *m)
 	int ret = op(m);
 	if (ret) {
 		char *msg = strerror(ret);
-		printf("mcheck: ret = %d, msg = %s\n", ret, msg);
+		dprintf(log, "mcheck: ret = %d, msg = %s\n", ret, msg);
 		exit(1);
 	}
 }
@@ -85,7 +88,7 @@ push(N **sp, F f)
 	if (!c) {
 		c = addcallee(*sp, f);
 		if (!c) {
-			printf("push: couldn't add callee\n");
+			dprintf(log, "push: couldn't add callee\n");
 			exit(1);
 		}
 	}
@@ -102,7 +105,7 @@ pop(N **sp)
 {
 	F f = (*sp)->f;
 	if (!(*sp)->parent) {
-		printf("pop: called with NULL parent\n");
+		dprintf(log, "pop: called with NULL parent\n");
 		exit(1);
 	}
 	*sp = (*sp)->parent;
@@ -120,7 +123,7 @@ static N *
 newN(F f)
 {
 	N *n = (N *)malloc(sizeof(N));
-	//printf("%p = malloc(%d)\n", n, sizeof(N));
+	//dprintf(log, "%p = malloc(%d)\n", n, sizeof(N));
 	if (!n)
 		return NULL;
 
@@ -139,13 +142,13 @@ dumpN(N *n, unsigned ind)
 {
 	char tab[] = "\t\t\t\t\t\t\t\t\t\t";
 	tab[ind] = '\0';
-	printf("%s%p:\n", tab, (void *)n);
-	printf("%s    f.fn = %p\n", tab, (void *)n->f.fn);
-	printf("%s    f.cs = %p\n", tab, (void *)n->f.cs);
-	printf("%s    nsamp = %u\n", tab, n->nsamp);
-	printf("%s    ncall = %u\n", tab, n->ncall);
-	printf("%s    len/cap = %u/%u\n", tab, n->len, n->cap);
-	printf("%s    callee = %p\n", tab, (void *)n->callee);
+	dprintf(log, "%s%p:\n", tab, (void *)n);
+	dprintf(log, "%s    f.fn = %p\n", tab, (void *)n->f.fn);
+	dprintf(log, "%s    f.cs = %p\n", tab, (void *)n->f.cs);
+	dprintf(log, "%s    nsamp = %u\n", tab, n->nsamp);
+	dprintf(log, "%s    ncall = %u\n", tab, n->ncall);
+	dprintf(log, "%s    len/cap = %u/%u\n", tab, n->len, n->cap);
+	dprintf(log, "%s    callee = %p\n", tab, (void *)n->callee);
 	for (int i = 0; i < n->len; ++i)
 		dumpN(n->callee[i], ind + 1);
 }
@@ -156,13 +159,13 @@ killN(N *n, int root)
 {
 	for (int i = 0; i < n->len; ++i)
 		killN(n->callee[i], 0);
-	//printf("free(%p)\n", n->callee);
+	//dprintf(log, "free(%p)\n", n->callee);
 	free(n->callee);
 
 	/* allows us to avoid freeing the statically-allocated root
  	* (necessary for TLS initialization) */
 	if (!root) {
-		//printf("free(%p)\n", n);
+		//dprintf(log, "free(%p)\n", n);
 		free(n);
 	}
 }
@@ -185,7 +188,7 @@ addcallee(N *n, F f)
 	if (n->cap == n->len) {
 		unsigned newcap = n->cap ? 2 * n->cap : 2;
 		N **c = (N **)realloc(n->callee, newcap * sizeof(N *));
-		//printf("%p = realloc(%p, %d)\n", c, n->callee, newcap*sizeof(N *));
+		//dprintf(log, "%p = realloc(%p, %d)\n", c, n->callee, newcap*sizeof(N *));
 		if (!c)
 			return NULL;
 		n->callee = c;
@@ -236,7 +239,7 @@ growB(B *b)
 	unsigned newcap = b->cap ? b->cap * 2 : 32;
 	char *c = (char *)realloc(b->buf, newcap * sizeof(char));
 	if (!c) {
-		perror("growB: realloc");
+		dprintf(log, "growB: realloc: %s\n", strerror(errno));
 		return 0;
 	}
 	b->buf = c;
