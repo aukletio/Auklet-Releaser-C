@@ -18,22 +18,22 @@ import (
 // A Dwarf represents a pared-down dwarf.LineEntry.
 type Dwarf struct {
 	Address uint64
-	Hash string // git object hash
-	Line int
+	Hash    string // git object hash
+	Line    int
 }
 
 // A Symbol represents a pared-down elf.Symbol.
 type Symbol struct {
-	Name string
+	Name  string
 	Value uint64
 }
 
 // A Release represents a release of a customer's app to be sent to the backend.
 type Release struct {
-	AppID       string            `json:"app_id"`
-	DeployHash  string            `json:"checksum"`
-	Dwarf       []Dwarf           `json:"dwarf"`
-	Symbols     []Symbol          `json:"symbols"`
+	AppID      string   `json:"app_id"`
+	DeployHash string   `json:"checksum"`
+	Dwarf      []Dwarf  `json:"dwarf"`
+	Symbols    []Symbol `json:"symbols"`
 }
 
 // A BytesReadCloser is a bytes.Reader that satisfies io.ReadCloser, which is
@@ -64,7 +64,7 @@ func (rel *Release) symbolize(debugpath string) {
 	}
 	for _, s := range ss {
 		rel.Symbols = append(rel.Symbols, Symbol{
-			Name: s.Name,
+			Name:  s.Name,
 			Value: s.Value,
 		})
 	}
@@ -106,8 +106,8 @@ func (rel *Release) symbolize(debugpath string) {
 
 			rel.Dwarf = append(rel.Dwarf, Dwarf{
 				Address: le.Address,
-				Hash: hashobject(le.File.Name),
-				Line: le.Line,
+				Hash:    hashobject(le.File.Name),
+				Line:    le.Line,
 			})
 		}
 	}
@@ -120,7 +120,7 @@ func hashobject(path string) string {
 		// don't have git, or bad path
 		log.Panic(err)
 	}
-	return string(out[:len(out) - 1])
+	return string(out[:len(out)-1])
 }
 
 func hash(s *elf.Section) []byte {
