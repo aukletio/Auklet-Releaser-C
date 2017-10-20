@@ -15,14 +15,25 @@ import (
 	"os/exec"
 )
 
+// A Dwarf represents a pared-down dwarf.LineEntry.
+type Dwarf struct {
+	Address uint64
+	Hash string // git object hash
+	Line int
+}
+
+// A Symbol represents a pared-down elf.Symbol.
+type Symbol struct {
+	Name string
+	Value uint64
+}
+
 // A Release represents a release of a customer's app to be sent to the backend.
 type Release struct {
 	AppID       string            `json:"app_id"`
 	DeployHash  string            `json:"checksum"`
-	CommitHash  string            `json:"scm_data,omitempty"`
-	GitTopLevel string            `json:"absolute_path_prefix,omitempty"`
-	Dwarf       []dwarf.LineEntry `json:"dwarf"`
-	Symbols     []elf.Symbol      `json:"symbols"`
+	Dwarf       []Dwarf           `json:"dwarf"`
+	Symbols     []Symbol          `json:"symbols"`
 }
 
 // A BytesReadCloser is a bytes.Reader that satisfies io.ReadCloser, which is
@@ -47,9 +58,15 @@ func (rel *Release) symbolize(debugpath string) {
 	defer debugfile.Close()
 
 	// add ELF symbols
-	rel.Symbols, err = debugfile.Symbols()
+	ss, err := debugfile.Symbols()
 	if err != nil {
 		log.Fatal(err)
+	}
+	for _, s := range ss {
+		rel.Symbols = append(rel.Symbols, Symbol{
+			Name: s.Name,
+			Value: s.Value,
+		})
 	}
 
 	// add DWARF line entries
@@ -83,33 +100,27 @@ func (rel *Release) symbolize(debugpath string) {
 			} else if err != nil {
 				panic(err)
 			}
-			rel.Dwarf = append(rel.Dwarf, le)
+			if le.File == nil {
+				continue
+			}
+
+			rel.Dwarf = append(rel.Dwarf, Dwarf{
+				Address: le.Address,
+				Hash: hashobject(le.File.Name),
+				Line: le.Line,
+			})
 		}
 	}
 }
 
-func (rel *Release) git() error {
-	// Associate a release with the top-level directory of the Git repo.
-	gtl := exec.Command("git", "rev-parse", "--show-toplevel")
-	out, err := gtl.CombinedOutput()
+func hashobject(path string) string {
+	c := exec.Command("git", "hash-object", path)
+	out, err := c.CombinedOutput()
 	if err != nil {
-		// Not a git repo or don't have git
-		log.Println(string(out))
-		panic(err)
+		// don't have git, or bad path
+		log.Panic(err)
 	}
-
-	rel.GitTopLevel = string(out[:len(out)-1])
-
-	// Associate the release with the current commit hash.
-	rph := exec.Command("git", "rev-parse", "HEAD")
-	out, err = rph.Output()
-	if err != nil {
-		log.Println(string(out))
-		panic(err)
-	}
-
-	rel.CommitHash = string(out[:len(out)-1])
-	return nil
+	return string(out[:len(out) - 1])
 }
 
 func hash(s *elf.Section) []byte {
@@ -213,8 +224,6 @@ func main() {
 		os.Exit(1)
 	}
 
-	rel.git()
-
 	// create a release
 	rel.release(deployName)
 
@@ -223,7 +232,7 @@ func main() {
 	if err != nil {
 		panic(err)
 	}
-	//fmt.Println(string(b))
+	fmt.Println(string(b))
 
 	// Create a client to control request headers.
 	req, err := http.NewRequest("POST", url, bytes.NewReader(b))
@@ -247,9 +256,7 @@ func main() {
 	}
 	log.Printf("releaser:\n"+
 		"    appid: %v\n"+
-		"    commithash: %v\n"+
 		"    checksum: %v\n",
 		rel.AppID,
-		rel.CommitHash,
 		rel.DeployHash)
 }
