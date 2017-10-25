@@ -47,13 +47,13 @@ func uuid() string {
 func checksum(path string) string {
 	f, err := os.Open(path)
 	if err != nil {
-		log.Fatal(err)
+		log.Panic(err)
 	}
 	defer f.Close()
 
 	h := sha512.New512_224()
 	if _, err := io.Copy(h, f); err != nil {
-		log.Fatal(err)
+		log.Panic(err)
 	}
 
 	hash := h.Sum(nil)
@@ -83,7 +83,8 @@ func (e *Event) Brand() {
 func event(state *os.ProcessState) *Event {
 	ws, ok := state.Sys().(syscall.WaitStatus)
 	if !ok {
-		panic("expected type syscall.WaitStatus")
+		log.Print("expected type syscall.WaitStatus; non-POSIX system?")
+		return nil
 	}
 	return &Event{
 		Time:   time.Now(),
@@ -312,7 +313,10 @@ func produce(obj chan Object) (func(), error) {
 				Topic: o.Topic(),
 				Value: sarama.ByteEncoder(b),
 			})
-			check(err)
+			if err != nil {
+				done <- err
+				return
+			}
 		}
 		done <- nil
 	}()
@@ -334,7 +338,7 @@ func valid(sum string) bool {
 	//log.Println("wrapper: release check url:", ep)
 	resp, err := http.Get(ep)
 	if err != nil {
-		log.Fatal(err)
+		log.Panic(err)
 	}
 	//log.Println("wrapper: valid: response status:", resp.Status)
 
@@ -344,7 +348,7 @@ func valid(sum string) bool {
 	case 404:
 		return false
 	default:
-		log.Fatal("wrapper: valid: got unexpected status ", resp.Status)
+		log.Panic("wrapper: valid: got unexpected status ", resp.Status)
 	}
 	return false
 }
@@ -354,11 +358,11 @@ var endpoint string
 func main() {
 	logger := os.Stdout
 	log.SetOutput(logger)
-	lc, err := logs(logger)
-	if err != nil {
-		panic(err)
+
+	endpoint = os.Getenv("AUKLET_ENDPOINT")
+	if endpoint == "" {
+		log.Fatal("empty envar AUKLET_ENDPOINT")
 	}
-	defer lc()
 
 	args := os.Args
 	if len(args) < 2 {
@@ -366,13 +370,9 @@ func main() {
 	}
 	cmd := exec.Command(args[1], args[2:]...)
 
-	endpoint = os.Getenv("AUKLET_ENDPOINT")
-	if endpoint == "" {
-		log.Fatal("empty endpoint")
-	}
-
 	cksum = checksum(cmd.Path)
 	if !valid(cksum) {
+		//log.Fatal("invalid checksum: ", cksum)
 		log.Print("invalid checksum: ", cksum)
 	}
 
@@ -385,6 +385,10 @@ func main() {
 	wrelay, err := relay(obj)
 	check(err)
 	defer wrelay()
+
+	lc, err := logs(logger)
+	check(err)
+	defer lc()
 
 	run(obj, cmd)
 	close(obj)
