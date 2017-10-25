@@ -25,10 +25,10 @@ import (
 )
 
 // Object represents something that can be sent to the backend. It must have a
-// topic and implement a Brand() method that fills UUID and checksum fields.
+// topic and implement a brand() method that fills UUID and checksum fields.
 type Object interface {
-	Topic() string
-	Brand()
+	topic() string
+	brand()
 }
 
 func uuid() string {
@@ -71,11 +71,11 @@ type Event struct {
 	Signal   string    `json:"signal,omitempty"`
 }
 
-func (e Event) Topic() string {
+func (e Event) topic() string {
 	return gettopic("/event")
 }
 
-func (e *Event) Brand() {
+func (e *Event) brand() {
 	e.UUID = uuid()
 	e.CheckSum = cksum
 }
@@ -92,9 +92,8 @@ func event(state *os.ProcessState) *Event {
 		Signal: func() string {
 			if ws.Signaled() {
 				return ws.Signal().String()
-			} else {
-				return ""
 			}
+			return ""
 		}(),
 	}
 }
@@ -152,11 +151,11 @@ type Node struct {
 	Callees  []Node `json:"callees,omitempty"`
 }
 
-func (n Node) Topic() string {
+func (n Node) topic() string {
 	return gettopic("/prof")
 }
 
-func (n *Node) Brand() {
+func (n *Node) brand() {
 	n.UUID = uuid()
 	n.CheckSum = cksum
 }
@@ -301,7 +300,7 @@ func produce(obj chan Object) (func(), error) {
 	go func() {
 		// receive Kafka-bound objects from clients
 		for o := range obj {
-			o.Brand()
+			o.brand()
 			b, err := json.Marshal(o)
 			if err != nil {
 				done <- err
@@ -310,7 +309,7 @@ func produce(obj chan Object) (func(), error) {
 			//log.Printf("producer got %v bytes: %v", len(b), string(b))
 			log.Printf("producer got %v bytes", len(b))
 			_, _, err = p.SendMessage(&sarama.ProducerMessage{
-				Topic: o.Topic(),
+				Topic: o.topic(),
 				Value: sarama.ByteEncoder(b),
 			})
 			if err != nil {
