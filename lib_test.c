@@ -3,7 +3,6 @@
  */
 
 #include "lib.c"
-#include <string.h>
 #define len(x) (sizeof(x)/sizeof(x[0]))
 
 F z = {0, 0};
