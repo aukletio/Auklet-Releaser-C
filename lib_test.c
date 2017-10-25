@@ -51,8 +51,9 @@ main()
 		callee_test,
 		marshal_test,
 	};
+	int ret = 0;
 	for (int i = 0; i < len(test); ++i)
 		if (!test[i]())
-			exit(1);
-	return 0;
+			ret = 1;
+	return ret;
 }
