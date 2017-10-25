@@ -3,7 +3,9 @@
  */
 
 #include "lib.c"
+
 #define len(x) (sizeof(x)/sizeof(x[0]))
+#define str(x) #x
 
 F z = {0, 0};
 F f = {0xaced, 0xfade};
@@ -47,13 +49,22 @@ marshal_test(void)
 int
 main()
 {
-	int (*test[])(void) = {
-		callee_test,
-		marshal_test,
+	struct {
+		int (*run)(void);
+		char *name;
+	} test[] = {
+#define TEST(f) {f, str(f)}
+		TEST(callee_test),
+		TEST(marshal_test),
 	};
 	int ret = 0;
-	for (int i = 0; i < len(test); ++i)
-		if (!test[i]())
+	for (int i = 0; i < len(test); ++i) {
+		int pass = test[i].run();
+		printf("%d/%lu %15s: %s\n", i+1, len(test),
+		       test[i].name,
+		       pass ? "pass" : "fail");
+		if (!pass)
 			ret = 1;
+	}
 	return ret;
 }
