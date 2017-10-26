@@ -1,6 +1,8 @@
 # Auklet Profiler
 
-The profiler consists of three components:
+Auklet is an IoT C/C++ profiler that runs on Linux.
+
+It consists of three components:
 
 ## `libauklet.a`
 
@@ -15,6 +17,29 @@ program to the backend.
 
 A command-line program that runs the program to be profiled and continuously
 sends live profile data to the backend.
+
+# Go Setup
+
+`wrap` and `release` need at least Go 1.8. See the [getting started page][1] to
+download Go. Then see [How to Write Go Code - Organization][2] to set up your
+system.
+
+[1]: https://golang.org/doc/install
+[2]: https://golang.org/doc/code.html#Organization
+
+Conventionally, your `~/.profile` should contain the following:
+
+	export GOPATH=$HOME/go
+	export PATH=$PATH:$GOPATH/bin
+
+The first line tells Go where your workspace is located. The second makes sure
+that the shell will know about executables built with `go install`.
+
+`wrap` needs [package sarama][3], a Kafka client. Install it with
+
+[3]: https://github.com/Shopify/sarama
+
+	go get github.com/Shopify/sarama
 
 # Build
 
