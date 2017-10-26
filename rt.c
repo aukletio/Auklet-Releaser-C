@@ -61,7 +61,7 @@ emit(void)
 	//dumpN(&root, 0);
 	marshal(&b, &root);
 	append(&b, "\n");
-	dprintf(log, "emit: %s", b.buf);
+	//dprintf(log, "emit: %s", b.buf);
 	if (send(sock, b.buf, b.len, 0) == -1) {
 		dprintf(log, "emit: send: %s\n", strerror(errno));
 		//exit(1);
@@ -126,7 +126,7 @@ comm(int type, char *prefix)
 	l = strlen(remote.sun_path) + sizeof(remote.sun_family);
 	if (connect(fd, (struct sockaddr *)&remote, l) == -1) {
 		dprintf(log, "comm: connect: %s\n", strerror(errno));
-		//exit(1);
+		exit(1);
 	}
 
 	return fd;
