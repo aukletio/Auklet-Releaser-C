@@ -58,88 +58,70 @@ It also builds test executables `x` and `x-dbg`.
 
 # Configure
 
-An Auklet configuration is a directory with the following structure, where
-`staging` is the name of the configuration:
+An Auklet configuration is defined by the following environment variables.
 
-	staging/
-		broker
-		event
-		prof
-		url
-		cert/
-			ck_ca
-			ck_cert
-			ck_private_key
+	AUKLET_APP_ID
+	AUKLET_API_KEY
+	AUKLET_BASE_URL
+	AUKLET_BROKERS
+	AUKLET_PROF_TOPIC
+	AUKLET_EVENT_TOPIC
+	AUKLET_CA
+	AUKLET_CERT
+	AUKLET_PRIVATE_KEY
 
-It is suggested to keep all Auklet configurations in one place, such as
-`~/.auklet/`.
+To view your current configuration, run `env | grep AUKLET`.
 
-## broker
+To make it easier to manage multiple configurations, it is suggested to define
+the envars in a shell script named after the configuration; for example,
+`.env.staging`.
 
-A plaintext file containing a newline-delimited list of Kafka broker addresses
-(one address per line). For example:
+The variables `AUKLET_API_KEY` and `AUKLET_APP_ID` are likely to be different
+among developers, so it is suggested that they be defined in a separate
+file, `.auklet`, and sourced from within `.env.staging`. For example:
 
-	broker1
-	broker2
-	broker3
+	$ cat .auklet
+	export AUKLET_APP_ID=5171dbff-c0ea-98ee-e70e-dd0af1f9fcdf
+	export AUKLET_API_KEY=SM49BAMCA0...
 
-## event
+	$ cat .env.staging
+	. .auklet
+	export AUKLET_BASE_URL=https://api-staging.auklet.io/v1
+	export AUKLET_BROKERS=broker1,broker2,broker3
+	export AUKLET_PROF_TOPIC=z8u1-profiler
+	export AUKLET_EVENT_TOPIC=z8u1-events
+	export AUKLET_CA=LS0tLS1CRUdJTiBDRVJUSUZJQ0FURS...
+	export AUKLET_CERT=LS0tLS1CRUdJTiBDRVJUSUZJQ0FU...
+	export AUKLET_PRIVATE_KEY=LS0tLS1CRUdJTiBQUklW...
 
-A plaintext file containing the Kafka topic that the wrapper sends event data to.
+## `AUKLET_BROKERS`
 
-## prof
+A comma-delimited list of Kafka broker addresses. For example:
 
-A plaintext file containing the Kafka topic that the wrapper sends profile data to.
+	broker1,broker2,broker3
 
-## url
+## `AUKLET_EVENT_TOPIC`, `AUKLET_PROF_TOPIC`
 
-A plaintext file containing the base URL, without a trailing slash, to be used
-when creating and checking releases. It is accessed by both `wrap` and `release`
-commands.  For example:
+Kafka topics to which `wrap` should send event and profile data,
+respectively.
+
+## `AUKLET_BASE_URL`
+
+A URL, without a trailing slash, to be used when creating and checking releases.
+It is accessed by both `wrap` and `release` commands. For example:
 
 	https://api-staging.auklet.io/v1
 
-## cert/
+## `AUKLET_CA`, `AUKLET_CERT`, `AUKLET_PRIVATE_KEY`
 
-A directory containing SSL certs that `wrap` uses to authenticate its Kafka
-connection. These must be [PEM][pem] files, which must end in a blank line (double
-newline). For example:
+Base64-encoded [PEM][pem]-format certs that `wrap` uses to authenticate its Kafka
+connection.
 
 [pem]: https://en.wikipedia.org/wiki/Privacy-enhanced_Electronic_Mail
 
-```
------BEGIN CERTIFICATE-----
-MIICLDCCAdKgAwIBAgIBADAKBggqhkjOPQQDAjB9MQswCQYDVQQGEwJCRTEPMA0G
-A1UEChMGR251VExTMSUwIwYDVQQLExxHbnVUTFMgY2VydGlmaWNhdGUgYXV0aG9y
-aXR5MQ8wDQYDVQQIEwZMZXV2ZW4xJTAjBgNVBAMTHEdudVRMUyBjZXJ0aWZpY2F0
-ZSBhdXRob3JpdHkwHhcNMTEwNTIzMjAzODIxWhcNMTIxMjIyMDc0MTUxWjB9MQsw
-CQYDVQQGEwJCRTEPMA0GA1UEChMGR251VExTMSUwIwYDVQQLExxHbnVUTFMgY2Vy
-dGlmaWNhdGUgYXV0aG9yaXR5MQ8wDQYDVQQIEwZMZXV2ZW4xJTAjBgNVBAMTHEdu
-dVRMUyBjZXJ0aWZpY2F0ZSBhdXRob3JpdHkwWTATBgcqhkjOPQIBBggqhkjOPQMB
-BwNCAARS2I0jiuNn14Y2sSALCX3IybqiIJUvxUpj+oNfzngvj/Niyv2394BWnW4X
-uQ4RTEiywK87WRcWMGgJB5kX/t2no0MwQTAPBgNVHRMBAf8EBTADAQH/MA8GA1Ud
-DwEB/wQFAwMHBgAwHQYDVR0OBBYEFPC0gf6YEr+1KLlkQAPLzB9mTigDMAoGCCqG
-SM49BAMCA0gAMEUCIDGuwD1KPyG+hRf88MeyMQcqOFZD0TbVleF+UsAGQ4enAiEA
-l4wOuDwKQa+upc8GftXE2C//4mKANBC6It01gUaTIpo=
------END CERTIFICATE-----
-
-```
-
 # Assign a Configuration
 
-The profiler reads the path defined in the environment variable
-`AUKLET_ENDPOINT` to determine which configuration to use. For convenience, your
-project folder could contain a file called `auklet.conf` that you source to
-update the configuration, app ID, and API key all at once.
-
-	$ cat auklet.conf
-	AUKLET_ENDPOINT=$HOME/.auklet/staging
-	AUKLET_APP_ID=5171dbff-c0ea-98ee-e70e-dd0af1f9fcdf
-	AUKLET_API_KEY=SM49BAMCA0...
-
-Update the configuration:
-
-	. auklet.conf
+	. .env.staging
 
 # Release an App
 
