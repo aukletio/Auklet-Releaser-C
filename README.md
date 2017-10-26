@@ -20,12 +20,12 @@ sends live profile data to the backend.
 
 # Go Setup
 
-`wrap` and `release` need at least Go 1.8. See the [getting started page][1] to
-download Go. Then see [How to Write Go Code - Organization][2] to set up your
+`wrap` and `release` need at least Go 1.8. See the [getting started page][gs] to
+download Go. Then see [How to Write Go Code - Organization][org] to set up your
 system.
 
-[1]: https://golang.org/doc/install
-[2]: https://golang.org/doc/code.html#Organization
+[gs]: https://golang.org/doc/install
+[org]: https://golang.org/doc/code.html#Organization
 
 Conventionally, your `~/.profile` should contain the following:
 
@@ -35,9 +35,9 @@ Conventionally, your `~/.profile` should contain the following:
 The first line tells Go where your workspace is located. The second makes sure
 that the shell will know about executables built with `go install`.
 
-`wrap` needs [package sarama][3], a Kafka client. Install it with
+`wrap` needs [package sarama][ps], a Kafka client. Install it with
 
-[3]: https://github.com/Shopify/sarama
+[ps]: https://github.com/Shopify/sarama
 
 	go get github.com/Shopify/sarama
 
@@ -102,10 +102,10 @@ commands.  For example:
 ## cert/
 
 A directory containing SSL certs that `wrap` uses to authenticate its Kafka
-connection. These must be [PEM][1] files, which must end in a blank line (double
+connection. These must be [PEM][pem] files, which must end in a blank line (double
 newline). For example:
 
-[1]: https://en.wikipedia.org/wiki/Privacy-enhanced_Electronic_Mail
+[pem]: https://en.wikipedia.org/wiki/Privacy-enhanced_Electronic_Mail
 
 ```
 -----BEGIN CERTIFICATE-----
