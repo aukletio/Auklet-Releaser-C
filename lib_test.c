@@ -16,7 +16,7 @@ callee_test(void)
 	N *root = newN(z);
 	N *c = addcallee(root, f);
 	//dumpN(root, 0);
-	N *g = hascallee(root, f);
+	N *g = hascallee(root, z);
 	int ret = 1;
 	if (c != g) {
 		printf("callee_test: expected %p, got %p\n", (void *)c, (void *)g);
@@ -31,7 +31,7 @@ marshal_test(void)
 {
 	N *root = newN(z);
 	B b = {0, 0, 0};
-	char *e = "{}";
+	char *e = "{ }";
 	int ret = 1;
 	if (!marshal(&b, root)) {
 		printf("marshal_test: marshal failed\n");
