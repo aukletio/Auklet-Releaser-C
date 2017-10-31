@@ -1,6 +1,9 @@
-# Auklet Profiler
+# Auklet C/C++ Profiler
 
-Auklet is an IoT C/C++ profiler that runs on Linux.
+Auklet's IoT C/C++ profiler is built to run on any POSIX operating system. It
+has been validated on:
+
+- Ubuntu 16.04
 
 It consists of three components:
 
