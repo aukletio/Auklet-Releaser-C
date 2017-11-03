@@ -253,8 +253,8 @@ append(B *b, char *fmt, ...)
 {
 	int wc;
 	va_list ap;
-	va_start(ap, fmt);
 retry:
+	va_start(ap, fmt);
 	wc = vsnprintf(b->buf + b->len, b->cap - b->len, fmt, ap);
 	if (wc >= b->cap - b->len) {
 		if (!growB(b))
