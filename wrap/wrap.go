@@ -2,7 +2,6 @@ package main
 
 import (
 	"bufio"
-	"crypto/rand"
 	"crypto/sha512"
 	"crypto/tls"
 	"crypto/x509"
@@ -11,7 +10,6 @@ import (
 	"io"
 	"io/ioutil"
 	"log"
-	"math/big"
 	"net"
 	"net/http"
 	"os"
@@ -22,6 +20,7 @@ import (
 	"time"
 
 	"github.com/Shopify/sarama"
+	"github.com/satori/go.uuid"
 )
 
 // Object represents something that can be sent to the backend. It must have a
@@ -29,19 +28,6 @@ import (
 type Object interface {
 	topic() string
 	brand()
-}
-
-func uuid() string {
-	x := big.NewInt(2)
-	y := big.NewInt(128)
-	z := big.NewInt(0)
-	i, err := rand.Int(rand.Reader, z.Exp(x, y, z))
-	if err != nil {
-		log.Panic(err)
-	}
-	b := i.Bytes()
-	return fmt.Sprintf("%x-%x-%x-%x-%x", b[0:4], b[4:6], b[6:8], b[8:10],
-		b[10:])
 }
 
 func checksum(path string) string {
@@ -76,7 +62,7 @@ func (e Event) topic() string {
 }
 
 func (e *Event) brand() {
-	e.UUID = uuid()
+	e.UUID = uuid.NewV4().String()
 	e.CheckSum = cksum
 }
 
@@ -156,7 +142,7 @@ func (n Node) topic() string {
 }
 
 func (n *Node) brand() {
-	n.UUID = uuid()
+	n.UUID = uuid.NewV4().String()
 	n.CheckSum = cksum
 }
 
@@ -306,8 +292,8 @@ func produce(obj chan Object) (func(), error) {
 				done <- err
 				return
 			}
-			//log.Printf("producer got %v bytes: %v", len(b), string(b))
-			log.Printf("producer got %v bytes", len(b))
+			log.Printf("producer got %v bytes: %v", len(b), string(b))
+			//log.Printf("producer got %v bytes", len(b))
 			_, _, err = p.SendMessage(&sarama.ProducerMessage{
 				Topic: o.topic(),
 				Value: sarama.ByteEncoder(b),
