@@ -5,6 +5,7 @@ import (
 	"crypto/sha512"
 	"crypto/tls"
 	"crypto/x509"
+	"encoding/base64"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -16,6 +17,7 @@ import (
 	"os/exec"
 	"os/signal"
 	"strconv"
+	"strings"
 	"syscall"
 	"time"
 
@@ -58,7 +60,7 @@ type Event struct {
 }
 
 func (e Event) topic() string {
-	return gettopic("/event")
+	return envar["EVENT_TOPIC"]
 }
 
 func (e *Event) brand() {
@@ -138,25 +140,12 @@ type Node struct {
 }
 
 func (n Node) topic() string {
-	return gettopic("/prof")
+	return envar["PROF_TOPIC"]
 }
 
 func (n *Node) brand() {
 	n.UUID = uuid.NewV4().String()
 	n.CheckSum = cksum
-}
-
-func gettopic(tf string) string {
-	f, err := os.Open(endpoint + tf)
-	if err != nil {
-		panic(err)
-	}
-	defer f.Close()
-	s, err := bufio.NewReader(f).ReadString('\n')
-	if err != nil {
-		panic(err)
-	}
-	return s[:len(s)-1]
 }
 
 func logs(logger io.Writer) (func(), error) {
@@ -229,17 +218,20 @@ func relay(obj chan Object) (func(), error) {
 	}, nil
 }
 
-func connect() (sarama.SyncProducer, error) {
-	certdir := endpoint + "/cert"
-	certpool := x509.NewCertPool()
-	pemCerts, err := ioutil.ReadFile(certdir + "/ck_ca")
-	dsc := certdir + "/ck_cert"
-	dpk := certdir + "/ck_private_key"
-	if err == nil {
-		certpool.AppendCertsFromPEM(pemCerts)
-	}
+func decode(s string) []byte {
+	b, err := base64.StdEncoding.DecodeString(s)
+	check(err)
+	return b
+}
 
-	cert, err := tls.LoadX509KeyPair(dsc, dpk)
+func connect() (sarama.SyncProducer, error) {
+	ca := decode(envar["CA"])
+	cert := decode(envar["CERT"])
+	key := decode(envar["PRIVATE_KEY"])
+
+	certpool := x509.NewCertPool()
+	certpool.AppendCertsFromPEM(ca)
+	c, err := tls.X509KeyPair(cert, key)
 	check(err)
 
 	tc := tls.Config{
@@ -247,7 +239,7 @@ func connect() (sarama.SyncProducer, error) {
 		ClientAuth:         tls.NoClientCert,
 		ClientCAs:          nil,
 		InsecureSkipVerify: true,
-		Certificates:       []tls.Certificate{cert},
+		Certificates:       []tls.Certificate{c},
 	}
 
 	config := sarama.NewConfig()
@@ -256,21 +248,8 @@ func connect() (sarama.SyncProducer, error) {
 	config.Net.TLS.Config = &tc
 	config.ClientID = "ProfileTest"
 
-	broker := func(path string) []string {
-		f, err := os.Open(path)
-		if err != nil {
-			panic(err)
-		}
-		defer f.Close()
-		var broker []string
-		s := bufio.NewScanner(f)
-		for s.Scan() {
-			broker = append(broker, s.Text())
-		}
-		return broker
-	}(endpoint + "/broker")
-
-	return sarama.NewSyncProducer(broker, config)
+	brokers := strings.Split(envar["BROKERS"], ",")
+	return sarama.NewSyncProducer(brokers, config)
 }
 
 func produce(obj chan Object) (func(), error) {
@@ -319,7 +298,7 @@ func produce(obj chan Object) (func(), error) {
 var cksum string
 
 func valid(sum string) bool {
-	ep := gettopic("/url") + "/check_releases/" + sum
+	ep := envar["BASE_URL"] + "/check_releases/" + sum
 	//log.Println("wrapper: release check url:", ep)
 	resp, err := http.Get(ep)
 	if err != nil {
@@ -338,16 +317,41 @@ func valid(sum string) bool {
 	return false
 }
 
-var endpoint string
+var envar map[string]string
+
+func env() {
+	envar = make(map[string]string)
+	keys := []string{
+		"BASE_URL",
+		"BROKERS",
+		"PROF_TOPIC",
+		"EVENT_TOPIC",
+		"CA",
+		"CERT",
+		"PRIVATE_KEY",
+	}
+
+	prefix := "AUKLET_"
+	ok := true
+	for _, k := range keys {
+		v := os.Getenv(prefix + k)
+		if v == "" {
+			ok = false
+			log.Printf("empty envar %v\n", prefix+k)
+		} else {
+			envar[k] = v
+		}
+	}
+	if !ok {
+		log.Fatal("incomplete configuration")
+	}
+}
 
 func main() {
 	logger := os.Stdout
 	log.SetOutput(logger)
 
-	endpoint = os.Getenv("AUKLET_ENDPOINT")
-	if endpoint == "" {
-		log.Fatal("empty envar AUKLET_ENDPOINT")
-	}
+	env()
 
 	args := os.Args
 	if len(args) < 2 {

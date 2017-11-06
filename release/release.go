@@ -1,7 +1,6 @@
 package main
 
 import (
-	"bufio"
 	"bytes"
 	"crypto/sha512"
 	"debug/dwarf"
@@ -45,8 +44,7 @@ func (s BytesReadCloser) Close() error {
 }
 
 func usage() {
-	log.Printf("usage: %v deployfile\n", os.Args[0])
-	os.Exit(1)
+	log.Fatalf("usage: %v deployfile\n", os.Args[0])
 }
 
 func (rel *Release) symbolize(debugpath string) {
@@ -153,13 +151,13 @@ func sectionsMatch(deployName, debugName string) bool {
 
 		debugsect := debugfile.Section(deploysect.Name)
 		if debugsect == nil {
-			log.Printf("releaser: debug file %v lacks section %v from deploy file %v\n",
+			log.Printf("debug file %v lacks section %v from deploy file %v\n",
 				debugName, deploysect.Name, deployName)
 			continue
 		}
 
 		if bytes.Compare(hash(deploysect), hash(debugsect)) != 0 {
-			log.Printf("releaser: section %-15v %-18v differs\n",
+			log.Printf("section %-15v %-18v differs\n",
 				deploysect.Name, deploysect.Type)
 			return false
 		}
@@ -183,6 +181,32 @@ func (rel *Release) release(deployName string) {
 	log.Println("release():", deployName, rel.DeployHash)
 }
 
+var envar map[string]string
+
+func env() {
+	envar = make(map[string]string)
+	keys := []string{
+		"BASE_URL",
+		"API_KEY",
+		"APP_ID",
+	}
+
+	prefix := "AUKLET_"
+	ok := true
+	for _, k := range keys {
+		v := os.Getenv(prefix + k)
+		if v == "" {
+			ok = false
+			log.Printf("empty envar %v\n", prefix+k)
+		} else {
+			envar[k] = v
+		}
+	}
+	if !ok {
+		log.Fatal("incomplete configuration")
+	}
+}
+
 func main() {
 	if len(os.Args) < 2 {
 		usage()
@@ -190,33 +214,12 @@ func main() {
 	deployName := os.Args[1]
 	debugName := deployName + "-dbg"
 
-	url := func() string {
-		endpoint := os.Getenv("AUKLET_ENDPOINT")
-		if endpoint == "" {
-			log.Fatal("empty envar AUKLET_ENDPOINT")
-		}
-		f, err := os.Open(endpoint + "/url")
-		if err != nil {
-			panic(err)
-		}
-		defer f.Close()
-		s, err := bufio.NewReader(f).ReadString('\n')
-		if err != nil {
-			panic(err)
-		}
-		return s[:len(s)-1]
-	}() + "/releases/"
-	log.Println("releaser: url:", url)
+	env()
+	url := envar["BASE_URL"] + "/releases/"
 
 	rel := new(Release)
-	rel.AppID = os.Getenv("AUKLET_APP_ID")
-	if rel.AppID == "" {
-		log.Fatal("empty envar AUKLET_APP_ID")
-	}
-	apikey := os.Getenv("AUKLET_API_KEY")
-	if rel.AppID == "" {
-		log.Fatal("empty envar AUKLET_API_KEY")
-	}
+	rel.AppID = envar["APP_ID"]
+	apikey := envar["API_KEY"]
 	rel.symbolize(debugName)
 
 	// reject ELF pairs with disparate sections
@@ -249,14 +252,15 @@ func main() {
 	if err != nil {
 		panic(err)
 	}
-	log.Println("releaser:", resp.Status)
+	log.Print(resp.Status)
 	switch resp.StatusCode {
 	case 200:
 		log.Println("not created")
+	case 201: // created
+		log.Printf("appid: %v\n", rel.AppID)
+		log.Printf("checksum: %v\n", rel.DeployHash)
+	case 502: // bad gateway
+		log.Fatal(url)
+	default:
 	}
-	log.Printf("releaser:\n"+
-		"    appid: %v\n"+
-		"    checksum: %v\n",
-		rel.AppID,
-		rel.DeployHash)
 }
