@@ -55,15 +55,15 @@ func checksum(path string) string {
 
 // Event contains data pertaining to the termination of a child process.
 type Event struct {
-	CheckSum	string		`json:"checksum"`
-	UUID		string		`json:"uuid"`
-	Time		time.Time	`json:"timestamp"`
-	Status		int		`json:"exit_status"`
-	Signal		string		`json:"signal,omitempty"`
-	CpuPercent	float64		`json:"cpu_percent"`
-	MemPercent	float64		`json:"mem_percent"`
-	Inbound		uint64		`json:"inbound_traffic"`
-	Outbound	uint64		`json:"outbound_traffic"`
+	CheckSum   string    `json:"checksum"`
+	UUID       string    `json:"uuid"`
+	Time       time.Time `json:"timestamp"`
+	Status     int       `json:"exit_status"`
+	Signal     string    `json:"signal,omitempty"`
+	CpuPercent float64   `json:"cpu_percent"`
+	MemPercent float64   `json:"mem_percent"`
+	Inbound    uint64    `json:"inbound_traffic"`
+	Outbound   uint64    `json:"outbound_traffic"`
 }
 
 func (e Event) topic() string {
@@ -103,8 +103,8 @@ func event(state *os.ProcessState) *Event {
 		}(),
 		CpuPercent: tempCpu[0],
 		MemPercent: tempMem.UsedPercent,
-		Inbound: tempNet[0].BytesRecv,
-		Outbound: tempNet[0].BytesSent,
+		Inbound:    tempNet[0].BytesRecv,
+		Outbound:   tempNet[0].BytesSent,
 	}
 }
 
