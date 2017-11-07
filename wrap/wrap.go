@@ -82,15 +82,10 @@ func event(state *os.ProcessState) *Event {
 		return nil
 	}
 
-	/* System-wide cpu usage since the start of the child process */
-	tempCPU, _ := cpu.Percent(0, false)
-
-	/*System-wide current virtual memory (ram) consumprion percentage
-	at the time of child process termination */
-	tempMem, _ := mem.VirtualMemory()
-
-	/* Total network I/O bytes recieved and sent from the system since the start of the system */
-	tempNet, _ := hnet.IOCounters(false)
+	var (
+		tempNet []hnet.IOCountersStat
+		tempErr error
+	)
 
 	return &Event{
 		Time:   time.Now(),
@@ -101,10 +96,44 @@ func event(state *os.ProcessState) *Event {
 			}
 			return ""
 		}(),
-		CPUPercent: tempCPU[0],
-		MemPercent: tempMem.UsedPercent,
-		Inbound:    tempNet[0].BytesRecv,
-		Outbound:   tempNet[0].BytesSent,
+
+		/* System-wide cpu usage since the
+		start of the child process */
+		CPUPercent: func() float64 {
+			tempCPU, err := cpu.Percent(0, false)
+			if err != nil {
+				return 0
+			}
+			return tempCPU[0]
+
+		}(),
+
+		/*System-wide current virtual memory (ram) consumprion
+		percentage at the time of child process termination */
+		MemPercent: func() float64 {
+			tempMem, err := mem.VirtualMemory()
+			if err != nil {
+				return 0
+			}
+			return tempMem.UsedPercent
+		}(),
+
+		/* Total network I/O bytes recieved and sent from the system
+		since the start of the system */
+		Inbound: func() uint64 {
+			tempNet, tempErr = hnet.IOCounters(false)
+			if tempErr != nil {
+				return 0
+			}
+			return tempNet[0].BytesRecv
+		}(),
+
+		Outbound: func() uint64 {
+			if tempErr != nil {
+				return 0
+			}
+			return tempNet[0].BytesSent
+		}(),
 	}
 }
 
