@@ -63,7 +63,7 @@ emit(void)
 	append(&b, "\n");
 	//dprintf(log, "emit: %s", b.buf);
 	if (send(sock, b.buf, b.len, 0) == -1) {
-		dprintf(log, "emit: send: %s\n", strerror(errno));
+		//dprintf(log, "emit: send: %s\n", strerror(errno));
 		//exit(1);
 	}
 	reset(&root);
@@ -118,15 +118,17 @@ comm(int type, char *prefix)
 	struct sockaddr_un remote;
 	int l, fd;
 	if ((fd = socket(AF_UNIX, type, 0)) == -1) {
-		dprintf(log, "comm: socket: %s\n", strerror(errno));
-		exit(1);
+		return 0;
+		//dprintf(log, "comm: socket: %s\n", strerror(errno));
+		//exit(1);
 	}
 	remote.sun_family = AF_UNIX;
 	sprintf(remote.sun_path, "%s-%d", prefix, getppid());
 	l = strlen(remote.sun_path) + sizeof(remote.sun_family);
 	if (connect(fd, (struct sockaddr *)&remote, l) == -1) {
-		dprintf(log, "comm: connect: %s\n", strerror(errno));
-		exit(1);
+		return 0;
+		//dprintf(log, "comm: connect: %s\n", strerror(errno));
+		//exit(1);
 	}
 
 	return fd;
@@ -139,6 +141,8 @@ setup(void)
 {
 	log = comm(SOCK_SEQPACKET, "log");
 	sock = comm(SOCK_STREAM, "data");
+	if (!sock)
+		return;
 	signals();
 	timers();
 	instenter = push;
