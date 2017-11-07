@@ -60,7 +60,7 @@ type Event struct {
 	Time       time.Time `json:"timestamp"`
 	Status     int       `json:"exit_status"`
 	Signal     string    `json:"signal,omitempty"`
-	CpuPercent float64   `json:"cpu_percent"`
+	CPUPercent float64   `json:"cpu_percent"`
 	MemPercent float64   `json:"mem_percent"`
 	Inbound    uint64    `json:"inbound_traffic"`
 	Outbound   uint64    `json:"outbound_traffic"`
@@ -83,7 +83,7 @@ func event(state *os.ProcessState) *Event {
 	}
 
 	/* System-wide cpu usage since the start of the child process */
-	tempCpu, _ := cpu.Percent(0, false)
+	tempCPU, _ := cpu.Percent(0, false)
 
 	/*System-wide current virtual memory (ram) consumprion percentage
 	at the time of child process termination */
@@ -101,7 +101,7 @@ func event(state *os.ProcessState) *Event {
 			}
 			return ""
 		}(),
-		CpuPercent: tempCpu[0],
+		CPUPercent: tempCPU[0],
 		MemPercent: tempMem.UsedPercent,
 		Inbound:    tempNet[0].BytesRecv,
 		Outbound:   tempNet[0].BytesSent,
