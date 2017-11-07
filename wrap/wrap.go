@@ -23,6 +23,9 @@ import (
 
 	"github.com/Shopify/sarama"
 	"github.com/satori/go.uuid"
+	"github.com/shirou/gopsutil/cpu"
+	"github.com/shirou/gopsutil/mem"
+	hnet "github.com/shirou/gopsutil/net"
 )
 
 // Object represents something that can be sent to the backend. It must have a
@@ -52,11 +55,15 @@ func checksum(path string) string {
 
 // Event contains data pertaining to the termination of a child process.
 type Event struct {
-	CheckSum string    `json:"checksum"`
-	UUID     string    `json:"uuid"`
-	Time     time.Time `json:"timestamp"`
-	Status   int       `json:"exit_status"`
-	Signal   string    `json:"signal,omitempty"`
+	CheckSum	string		`json:"checksum"`
+	UUID		string		`json:"uuid"`
+	Time		time.Time	`json:"timestamp"`
+	Status		int		`json:"exit_status"`
+	Signal		string		`json:"signal,omitempty"`
+	CpuPercent	float64		`json:"cpu_percent"`
+	MemPercent	float64		`json:"mem_percent"`
+	Inbound		uint64		`json:"inbound_traffic"`
+	Outbound	uint64		`json:"outbound_traffic"`
 }
 
 func (e Event) topic() string {
@@ -74,6 +81,17 @@ func event(state *os.ProcessState) *Event {
 		log.Print("expected type syscall.WaitStatus; non-POSIX system?")
 		return nil
 	}
+
+	/* System-wide cpu usage since the start of the child process */
+	tempCpu, _ := cpu.Percent(0, false)
+
+	/*System-wide current virtual memory (ram) consumprion percentage
+	at the time of child process termination */
+	tempMem, _ := mem.VirtualMemory()
+
+	/* Total network I/O bytes recieved and sent from the system since the start of the system */
+	tempNet, _ := hnet.IOCounters(false)
+
 	return &Event{
 		Time:   time.Now(),
 		Status: ws.ExitStatus(),
@@ -83,6 +101,10 @@ func event(state *os.ProcessState) *Event {
 			}
 			return ""
 		}(),
+		CpuPercent: tempCpu[0],
+		MemPercent: tempMem.UsedPercent,
+		Inbound: tempNet[0].BytesRecv,
+		Outbound: tempNet[0].BytesSent,
 	}
 }
 
@@ -106,6 +128,7 @@ func run(obj chan Object, cmd *exec.Cmd) {
 		panic(err)
 	}
 
+	cpu.Percent(0, false)
 	done := make(chan struct{})
 	sig := make(chan os.Signal)
 	signal.Notify(sig, syscall.SIGINT)
