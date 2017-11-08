@@ -53,17 +53,22 @@ func checksum(path string) string {
 	return sum
 }
 
+// System contains data pertaining to overall system metrics
+type System struct {
+	CPUPercent float64 `json:"cpu_percent"`
+	MemPercent float64 `json:"mem_percent"`
+	Inbound    uint64  `json:"inbound_traffic"`
+	Outbound   uint64  `json:"outbound_traffic"`
+}
+
 // Event contains data pertaining to the termination of a child process.
 type Event struct {
-	CheckSum   string    `json:"checksum"`
-	UUID       string    `json:"uuid"`
-	Time       time.Time `json:"timestamp"`
-	Status     int       `json:"exit_status"`
-	Signal     string    `json:"signal,omitempty"`
-	CPUPercent float64   `json:"cpu_percent"`
-	MemPercent float64   `json:"mem_percent"`
-	Inbound    uint64    `json:"inbound_traffic"`
-	Outbound   uint64    `json:"outbound_traffic"`
+	CheckSum      string    `json:"checksum"`
+	UUID          string    `json:"uuid"`
+	Time          time.Time `json:"timestamp"`
+	Status        int       `json:"exit_status"`
+	Signal        string    `json:"signal,omitempty"`
+	SystemMetrics System    `json:"system_metrics"`
 }
 
 func (e Event) topic() string {
@@ -107,6 +112,13 @@ func event(state *os.ProcessState) *Event {
 		outbound = tempNet[0].BytesSent
 	}
 
+	s := System{
+		CPUPercent: cpuPercent,
+		MemPercent: memPercent,
+		Inbound:    inbound,
+		Outbound:   outbound,
+	}
+
 	return &Event{
 		Time:   time.Now(),
 		Status: ws.ExitStatus(),
@@ -116,11 +128,7 @@ func event(state *os.ProcessState) *Event {
 			}
 			return ""
 		}(),
-
-		CPUPercent: cpuPercent,
-		MemPercent: memPercent,
-		Inbound:    inbound,
-		Outbound:   outbound,
+		SystemMetrics: s,
 	}
 }
 
@@ -133,6 +141,8 @@ func check(err error) {
 func usage() {
 	log.Fatalf("usage: %v command [args ...]\n", os.Args[0])
 }
+
+var inboundPrev, outboundPrev uint64
 
 func run(obj chan Object, cmd *exec.Cmd) {
 	cmd.Stdout = os.Stdout
