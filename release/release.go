@@ -101,28 +101,26 @@ func (rel *Release) symbolize(debugpath string) {
 			if le.File == nil {
 				continue
 			}
-
-			rel.Dwarf = append(rel.Dwarf, Dwarf{
-				Address: le.Address,
-				Hash:    hashobject(le.File.Name),
-				Line:    le.Line,
-			})
+			_, err = os.Stat(le.File.Name)
+			if err == nil {
+				rel.Dwarf = append(rel.Dwarf, Dwarf{
+					Address: le.Address,
+					Hash:    hashobject(le.File.Name),
+					Line:    le.Line,
+				})
+			}
 		}
 	}
 }
 
 func hashobject(path string) string {
-	_, err := os.Stat(path)
-	if err == nil {
-		c := exec.Command("git", "hash-object", path)
-		out, err := c.CombinedOutput()
-		if err != nil {
-			// don't have git, or bad path
-			log.Panic(err)
-		}
-		return string(out[:len(out)-1])
+	c := exec.Command("git", "hash-object", path)
+	out, err := c.CombinedOutput()
+	if err != nil {
+		// don't have git, or bad path
+		log.Panic(err)
 	}
-	return ""
+	return string(out[:len(out)-1])
 }
 
 func hash(s *elf.Section) []byte {
