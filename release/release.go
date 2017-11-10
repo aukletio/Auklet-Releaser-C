@@ -112,13 +112,17 @@ func (rel *Release) symbolize(debugpath string) {
 }
 
 func hashobject(path string) string {
-	c := exec.Command("git", "hash-object", path)
-	out, err := c.CombinedOutput()
-	if err != nil {
-		// don't have git, or bad path
-		log.Panic(err)
+	_, err := os.Stat(path)
+	if err == nil {
+		c := exec.Command("git", "hash-object", path)
+		out, err := c.CombinedOutput()
+		if err != nil {
+			// don't have git, or bad path
+			log.Panic(err)
+		}
+		return string(out[:len(out)-1])
 	}
-	return string(out[:len(out)-1])
+	return ""
 }
 
 func hash(s *elf.Section) []byte {
