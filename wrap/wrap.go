@@ -23,6 +23,9 @@ import (
 
 	"github.com/Shopify/sarama"
 	"github.com/satori/go.uuid"
+	"github.com/shirou/gopsutil/cpu"
+	"github.com/shirou/gopsutil/mem"
+	hnet "github.com/shirou/gopsutil/net"
 )
 
 // Object represents something that can be sent to the backend. It must have a
@@ -50,13 +53,22 @@ func checksum(path string) string {
 	return sum
 }
 
+// System contains data pertaining to overall system metrics
+type System struct {
+	CPUPercent float64 `json:"cpu_percent"`
+	MemPercent float64 `json:"mem_percent"`
+	Inbound    uint64  `json:"inbound_traffic"`
+	Outbound   uint64  `json:"outbound_traffic"`
+}
+
 // Event contains data pertaining to the termination of a child process.
 type Event struct {
-	CheckSum string    `json:"checksum"`
-	UUID     string    `json:"uuid"`
-	Time     time.Time `json:"timestamp"`
-	Status   int       `json:"exit_status"`
-	Signal   string    `json:"signal,omitempty"`
+	CheckSum      string    `json:"checksum"`
+	UUID          string    `json:"uuid"`
+	Time          time.Time `json:"timestamp"`
+	Status        int       `json:"exit_status"`
+	Signal        string    `json:"signal,omitempty"`
+	SystemMetrics System    `json:"system_metrics"`
 }
 
 func (e Event) topic() string {
@@ -74,6 +86,39 @@ func event(state *os.ProcessState) *Event {
 		log.Print("expected type syscall.WaitStatus; non-POSIX system?")
 		return nil
 	}
+
+	var (
+		inbound    uint64
+		outbound   uint64
+		cpuPercent float64
+		memPercent float64
+	)
+
+	/* System-wide cpu usage since the start of the child process */
+	if tempCPU, err := cpu.Percent(0, false); err == nil {
+		cpuPercent = tempCPU[0]
+	}
+
+	/*System-wide current virtual memory (ram) consumption
+	percentage at the time of child process termination */
+	if tempMem, err := mem.VirtualMemory(); err == nil {
+		memPercent = tempMem.UsedPercent
+	}
+
+	/* Total network I/O bytes recieved and sent from the system
+	since the start of the system */
+	if tempNet, err := hnet.IOCounters(false); err == nil {
+		inbound = tempNet[0].BytesRecv
+		outbound = tempNet[0].BytesSent
+	}
+
+	s := System{
+		CPUPercent: cpuPercent,
+		MemPercent: memPercent,
+		Inbound:    inbound,
+		Outbound:   outbound,
+	}
+
 	return &Event{
 		Time:   time.Now(),
 		Status: ws.ExitStatus(),
@@ -83,6 +128,7 @@ func event(state *os.ProcessState) *Event {
 			}
 			return ""
 		}(),
+		SystemMetrics: s,
 	}
 }
 
@@ -96,6 +142,8 @@ func usage() {
 	log.Fatalf("usage: %v command [args ...]\n", os.Args[0])
 }
 
+var inboundPrev, outboundPrev uint64
+
 func run(obj chan Object, cmd *exec.Cmd) {
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
@@ -106,6 +154,7 @@ func run(obj chan Object, cmd *exec.Cmd) {
 		panic(err)
 	}
 
+	cpu.Percent(0, false)
 	done := make(chan struct{})
 	sig := make(chan os.Signal)
 	signal.Notify(sig, syscall.SIGINT)
