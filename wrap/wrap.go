@@ -23,6 +23,9 @@ import (
 
 	"github.com/Shopify/sarama"
 	"github.com/satori/go.uuid"
+	"github.com/shirou/gopsutil/cpu"
+	"github.com/shirou/gopsutil/mem"
+	hnet "github.com/shirou/gopsutil/net"
 )
 
 // Object represents something that can be sent to the backend. It must have a
@@ -51,8 +54,8 @@ func checksum(path string) string {
 }
 
 type Frame struct {
-	Fn       uint64 `json:"fn,omitempty"`
-	Cs       uint64 `json:"cs,omitempty"`
+	Fn uint64 `json:"fn,omitempty"`
+	Cs uint64 `json:"cs,omitempty"`
 }
 
 type Sig syscall.Signal
@@ -67,14 +70,23 @@ func (s Sig) MarshalText() ([]byte, error) {
 	return []byte(s.String()), nil
 }
 
+// System contains data pertaining to overall system metrics
+type System struct {
+	CPUPercent float64 `json:"cpu_percent"`
+	MemPercent float64 `json:"mem_percent"`
+	Inbound    uint64  `json:"inbound_traffic"`
+	Outbound   uint64  `json:"outbound_traffic"`
+}
+
 // Event contains data pertaining to the termination of a child process.
 type Event struct {
-	CheckSum string    `json:"checksum"`
-	UUID     string    `json:"uuid"`
-	Time     time.Time `json:"timestamp"`
-	Status   int       `json:"exit_status"`
-	Signal   Sig       `json:"signal,omitempty"`
-	Trace    []Frame   `json:"stacktrace,omitempty"`
+	CheckSum      string    `json:"checksum"`
+	UUID          string    `json:"uuid"`
+	Time          time.Time `json:"timestamp"`
+	Status        int       `json:"exit_status"`
+	Signal        Sig       `json:"signal,omitempty"`
+	Trace         []Frame   `json:"stacktrace,omitempty"`
+	SystemMetrics System    `json:"system_metrics"`
 }
 
 func (e Event) topic() string {
@@ -86,16 +98,55 @@ func (e *Event) brand() {
 	e.CheckSum = cksum
 }
 
+var inboundPrev, outboundPrev uint64
+
+func metrics() System {
+	var (
+		inbound    uint64
+		outbound   uint64
+		cpuPercent float64
+		memPercent float64
+	)
+
+	/* System-wide cpu usage since the start of the child process */
+	if tempCPU, err := cpu.Percent(0, false); err == nil {
+		cpuPercent = tempCPU[0]
+	}
+
+	/*System-wide current virtual memory (ram) consumption
+	percentage at the time of child process termination */
+	if tempMem, err := mem.VirtualMemory(); err == nil {
+		memPercent = tempMem.UsedPercent
+	}
+
+	/* Total network I/O bytes recieved and sent from the system
+	since the start of the system */
+	if tempNet, err := hnet.IOCounters(false); err == nil {
+		inbound = tempNet[0].BytesRecv
+		outbound = tempNet[0].BytesSent
+	}
+
+	return System{
+		CPUPercent: cpuPercent,
+		MemPercent: memPercent,
+		Inbound:    inbound,
+		Outbound:   outbound,
+	}
+}
+
 func event(evt chan Event, state *os.ProcessState) *Event {
 	ws, ok := state.Sys().(syscall.WaitStatus)
 	if !ok {
 		log.Print("expected type syscall.WaitStatus; non-POSIX system?")
 		return nil
 	}
+
 	e := Event{
-		Time: time.Now(),
-		Status: ws.ExitStatus(),
+		Time:          time.Now(),
+		Status:        ws.ExitStatus(),
+		SystemMetrics: metrics(),
 	}
+
 	if ws.Signaled() {
 		e.Signal = Sig(ws.Signal())
 	}
@@ -128,6 +179,7 @@ func run(obj chan Object, evt chan Event, cmd *exec.Cmd) {
 		panic(err)
 	}
 
+	cpu.Percent(0, false)
 	done := make(chan struct{})
 	sig := make(chan os.Signal)
 	signal.Notify(sig, syscall.SIGINT)
@@ -221,7 +273,7 @@ func stacktrace(evt chan Event) (func(), error) {
 			var s Event
 			err := json.Unmarshal(line.Bytes(), &s)
 			if err != nil {
-		close(evt)
+				close(evt)
 				done <- err
 				return
 			}

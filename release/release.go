@@ -101,12 +101,14 @@ func (rel *Release) symbolize(debugpath string) {
 			if le.File == nil {
 				continue
 			}
-
-			rel.Dwarf = append(rel.Dwarf, Dwarf{
-				Address: le.Address,
-				Hash:    hashobject(le.File.Name),
-				Line:    le.Line,
-			})
+			_, err = os.Stat(le.File.Name)
+			if err == nil {
+				rel.Dwarf = append(rel.Dwarf, Dwarf{
+					Address: le.Address,
+					Hash:    hashobject(le.File.Name),
+					Line:    le.Line,
+				})
+			}
 		}
 	}
 }
