@@ -53,20 +53,21 @@ func checksum(path string) string {
 	return sum
 }
 
-type Frame struct {
+type frame struct {
 	Fn uint64 `json:"fn,omitempty"`
 	Cs uint64 `json:"cs,omitempty"`
 }
 
-type Sig syscall.Signal
+type sig syscall.Signal
 
-func (s Sig) String() string {
+func (s sig) String() string {
 	return syscall.Signal(s).String()
 }
 
-func (s Sig) Signal() {}
+func (s sig) Signal() {}
 
-func (s Sig) MarshalText() ([]byte, error) {
+// MarshalText allows a sig to be represented as a string in JSON objects.
+func (s sig) MarshalText() ([]byte, error) {
 	return []byte(s.String()), nil
 }
 
@@ -84,8 +85,8 @@ type Event struct {
 	UUID          string    `json:"uuid"`
 	Time          time.Time `json:"timestamp"`
 	Status        int       `json:"exit_status"`
-	Signal        Sig       `json:"signal,omitempty"`
-	Trace         []Frame   `json:"stacktrace,omitempty"`
+	Signal        sig       `json:"signal,omitempty"`
+	Trace         []frame   `json:"stacktrace,omitempty"`
 	SystemMetrics System    `json:"system_metrics"`
 }
 
@@ -148,7 +149,7 @@ func event(evt chan Event, state *os.ProcessState) *Event {
 	}
 
 	if ws.Signaled() {
-		e.Signal = Sig(ws.Signal())
+		e.Signal = sig(ws.Signal())
 	}
 
 	if x, ok := <-evt; ok {
@@ -206,7 +207,7 @@ func run(obj chan Object, evt chan Event, cmd *exec.Cmd) {
 type Node struct {
 	CheckSum string `json:"checksum,omitempty"`
 	UUID     string `json:"uuid,omitempty"`
-	Frame
+	frame
 	Ncalls   uint   `json:"ncalls,omitempty"`
 	Nsamples uint   `json:"nsamples,omitempty"`
 	Callees  []Node `json:"callees,omitempty"`
