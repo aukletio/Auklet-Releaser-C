@@ -4,7 +4,6 @@
 
 #include "lib.c"
 
-#define len(x) (sizeof(x)/sizeof(x[0]))
 #define str(x) #x
 
 F z = {0, 0};

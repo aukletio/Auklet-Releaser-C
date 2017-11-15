@@ -11,6 +11,9 @@
 #include <stdlib.h>
 #include <string.h>
 
+/* macros */
+#define len(x) (sizeof(x)/sizeof(x[0]))
+
 /* types */
 /* Type F represents a stack frame holding function address and callsite. */
 typedef struct {
@@ -318,4 +321,23 @@ marshal(B *b, N *n)
 	marshalc(b, n);
 	append(b, "}");
 	return 1;
+}
+
+static int
+marshals(B *b, N *sp, int sig)
+{
+	append(b,
+	"{"
+		"\"signal\":%d,"
+		"\"stacktrace\":[", sig);
+	for (N *n = sp; n; n = n->parent) {
+		append(b,
+		"{"
+			"\"fn\":%ld,"
+			"\"cs\":%ld"
+		"},", n->f.fn, n->f.cs);
+	}
+	if (',' == b->buf[b->len - 1])
+		--b->len; /* overwrite trailing comma */
+	append(b, "]}");
 }
