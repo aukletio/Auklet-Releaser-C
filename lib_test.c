@@ -71,6 +71,38 @@ marshal_test2(void)
 }
 
 int
+marshals_test(void)
+{
+	N *root = newN(z);
+	B b = {0, 0, 0};
+	char *e = "{\"signal\":11,\"stacktrace\":[{"
+		"\"fn\":44269,"
+		"\"cs\":64222"
+	"},{"
+		"\"fn\":44269,"
+		"\"cs\":64222"
+	"},{"
+		"\"fn\":0,"
+		"\"cs\":0"
+	"}]}";
+	int ret = 1;
+	N *sp = addcallee(addcallee(root, f), f);
+	if (!marshals(&b, sp, 11)) {
+		printf("%s: marshals failed\n", __func__);
+		ret = 0;
+	}
+	if (strcmp(b.buf, e)) {
+		printf("%s:\n"
+		       "    expected \"%s\"\n"
+		       "    got      \"%s\"\n", __func__, e, b.buf);
+		ret = 0;
+	}
+	killN(root, 0);
+	free(b.buf);
+	return ret;
+}
+
+int
 main()
 {
 	struct {
@@ -81,6 +113,7 @@ main()
 		TEST(callee_test),
 		TEST(marshal_test),
 		TEST(marshal_test2),
+		TEST(marshals_test),
 	};
 	int ret = 0;
 	for (int i = 0; i < len(test); ++i) {

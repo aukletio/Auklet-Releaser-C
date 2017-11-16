@@ -133,6 +133,7 @@ newN(F f)
 	n->f = f;
 	n->ncall = n->nsamp = n->cap = n->len = 0;
 	n->callee = NULL;
+	n->parent = NULL;
 	n->llist = (pthread_mutex_t)PTHREAD_MUTEX_INITIALIZER;
 	n->lsamp = (pthread_mutex_t)PTHREAD_MUTEX_INITIALIZER;
 	n->lcall = (pthread_mutex_t)PTHREAD_MUTEX_INITIALIZER;
