@@ -38,11 +38,9 @@ Conventionally, your `~/.profile` should contain the following:
 The first line tells Go where your workspace is located. The second makes sure
 that the shell will know about executables built with `go install`.
 
-`wrap` needs [package sarama][ps], a Kafka client. Install it with
+`wrap` needs several third-party packages. Install them with
 
-[ps]: https://github.com/Shopify/sarama
-
-	go get github.com/Shopify/sarama
+	go get ./wrap
 
 # Build
 
@@ -51,9 +49,11 @@ To build and install all components, run
 	make
 
 In particular, this installs the commands `wrap` and `release` to `$GOPATH/bin`,
-and the static library `libauklet.a` to `/usr/local/lib/`.
+and build test executables `x` and `x-dbg`.
 
-It also builds test executables `x` and `x-dbg`.
+To install the static library `libauklet.a` to `/usr/local/lib/`, run
+
+	make install
 
 # Run Unit Tests
 
@@ -105,8 +105,7 @@ A comma-delimited list of Kafka broker addresses. For example:
 
 ## `AUKLET_EVENT_TOPIC`, `AUKLET_PROF_TOPIC`
 
-Kafka topics to which `wrap` should send event and profile data,
-respectively.
+Kafka topics to which `wrap` should send event and profile data, respectively.
 
 ## `AUKLET_BASE_URL`
 
