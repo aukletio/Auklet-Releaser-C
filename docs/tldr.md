@@ -63,13 +63,13 @@ file, `.auklet`, and sourced from within `.env`. For example:
 
 ## `AUKLET_BROKERS`
 
-A comma-delimited list of Kafka broker addresses. For example:
+A comma-delimited list of broker addresses. For example:
 
 	broker1,broker2,broker3
 
 ## `AUKLET_EVENT_TOPIC`, `AUKLET_PROF_TOPIC`
 
-Kafka topics to which `wrap` should send event and profile data, respectively.
+Topics to which `wrap` should send event and profile data, respectively.
 
 ## `AUKLET_BASE_URL`
 
@@ -80,7 +80,7 @@ It is accessed by both `wrap` and `release` commands. For example:
 
 ## `AUKLET_CA`, `AUKLET_CERT`, `AUKLET_PRIVATE_KEY`
 
-Base64-encoded [PEM][pem]-format certs that `wrap` uses to authenticate its Kafka
+Base64-encoded [PEM][pem]-format certs that `wrap` uses to authenticate its
 connection.
 
 [pem]: https://en.wikipedia.org/wiki/Privacy-enhanced_Electronic_Mail
