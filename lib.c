@@ -319,3 +319,25 @@ marshal(B *b, N *n)
 	append(b, "}");
 	return 1;
 }
+
+static int
+sane(N *n)
+{
+	int ok = 1;
+	unsigned sum = 0;
+
+	mcheck(pthread_mutex_lock, &n->lsamp);
+	for (int i = 0; i < n->len; ++i) {
+		if (!sane(n->callee[i]))
+			ok = 0;
+		sum += n->callee[i]->nsamp;
+	}
+
+	if (n->nsamp < sum) {
+		dprintf(log, "sane: %p->nsamp = %u, sum = %u\n", (void *)n, n->nsamp, sum);
+		dumpN(n, 0);
+		ok = 0;
+	}
+	mcheck(pthread_mutex_unlock, &n->lsamp);
+	return ok;
+}
