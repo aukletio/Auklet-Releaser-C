@@ -213,7 +213,7 @@ func env() {
 }
 
 func main() {
-	log.Printf("Auklet Releaser v%s (%d)\n", Version, BuildDate)
+	log.Printf("Auklet Releaser v%s (%s)\n", Version, BuildDate)
 	if len(os.Args) < 2 {
 		usage()
 	}

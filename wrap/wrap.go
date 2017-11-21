@@ -402,7 +402,7 @@ func env() {
 func main() {
 	logger := os.Stdout
 	log.SetOutput(logger)
-	log.Printf("Auklet Wrapper v%s (%d)\n", Version, BuildDate)
+	log.Printf("Auklet Wrapper v%s (%s)\n", Version, BuildDate)
 
 	env()
 
