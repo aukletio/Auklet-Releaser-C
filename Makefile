@@ -3,8 +3,9 @@ include config.mk
 all: go x lib_test
 
 go:
-	go install ./wrap
-	go install ./release
+	go get github.com/ahmetb/govvv
+	govvv install ./wrap
+	govvv install ./release
 
 # instrumented, stripped test program
 x: x-dbg
@@ -26,7 +27,7 @@ lib_test: lib_test.c lib.c
 	gcc -o $@ ${CFLAGS} -g -lpthread $<
 
 rt.o: rt.c lib.c
-	gcc -o $@ -c ${CFLAGS} $<
+	gcc -o $@ -c ${CFLAGS} -DAUKLET_VERSION="$(cat VERSION)" $<
 
 libauklet.a: rt.o
 	ar rcs $@ $<

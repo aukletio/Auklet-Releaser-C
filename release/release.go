@@ -14,6 +14,9 @@ import (
 	"os/exec"
 )
 
+// provided by govvv at compile-time
+var BuildDate, Version string
+
 // A Dwarf represents a pared-down dwarf.LineEntry.
 type Dwarf struct {
 	Address uint64
@@ -210,6 +213,7 @@ func env() {
 }
 
 func main() {
+	log.Printf("Auklet Releaser v%s (%d)\n", Version, BuildDate)
 	if len(os.Args) < 2 {
 		usage()
 	}

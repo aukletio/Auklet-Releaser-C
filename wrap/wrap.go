@@ -28,6 +28,9 @@ import (
 	hnet "github.com/shirou/gopsutil/net"
 )
 
+// provided by govvv at compile-time
+var BuildDate, Version string
+
 // Object represents something that can be sent to the backend. It must have a
 // topic and implement a brand() method that fills UUID and checksum fields.
 type Object interface {
@@ -399,6 +402,7 @@ func env() {
 func main() {
 	logger := os.Stdout
 	log.SetOutput(logger)
+	log.Printf("Auklet Wrapper v%s (%d)\n", Version, BuildDate)
 
 	env()
 

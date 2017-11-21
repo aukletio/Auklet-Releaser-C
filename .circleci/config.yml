@@ -29,8 +29,17 @@ jobs:
                 name: Calculate codebase version
                 command: |
                   git config --global user.email "$ESGBOT_GIT_EMAIL" && git config --global user.name "$ESGBOT_GIT_NAME"
-            #      bash .devops/calculate-app-version.sh
-            #      echo "version := \"$(cat ~/.version)\"" > version.sbt
+                  bash .devops/calculate-app-version.sh
+                  cp ~/.version VERSION
+
+            ##
+            # RESTORE CACHES
+            ##
+            # TODO
+            - run:
+                name: Download Go dependencies
+                command: |
+                  go get -t -d -v ./...
 
             ##
             # TESTS
@@ -38,6 +47,39 @@ jobs:
             - run:
                 name: Run tests
                 command: |
-                  go get -t -d -v ./...
                   make lib_test
                   ./lib_test
+                  sh .devops/deploy.sh
+
+
+            ##
+            # SAVE CACHES
+            ##
+            # TODO
+
+            ##
+            # DEPLOYMENT
+            ##
+            - run:
+                name: Deploy Edge (If staging)
+                command: |
+                  set -ou pipefail
+                  if [ "${CIRCLE_BRANCH}" == "edge" ]; then
+                    sh .devops/deploy.sh
+                  fi
+            - run:
+                name: Deploy QA (If master)
+                command: |
+                  set -ou pipefail
+                  if [ "${CIRCLE_BRANCH}" == "master" ]; then
+                    sh .devops/deploy.sh
+                    bash .devops/post-release.sh
+                  fi
+            - run:
+                name: Deploy Production (If production)
+                command: |
+                  set -ou pipefail
+                  if [ "${CIRCLE_BRANCH}" == "production" ]; then
+                    sh .devops/deploy.sh
+                    bash .devops/post-release.sh
+                  fi
