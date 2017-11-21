@@ -1,6 +1,6 @@
 #!/bin/bash
 set -e
-if [[ "$1" == "" ]]; then
+if [ "$1" == "" ]; then
   echo "ERROR: env not provided."
   exit 1
 fi
