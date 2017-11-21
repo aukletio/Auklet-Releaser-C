@@ -1,0 +1,38 @@
+version: 2
+
+jobs:
+    build:
+        environment:
+            TZ: "/usr/share/zoneinfo/America/Detroit"
+        working_directory: /go/src/github.com/${CIRCLE_PROJECT_USERNAME}/${CIRCLE_PROJECT_REPONAME}
+        docker:
+            - image: circleci/golang:1.8
+        steps:
+
+            ##
+            # SETUP
+            ##
+            - add_ssh_keys
+            - checkout
+            - run:
+                name: Prepare OS
+                command: |
+                  sudo apt-get update
+                  sudo apt-get -y install jq
+            # TODO install ruby
+            - run:
+                name: Calculate codebase version
+                command: |
+                  git config --global user.email "$ESGBOT_GIT_EMAIL" && git config --global user.name "$ESGBOT_GIT_NAME"
+            #      bash .devops/calculate-app-version.sh
+            #      echo "version := \"$(cat ~/.version)\"" > version.sbt
+
+            ##
+            # TESTS
+            ##
+            - run:
+                name: Run tests
+                command: |
+                  go get -t -d -v ./...
+                  make lib_test
+                  ./lib_test
