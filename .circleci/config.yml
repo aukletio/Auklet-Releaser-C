@@ -7,14 +7,12 @@ jobs:
         working_directory: ~/go/src/github.com/ESG-USA/Auklet-Profiler-C
         docker:
             - image: circleci/ruby:2.2.7-node-browsers
-              environment:
-                  PATH: $PATH:/usr/local/go/bin:$GOPATH/bin
         steps:
 
             ##
             # SETUP
             ##
-            #- add_ssh_keys
+            - add_ssh_keys
             - checkout
             - run:
                 name: Prepare OS
@@ -26,6 +24,7 @@ jobs:
                   curl -sSL https://redirector.gvt1.com/edgedl/go/go1.8.5.linux-amd64.tar.gz | tar xzf -
                   sudo chown -R root:root ./go
                   sudo mv go /usr/local
+                  echo 'export PATH=$PATH:/usr/local/go/bin:$GOPATH/bin' >> $BASH_ENV
             - run:
                 name: Calculate codebase version
                 command: |
