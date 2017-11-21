@@ -50,7 +50,7 @@ jobs:
                 command: |
                   make lib_test
                   ./lib_test
-                  sh .devops/deploy.sh staging
+                  bash .devops/deploy.sh staging
 
 
             ##
@@ -66,14 +66,14 @@ jobs:
                 command: |
                   set -ou pipefail
                   if [ "${CIRCLE_BRANCH}" == "edge" ]; then
-                    sh .devops/deploy.sh staging
+                    bash .devops/deploy.sh staging
                   fi
             - run:
                 name: Deploy QA (If master)
                 command: |
                   set -ou pipefail
                   if [ "${CIRCLE_BRANCH}" == "master" ]; then
-                    sh .devops/deploy.sh qa
+                    bash .devops/deploy.sh qa
                     bash .devops/post-release.sh
                   fi
             - run:
@@ -81,6 +81,6 @@ jobs:
                 command: |
                   set -ou pipefail
                   if [ "${CIRCLE_BRANCH}" == "production" ]; then
-                    sh .devops/deploy.sh production
+                    bash .devops/deploy.sh production
                     bash .devops/post-release.sh
                   fi
