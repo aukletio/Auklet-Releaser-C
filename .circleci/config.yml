@@ -43,8 +43,10 @@ jobs:
             - run:
                 name: Run tests
                 command: |
-                  make lib_test
-                  ./lib_test
+                  make lib_test && ./lib_test
+            - run:
+                name: Debug deployment
+                command: |
                   bash .devops/deploy.sh staging
 
             ##
