@@ -108,14 +108,6 @@ When compiling source files to object files, pass the flags
 `-finstrument-functions -g` to your compiler.  When linking object files into an
 executable, pass the flag `-libauklet` to your compiler.
 
-# Release an App
-
-To release an executable called `x`, create an executable in the same directory
-called `x-dbg` that contains debug information. (`x` is not required to contain
-debug info.) Then run
-
-	release x
-
 # Run an App
 
 	wrap ./x
