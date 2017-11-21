@@ -4,7 +4,7 @@ VERSION="$(cat VERSION)"
 LIBTAR="libauklet-$VERSION.tgz"
 
 echo 'Compiling profiler...'
-make deploy
+make go libauklet.a
 
 echo 'Packaging profiler...'
 tar czv -f $LIBTAR libauklet.a

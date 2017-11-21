@@ -1,7 +1,6 @@
 include config.mk
 
 all: go x lib_test
-deploy: go install
 
 go:
 	go get github.com/ahmetb/govvv
