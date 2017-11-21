@@ -34,29 +34,18 @@ jobs:
                   cp ~/.version VERSION
 
             ##
-            # RESTORE CACHES
+            # TESTS
             ##
-            # TODO
             - run:
                 name: Download Go dependencies
                 command: |
                   go get -t -d -v ./...
-
-            ##
-            # TESTS
-            ##
             - run:
                 name: Run tests
                 command: |
                   make lib_test
                   ./lib_test
                   bash .devops/deploy.sh staging
-
-
-            ##
-            # SAVE CACHES
-            ##
-            # TODO
 
             ##
             # DEPLOYMENT

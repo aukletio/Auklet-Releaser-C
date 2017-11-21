@@ -12,7 +12,7 @@ echo 'Compiling profiler...'
 make go libauklet.a
 
 echo 'Packaging profiler...'
-tar czv -f $LIBTAR libauklet.a
+tar cz -f $LIBTAR libauklet.a
 
 echo 'Installing AWS CLI...'
 sudo apt-get -y install awscli
