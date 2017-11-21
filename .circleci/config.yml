@@ -4,18 +4,17 @@ jobs:
     build:
         environment:
             TZ: "/usr/share/zoneinfo/America/Detroit"
-        working_directory: /go/src/github.com/ESG-USA/Auklet-Profiler-C
+        working_directory: ~/go/src/github.com/ESG-USA/Auklet-Profiler-C
         docker:
             - image: circleci/ruby:2.2.7-node-browsers
               environment:
-                  GOPATH: /go
                   PATH: $PATH:/usr/local/go/bin:$GOPATH/bin
         steps:
 
             ##
             # SETUP
             ##
-            - add_ssh_keys
+            #- add_ssh_keys
             - checkout
             - run:
                 name: Prepare OS
