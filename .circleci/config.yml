@@ -7,8 +7,8 @@ jobs:
         working_directory: ~/go/src/github.com/ESG-USA/Auklet-Profiler-C
         docker:
             - image: circleci/ruby:2.2.7-node-browsers
-            - environment:
-                GOPATH: ~/go
+              environment:
+                  GOPATH: ~/go
         steps:
 
             ##
