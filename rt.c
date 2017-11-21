@@ -12,6 +12,11 @@
 #include <sys/un.h>
 #include <unistd.h>
 
+/* print version */
+#ifdef AUKLET_VERSION
+	dprintf(0, "auklet: version: %s\n", AUKLET_VERSION);
+#endif /* AUKLET_VERSION */
+
 /* function declarations */
 static void sigprof(int n);
 static void signals(void);
@@ -140,7 +145,6 @@ static void
 setup(void)
 {
 	log = comm(SOCK_SEQPACKET, "log");
-	dprintf(log, "auklet: version: %s\n", AUKLET_VERSION);
 	sock = comm(SOCK_STREAM, "data");
 	if (!sock)
 		return;
