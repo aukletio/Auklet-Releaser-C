@@ -1,9 +1,22 @@
 # Auklet C/C++ Profiler
 
 Auklet's IoT C/C++ profiler is built to run on any POSIX operating system. It
-has been validated on:
+has been validated on the following systems:
 
-- Ubuntu 16.04
+Board                         | Distribution  | Architecture
+------------------------------|---------------|-------------
+N/A                           | Ubuntu 16.04  | x86-64
+ARTIK 530                     | Fedora 24     | ARM7
+ARTIK 710                     | Fedora 24     | ARM7
+BeagleBone Black Wireless     | Debian 8.6    | ARM7
+ConnectCore 6 i.MX6Quad       | Yocto 2.2-r2  | ARM7
+DragonBoard 410c              | Debian 8.6    | ARM64
+Seeeduino Cloud (Arduino Yún) | OpenWRT 3.8.3 | MIPS
+Arduino Yún                   | OpenWRT 3.8.3 | MIPS
+Arduino Tian                  | OpenWRT 3.8.3 | MIPS
+Arduino Industrial 101        | OpenWRT 3.8.3 | MIPS
+Arduino Yún Mini              | OpenWRT 3.8.3 | MIPS
+Arduino Yún Shield            | OpenWRT 3.8.3 | MIPS
 
 It consists of three components:
 
