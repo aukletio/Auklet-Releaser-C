@@ -14,8 +14,9 @@ import (
 	"os/exec"
 )
 
-// provided by govvv at compile-time
+// BuildDate is provided by govvv at compile-time.
 var BuildDate string
+// Version is provided by govvv at compile-time.
 var Version string
 
 // A Dwarf represents a pared-down dwarf.LineEntry.

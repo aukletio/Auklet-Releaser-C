@@ -28,8 +28,9 @@ import (
 	hnet "github.com/shirou/gopsutil/net"
 )
 
-// provided by govvv at compile-time
+// BuildDate is provided by govvv at compile-time.
 var BuildDate string
+// Version is provided by govvv at compile-time.
 var Version string
 
 // Object represents something that can be sent to the backend. It must have a
