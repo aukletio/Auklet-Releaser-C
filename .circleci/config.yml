@@ -7,8 +7,6 @@ jobs:
         working_directory: ~/go/src/github.com/ESG-USA/Auklet-Profiler-C
         docker:
             - image: circleci/ruby:2.2.7-node-browsers
-              environment:
-                  GOPATH: ~/go
         steps:
 
             ##
@@ -26,6 +24,7 @@ jobs:
                   curl -sSL https://redirector.gvt1.com/edgedl/go/go1.8.5.linux-amd64.tar.gz | tar xzf -
                   sudo chown -R root:root ./go
                   sudo mv go /usr/local
+                  echo 'export GOPATH=$(cd ; pwd)/go' >> $BASH_ENV
                   echo 'export PATH=$PATH:/usr/local/go/bin:$GOPATH/bin' >> $BASH_ENV
             - run:
                 name: Calculate codebase version
