@@ -165,7 +165,7 @@ void
 __cyg_profile_func_enter(void *fn, void *cs)
 {
 	F f = {
-		.fn = (uintptr_t)fn, 
+		.fn = (uintptr_t)fn,
 		.cs = (uintptr_t)cs,
 	};
 	instenter(&sp, f);
