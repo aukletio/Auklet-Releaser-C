@@ -1,5 +1,10 @@
 #!/bin/bash
 set -e
+if [[ "$1" == "" ]]; then
+  echo "ERROR: env not provided."
+  exit 1
+fi
+ENVDIR=$1
 VERSION="$(cat VERSION)"
 LIBTAR="libauklet-$VERSION.tgz"
 
@@ -13,6 +18,6 @@ echo 'Installing AWS CLI...'
 sudo apt-get -y install awscli
 
 echo 'Uploading profiler to S3...'
-aws s3 cp $LIBTAR s3://auklet-profiler/$LIBTAR
-aws s3 cp $GOPATH/bin/wrap s3://auklet-profiler/wrap-$VERSION
-aws s3 cp $GOPATH/bin/release s3://auklet-profiler/release-$VERSION
+aws s3 cp $LIBTAR s3://auklet-profiler/$ENVDIR/$LIBTAR
+aws s3 cp $GOPATH/bin/wrap s3://auklet-profiler/$ENVDIR/wrap-$VERSION
+aws s3 cp $GOPATH/bin/release s3://auklet-profiler/$ENVDIR/release-$VERSION
