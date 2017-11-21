@@ -27,7 +27,7 @@ lib_test: lib_test.c lib.c
 	gcc -o $@ ${CFLAGS} -g -lpthread $<
 
 rt.o: rt.c lib.c
-	gcc -o $@ -c ${CFLAGS} -DAUKLET_VERSION=\"$$(cat VERSION)\" -DAUKLET_TIMESTAMP=\"$$(date --rfc-3339=seconds)\" $<
+	gcc -o $@ -c ${CFLAGS} -DAUKLET_VERSION=\"$$(cat VERSION)\" -DAUKLET_TIMESTAMP=\"$$(date --rfc-3339=seconds | sed 's/ /T/')\" $<
 
 libauklet.a: rt.o
 	ar rcs $@ $<
