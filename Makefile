@@ -27,7 +27,7 @@ lib_test: lib_test.c lib.c
 	gcc -o $@ ${CFLAGS} -g -lpthread $<
 
 rt.o: rt.c lib.c
-	gcc -o $@ -c ${CFLAGS} -DAUKLET_VERSION="$$(cat VERSION)" $<
+	gcc -o $@ -c ${CFLAGS} -DAUKLET_VERSION=\"$$(cat VERSION)\" $<
 
 libauklet.a: rt.o
 	ar rcs $@ $<
