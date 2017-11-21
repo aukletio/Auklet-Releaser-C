@@ -71,6 +71,19 @@ marshal_test2(void)
 	return ret;
 }
 
+static int
+sample_test(void)
+{
+	N *root = newN(z);
+	root->parent = NULL; /* This can be taken out after #22 is merged. */
+	int ret = 1;
+	N *sp = addcallee(addcallee(root, f), f);
+	sample(sp);
+	ret = sane(root);
+	killN(root, 0);
+	return ret;
+}
+
 int
 main()
 {
@@ -82,6 +95,7 @@ main()
 		TEST(callee_test),
 		TEST(marshal_test),
 		TEST(marshal_test2),
+		TEST(sample_test),
 	};
 	int ret = 0;
 	for (int i = 0; i < len(test); ++i) {
