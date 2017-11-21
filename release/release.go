@@ -15,7 +15,8 @@ import (
 )
 
 // provided by govvv at compile-time
-var BuildDate, Version string
+var BuildDate string
+var Version string
 
 // A Dwarf represents a pared-down dwarf.LineEntry.
 type Dwarf struct {

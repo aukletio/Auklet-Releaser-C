@@ -29,7 +29,8 @@ import (
 )
 
 // provided by govvv at compile-time
-var BuildDate, Version string
+var BuildDate string
+var Version string
 
 // Object represents something that can be sent to the backend. It must have a
 // topic and implement a brand() method that fills UUID and checksum fields.
