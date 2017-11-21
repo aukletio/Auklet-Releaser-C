@@ -4,9 +4,11 @@ jobs:
     build:
         environment:
             TZ: "/usr/share/zoneinfo/America/Detroit"
-        working_directory: /go/src/github.com/ESG-USA/Auklet-Profiler-C
+        working_directory: ~/go/src/github.com/ESG-USA/Auklet-Profiler-C
         docker:
-            - image: circleci/golang:1.8
+            - image: circleci/ruby:2.2.7-node-browsers
+              environment:
+                  PATH: $PATH:/usr/local/go/bin:$GOPATH/bin
         steps:
 
             ##
@@ -17,9 +19,13 @@ jobs:
             - run:
                 name: Prepare OS
                 command: |
+                  echo 'Installing jq...'
                   sudo apt-get update
                   sudo apt-get -y install jq
-            # TODO install ruby
+                  echo 'Installing Go...'
+                  curl -sSL https://redirector.gvt1.com/edgedl/go/go1.8.5.linux-amd64.tar.gz | tar xzf -
+                  sudo chown -R root:root ./go
+                  sudo mv go /usr/local
             - run:
                 name: Calculate codebase version
                 command: |
