@@ -28,10 +28,10 @@ import (
 	hnet "github.com/shirou/gopsutil/net"
 )
 
-// BuildDate is provided by govvv at compile-time.
+// BuildDate is provided by govvv at compile-time; DO NOT MODIFY.
 var BuildDate = time.Now().UTC().Format(time.RFC3339)
 
-// Version is provided by govvv at compile-time.
+// Version is provided by govvv at compile-time; DO NOT MODIFY.
 var Version = "local-build"
 
 // Object represents something that can be sent to the backend. It must have a
