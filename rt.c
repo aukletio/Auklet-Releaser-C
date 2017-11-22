@@ -140,7 +140,7 @@ static void
 setup(void)
 {
 	log = comm(SOCK_SEQPACKET, "log");
-	dprintf(log, "Auklet Instrument v%s (%s)\n", AUKLET_VERSION, AUKLET_TIMESTAMP);
+	dprintf(log, "Auklet Instrument version %s (%s)\n", AUKLET_VERSION, AUKLET_TIMESTAMP);
 	sock = comm(SOCK_STREAM, "data");
 	if (!sock)
 		return;

@@ -12,13 +12,14 @@ import (
 	"net/http"
 	"os"
 	"os/exec"
+	"time"
 )
 
 // BuildDate is provided by govvv at compile-time.
-var BuildDate string
+var BuildDate = time.Now().UTC().Format(time.RFC3339)
 
 // Version is provided by govvv at compile-time.
-var Version string
+var Version = "local-build"
 
 // A Dwarf represents a pared-down dwarf.LineEntry.
 type Dwarf struct {
@@ -216,7 +217,7 @@ func env() {
 }
 
 func main() {
-	log.Printf("Auklet Releaser v%s (%s)\n", Version, BuildDate)
+	log.Printf("Auklet Releaser version %s (%s)\n", Version, BuildDate)
 	if len(os.Args) < 2 {
 		usage()
 	}

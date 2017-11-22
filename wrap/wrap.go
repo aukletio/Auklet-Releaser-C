@@ -29,10 +29,10 @@ import (
 )
 
 // BuildDate is provided by govvv at compile-time.
-var BuildDate string
+var BuildDate = time.Now().UTC().Format(time.RFC3339)
 
 // Version is provided by govvv at compile-time.
-var Version string
+var Version = "local-build"
 
 // Object represents something that can be sent to the backend. It must have a
 // topic and implement a brand() method that fills UUID and checksum fields.
@@ -405,7 +405,7 @@ func env() {
 func main() {
 	logger := os.Stdout
 	log.SetOutput(logger)
-	log.Printf("Auklet Wrapper v%s (%s)\n", Version, BuildDate)
+	log.Printf("Auklet Wrapper version %s (%s)\n", Version, BuildDate)
 
 	env()
 
