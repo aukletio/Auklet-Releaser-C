@@ -35,7 +35,6 @@ import (
 type Object interface {
 	topic() string
 	brand()
-	ip()
 }
 
 func checksum(path string) string {
@@ -83,9 +82,6 @@ func (e Event) topic() string {
 func (e *Event) brand() {
 	e.UUID = uuid.NewV4().String()
 	e.CheckSum = cksum
-}
-
-func (e *Event) ip() {
 	e.IP = currentIP
 }
 
@@ -209,9 +205,6 @@ func (n Node) topic() string {
 func (n *Node) brand() {
 	n.UUID = uuid.NewV4().String()
 	n.CheckSum = cksum
-}
-
-func (n *Node) ip() {
 	n.IP = currentIP
 }
 
@@ -333,7 +326,6 @@ func produce(obj chan Object) (func(), error) {
 		// receive Kafka-bound objects from clients
 		for o := range obj {
 			o.brand()
-			o.ip()
 			b, err := json.Marshal(o)
 			if err != nil {
 				done <- err
@@ -386,15 +378,22 @@ func valid(sum string) bool {
 }
 
 // Deviceobject contains information that need to be posted to device endpoint
-type Deviceobject struct {
+type Device struct {
 	Mac  string `json:"mac_address,omitempty"`
 	Zone string `json:"zone,omitempty"`
 }
 
-func device() bool {
+func postDevice() error {
 	//Mac addresses are generally 6 bytes long
 	sum := make([]byte, 6)
+	var hash string
 	interfaces, err := net.Interfaces()
+
+	// If we cant get interfaces on the device we send empty hash
+	if err != nil {
+		hash = ""
+	}
+
 	if err == nil {
 		for _, i := range interfaces {
 			if bytes.Compare(i.HardwareAddr, nil) != 0 {
@@ -404,11 +403,11 @@ func device() bool {
 				}
 			}
 		}
+		hash = fmt.Sprintf("%x", md5.Sum(sum))
 	}
-	//hashfunc := md5.New()
-	hash := fmt.Sprintf("%x", md5.Sum(sum))
+
 	zone, _ := time.Now().Zone()
-	d := Deviceobject{
+	d := Device{
 		Mac:  hash,
 		Zone: zone,
 	}
@@ -421,18 +420,28 @@ func device() bool {
 	}
 	req, err := http.NewRequest("POST", url, bytes.NewReader(b))
 	if err != nil {
-		return false
+		return err
 	}
 	req.Header.Add("content-type", "application/json")
 	resp, err := client.Do(req)
 	if err != nil {
-		return false
+		return err
 	}
 	log.Print(resp.Status)
+
+	//this is assuming device endpoint have the same response codes as release endpoint
 	switch resp.StatusCode {
-	//todo: case for each each response code
+	case 200:
+		log.Println("not created")
+	case 201: // created
+		log.Printf("Device object created")
+	case 502: // bad gateway
+		log.Printf("Bad Gateway")
+	default:
+
 	}
-	return true
+	// If we get to this point no matter what response code is this function will return nil
+	return err
 
 }
 
@@ -492,9 +501,9 @@ func main() {
 	currentIP = localAddr.IP.String()
 
 	//todo: What needs to be done if the device object doesnt get posted
-	postDevice := device()
-	if !postDevice {
-		log.Print("Device did not got posted")
+	devicePosted := postDevice()
+	if devicePosted != nil {
+		log.Print("Did not make a post request")
 	}
 
 	obj := make(chan Object)
