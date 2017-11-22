@@ -3,9 +3,8 @@ include config.mk
 all: go x lib_test
 
 go:
-	go get github.com/ahmetb/govvv
-	govvv install ./wrap
-	govvv install ./release
+	$GO install ./wrap
+	$GO install ./release
 
 # instrumented, stripped test program
 x: x-dbg

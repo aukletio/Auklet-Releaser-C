@@ -9,7 +9,8 @@ VERSION="$(cat VERSION)"
 LIBTAR="libauklet-$VERSION.tgz"
 
 echo 'Compiling profiler...'
-make go libauklet.a
+go get github.com/ahmetb/govvv
+GO=govvv make go libauklet.a
 
 echo 'Packaging profiler...'
 tar cz -f $LIBTAR libauklet.a
