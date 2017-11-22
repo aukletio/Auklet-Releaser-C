@@ -3,8 +3,8 @@ include config.mk
 all: go x lib_test
 
 go:
-	$GOCMD install ./wrap
-	$GOCMD install ./release
+	${GOCMD} install ./wrap
+	${GOCMD} install ./release
 
 # instrumented, stripped test program
 x: x-dbg

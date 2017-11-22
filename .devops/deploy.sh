@@ -10,8 +10,7 @@ LIBTAR="libauklet-$VERSION.tgz"
 
 echo 'Compiling profiler...'
 go get github.com/ahmetb/govvv
-export GOCMD=govvv
-make go libauklet.a
+GOCMD=govvv make go libauklet.a
 
 echo 'Packaging profiler...'
 tar cz -f $LIBTAR libauklet.a
