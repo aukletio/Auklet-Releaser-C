@@ -377,7 +377,7 @@ func valid(sum string) bool {
 	return false
 }
 
-// Deviceobject contains information that need to be posted to device endpoint
+// Device contains information that need to be posted to device endpoint
 type Device struct {
 	Mac  string `json:"mac_address,omitempty"`
 	Zone string `json:"zone,omitempty"`
