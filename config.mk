@@ -9,4 +9,4 @@ PFLAGS = -g -finstrument-functions
 PLIBS = -lpthread
 
 # overridden by CircleCI to use govvv
-GO ?= go
+GOCMD ?= go
