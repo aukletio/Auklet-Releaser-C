@@ -68,7 +68,7 @@ type Event struct {
 	CheckSum      string    `json:"checksum"`
 	UUID          string    `json:"id"`
 	Time          time.Time `json:"timestamp"`
-	Zone          string    `json:"zone"`
+	Zone          string    `json:"timezone"`
 	IP            string    `json:"ip_address"`
 	Status        int       `json:"exit_status"`
 	Signal        string    `json:"signal,omitempty"`
@@ -379,8 +379,8 @@ func valid(sum string) bool {
 
 // Device contains information that need to be posted to device endpoint
 type Device struct {
-	Mac  string `json:"mac_address,omitempty"`
-	Zone string `json:"zone,omitempty"`
+	Mac  string `json:"mac_address_hash,omitempty"`
+	Zone string `json:"timezone,omitempty"`
 }
 
 func postDevice() error {
@@ -422,7 +422,10 @@ func postDevice() error {
 	if err != nil {
 		return err
 	}
+
 	req.Header.Add("content-type", "application/json")
+	req.Header.Add("apikey", envar["API_KEY"])
+
 	resp, err := client.Do(req)
 	if err != nil {
 		return err
