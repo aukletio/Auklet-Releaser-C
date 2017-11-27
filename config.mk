@@ -12,4 +12,4 @@ PLIBS = -lpthread
 GOFLAGS ?= -ldflags ""
 
 # overridden by CricleCI to insert build timestamp
-TIMESTAMP ?= no timestamp
+TIMESTAMP ?= 'no timestamp'
