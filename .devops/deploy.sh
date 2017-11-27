@@ -13,19 +13,19 @@ echo 'Compiling wrapper and releaser...'
 mkdir deploy
 export GOFLAGS="-ldflags \"-X main.Version=$VERSION -X main.BuildDate=$TIMESTAMP\""
 echo 'Releaser: linux/amd64'
-GOOS=linux GOARCH=amd64 go install -o deploy/release-$VERSION-linux-amd64 ./release
+GOOS=linux GOARCH=amd64 go build -o release-$VERSION-linux-amd64 ./release
 echo 'Releaser: windows/amd64'
-GOOS=windows GOARCH=amd64 go install -o deploy/release-$VERSION-windows-amd64.exe ./release
+GOOS=windows GOARCH=amd64 go build -o release-$VERSION-windows-amd64.exe ./release
 echo 'Wrapper: linux/amd64'
-GOOS=linux GOARCH=amd64 go install -o deploy/wrap-$VERSION-linux-amd64 ./wrap
+GOOS=linux GOARCH=amd64 go build -o wrap-$VERSION-linux-amd64 ./wrap
 echo 'Wrapper: linux/arm'
-GOOS=linux GOARCH=arm go install -o deploy/wrap-$VERSION-linux-arm ./wrap
+GOOS=linux GOARCH=arm go build -o wrap-$VERSION-linux-arm ./wrap
 echo 'Wrapper: linux/arm64'
-GOOS=linux GOARCH=arm64 go install -o deploy/wrap-$VERSION-linux-arm64 ./wrap
+GOOS=linux GOARCH=arm64 go build -o wrap-$VERSION-linux-arm64 ./wrap
 echo 'Wrapper: linux/mips64'
-GOOS=linux GOARCH=mips64 go install -o deploy/wrap-$VERSION-linux-mips64 ./wrap
+GOOS=linux GOARCH=mips64 go build -o wrap-$VERSION-linux-mips64 ./wrap
 echo 'Wrapper: linux/mips64le'
-GOOS=linux GOARCH=mips64le go install -o deploy/wrap-$VERSION-linux-mips64le ./wrap
+GOOS=linux GOARCH=mips64le go build -o wrap-$VERSION-linux-mips64le ./wrap
 
 echo 'Compiling/packaging profiler...'
 make libauklet.a
