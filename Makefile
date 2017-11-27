@@ -3,10 +3,10 @@ include config.mk
 all: go x lib_test
 
 # Wrapper and releaser
-go: wrap release
-wrap:
+go: wrapper releaser
+wrapper:
 	go install ${GOFLAGS} ./wrap
-release:
+releaser:
 	go install ${GOFLAGS} ./release
 
 # instrumented, stripped test program
