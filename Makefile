@@ -2,9 +2,12 @@ include config.mk
 
 all: go x lib_test
 
-go:
-	${GOCMD} install ./wrap
-	${GOCMD} install ./release
+# Wrapper and releaser
+go: wrap release
+wrap:
+	go install ${GOFLAGS} ./wrap
+release:
+	go install ${GOFLAGS} ./release
 
 # instrumented, stripped test program
 x: x-dbg
@@ -26,7 +29,7 @@ lib_test: lib_test.c lib.c
 	gcc -o $@ ${CFLAGS} -g -lpthread $<
 
 rt.o: rt.c lib.c
-	gcc -o $@ -c ${CFLAGS} -DAUKLET_VERSION=\"$$(cat VERSION)\" -DAUKLET_TIMESTAMP=\"$$(date --rfc-3339=seconds | sed 's/ /T/')\" $<
+	gcc -o $@ -c ${CFLAGS} -DAUKLET_VERSION=\"$$(cat VERSION)\" -DAUKLET_TIMESTAMP=\"${TIMESTAMP}\" $<
 
 libauklet.a: rt.o
 	ar rcs $@ $<

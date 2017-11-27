@@ -15,10 +15,10 @@ import (
 	"time"
 )
 
-// BuildDate is provided by govvv at compile-time; DO NOT MODIFY.
-var BuildDate = time.Now().UTC().Format(time.RFC3339)
+// BuildDate is provided at compile-time; DO NOT MODIFY.
+var BuildDate = "no timestamp"
 
-// Version is provided by govvv at compile-time; DO NOT MODIFY.
+// Version is provided at compile-time; DO NOT MODIFY.
 var Version = "local-build"
 
 // A Dwarf represents a pared-down dwarf.LineEntry.
