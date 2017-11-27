@@ -39,9 +39,9 @@ make libauklet.a
 tar cz -f $LIBTAR libauklet.a
 
 echo 'Installing AWS CLI...'
-sudo apt-get -y install awscli
+#sudo apt-get -y install awscli
 
 echo 'Uploading profiler to S3...'
-aws s3 cp $LIBTAR s3://auklet-profiler/$ENVDIR/$LIBTAR
-aws s3 cp $GOPATH/bin/wrap s3://auklet-profiler/$ENVDIR/wrap-$VERSION
-aws s3 cp $GOPATH/bin/release s3://auklet-profiler/$ENVDIR/release-$VERSION
+#aws s3 cp $LIBTAR s3://auklet-profiler/$ENVDIR/$LIBTAR
+#aws s3 cp $GOPATH/bin/wrap s3://auklet-profiler/$ENVDIR/wrap-$VERSION
+#aws s3 cp $GOPATH/bin/release s3://auklet-profiler/$ENVDIR/release-$VERSION
