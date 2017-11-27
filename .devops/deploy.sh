@@ -19,9 +19,9 @@ GOOS=windows GOARCH=amd64 go build -o release-$VERSION-windows-amd64.exe ./relea
 WRAPPER_ARCHS=( amd64 arm arm64 mips64 mips64le )
 for a in "${WRAPPER_ARCHS[@]}"; do
   if [[ "$a" == "arm" ]]; then
-    echo "Wrapper: linux/arm$f"
     ARM_FAM=( 5 6 7 )
     for f in "${ARM_FAM[@]}"; do
+      echo "Wrapper: linux/arm$f"
       GOOS=linux GOARCH=arm GOARM=$f go build -o wrap-$VERSION-linux-arm$f ./wrap
     done
   else
