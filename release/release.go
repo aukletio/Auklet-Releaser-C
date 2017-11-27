@@ -12,7 +12,6 @@ import (
 	"net/http"
 	"os"
 	"os/exec"
-	"time"
 )
 
 // BuildDate is provided at compile-time; DO NOT MODIFY.
