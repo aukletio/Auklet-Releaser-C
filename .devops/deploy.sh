@@ -26,6 +26,7 @@ echo 'Wrapper: linux/mips64'
 GOOS=linux GOARCH=mips64 go build -o wrap-$VERSION-linux-mips64 ./wrap
 echo 'Wrapper: linux/mips64le'
 GOOS=linux GOARCH=mips64le go build -o wrap-$VERSION-linux-mips64le ./wrap
+mv -t deploy release-* wrap-*
 
 echo 'Compiling/packaging profiler...'
 make libauklet.a
