@@ -16,16 +16,11 @@ echo 'Releaser: linux/amd64'
 GOOS=linux GOARCH=amd64 go build -o release-$VERSION-linux-amd64 ./release
 echo 'Releaser: windows/amd64'
 GOOS=windows GOARCH=amd64 go build -o release-$VERSION-windows-amd64.exe ./release
-echo 'Wrapper: linux/amd64'
-GOOS=linux GOARCH=amd64 go build -o wrap-$VERSION-linux-amd64 ./wrap
-echo 'Wrapper: linux/arm'
-GOOS=linux GOARCH=arm go build -o wrap-$VERSION-linux-arm ./wrap
-echo 'Wrapper: linux/arm64'
-GOOS=linux GOARCH=arm64 go build -o wrap-$VERSION-linux-arm64 ./wrap
-echo 'Wrapper: linux/mips64'
-GOOS=linux GOARCH=mips64 go build -o wrap-$VERSION-linux-mips64 ./wrap
-echo 'Wrapper: linux/mips64le'
-GOOS=linux GOARCH=mips64le go build -o wrap-$VERSION-linux-mips64le ./wrap
+WRAPPER_ARCHS=( amd64 arm arm64 mips64 mips64le )
+for a in "${WRAPPER_ARCHS[@]}"; do
+  echo "Wrapper: linux/$a"
+  GOOS=linux GOARCH=$a go build -o wrap-$VERSION-linux-$a ./wrap
+done
 mv -t deploy release-* wrap-*
 
 echo 'Compiling/packaging profiler...'
