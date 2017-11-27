@@ -387,6 +387,7 @@ func postDevice() error {
 	//Mac addresses are generally 6 bytes long
 	sum := make([]byte, 6)
 	var hash string
+	apikey := envar["API_KEY"]
 	interfaces, err := net.Interfaces()
 
 	// If we cant get interfaces on the device we send empty hash
@@ -424,7 +425,7 @@ func postDevice() error {
 	}
 
 	req.Header.Add("content-type", "application/json")
-	req.Header.Add("apikey", envar["API_KEY"])
+	req.Header.Add("apikey", apikey)
 
 	resp, err := client.Do(req)
 	if err != nil {
@@ -432,14 +433,13 @@ func postDevice() error {
 	}
 	log.Print(resp.Status)
 
-	//this is assuming device endpoint have the same response codes as release endpoint
 	switch resp.StatusCode {
 	case 200:
 		log.Println("not created")
 	case 201: // created
-		log.Printf("Device object created")
+		log.Printf("Device object created with apikey %v\n", apikey)
 	case 502: // bad gateway
-		log.Printf("Bad Gateway")
+		log.Println("Bad Gateway")
 	default:
 
 	}
