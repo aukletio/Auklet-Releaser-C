@@ -2,12 +2,9 @@ include config.mk
 
 all: go x lib_test
 
-# Wrapper and releaser
-go: wrapper releaser
-wrapper:
-	go install ${GOFLAGS} ./wrap
-releaser:
-	go install ${GOFLAGS} ./release
+go:
+	go install ./wrap
+	go install ./release
 
 # instrumented, stripped test program
 x: x-dbg

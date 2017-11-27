@@ -8,8 +8,5 @@ INSTALL = /usr/local/lib
 PFLAGS = -g -finstrument-functions
 PLIBS = -lpthread
 
-# overridden by CircleCI to insert build version/timestamp
-GOFLAGS ?= -ldflags ""
-
 # overridden by CricleCI to insert build timestamp
 TIMESTAMP ?= 'no timestamp'
