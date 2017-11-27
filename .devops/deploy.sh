@@ -18,8 +18,16 @@ echo 'Releaser: windows/amd64'
 GOOS=windows GOARCH=amd64 go build -o release-$VERSION-windows-amd64.exe ./release
 WRAPPER_ARCHS=( amd64 arm arm64 mips64 mips64le )
 for a in "${WRAPPER_ARCHS[@]}"; do
-  echo "Wrapper: linux/$a"
-  GOOS=linux GOARCH=$a go build -o wrap-$VERSION-linux-$a ./wrap
+  if [[ "$a" == "arm" ]]; then
+    echo "Wrapper: linux/arm$f"
+    ARM_FAM=( 5 6 7 )
+    for f in "${ARM_FAM[@]}"; do
+      GOOS=linux GOARCH=arm GOARM=$f go build -o wrap-$VERSION-linux-arm$f ./wrap
+    done
+  else
+    echo "Wrapper: linux/$a"
+    GOOS=linux GOARCH=$a go build -o wrap-$VERSION-linux-$a ./wrap
+  fi
 done
 mv -t deploy release-* wrap-*
 
