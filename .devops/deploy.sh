@@ -7,10 +7,9 @@ fi
 ENVDIR=$1
 VERSION="$(cat VERSION)"
 TIMESTAMP="$(date --rfc-3339=seconds | sed 's/ /T/')"
-LIBTAR="libauklet-$VERSION.tgz"
+mkdir deploy
 
 echo 'Compiling wrapper and releaser...'
-mkdir deploy
 export GOFLAGS="-ldflags \"-X main.Version=$VERSION -X main.BuildDate=$TIMESTAMP\""
 echo 'Releaser: linux/amd64'
 GOOS=linux GOARCH=amd64 go build -o release-$VERSION-linux-amd64 ./release
@@ -32,13 +31,16 @@ done
 mv -t deploy release-* wrap-*
 
 echo 'Compiling/packaging profiler...'
+LIBTAR="libauklet-$VERSION.tgz"
 make libauklet.a
 tar cz -f $LIBTAR libauklet.a
 
 echo 'Installing AWS CLI...'
-#sudo apt-get -y install awscli
+# sudo apt-get -y install awscli
 
 echo 'Uploading profiler to S3...'
-#aws s3 cp $LIBTAR s3://auklet-profiler/$ENVDIR/$LIBTAR
-#aws s3 cp $GOPATH/bin/wrap s3://auklet-profiler/$ENVDIR/wrap-$VERSION
-#aws s3 cp $GOPATH/bin/release s3://auklet-profiler/$ENVDIR/release-$VERSION
+# aws s3 cp $LIBTAR s3://auklet-profiler/$ENVDIR/$LIBTAR
+# cd deploy
+# for f in *; do
+#   aws s3 cp $f s3://auklet-profiler/$ENVDIR/$f
+# done
