@@ -11,7 +11,7 @@ LIBTAR="libauklet-$VERSION.tgz"
 
 echo 'Compiling wrapper and releaser...'
 mkdir deploy
-export GOFLAGS="-ldflags \"-X main.Version=$VERSION main.BuildDate=$TIMESTAMP\""
+export GOFLAGS="-ldflags \"-X main.Version=$VERSION -X main.BuildDate=$TIMESTAMP\""
 echo 'Releaser: linux/amd64'
 GOOS=linux GOARCH=amd64 make releaser && cp $GOPATH/bin/release deploy/release-$VERSION-linux-amd64
 echo 'Releaser: windows/amd64'
