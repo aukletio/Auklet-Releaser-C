@@ -22,9 +22,9 @@ jobs:
                   sudo apt-get -y install jq
                   echo 'Installing Go...'
                   curl -sSL https://redirector.gvt1.com/edgedl/go/go1.8.5.linux-amd64.tar.gz | tar xzf -
-                  sudo chown -R root:root ./go
+                  sudo chown -R circleci:circleci ./go
                   sudo mv go /usr/local
-                  echo 'export GOPATH=$(cd ; pwd)/go' >> $BASH_ENV
+                  echo 'export GOPATH=$(pwd)/go' >> $BASH_ENV
                   echo 'export PATH=$PATH:/usr/local/go/bin:$GOPATH/bin' >> $BASH_ENV
             - run:
                 name: Calculate codebase version
