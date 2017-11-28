@@ -38,7 +38,7 @@ do
   CC=$cc AR=$ar TARNAME="libauklet-$VERSION-$GOOS-$arch.tgz" make clean libauklet.tgz
   echo "DONE: $GOOS/$arch"
   echo
-done < packaging-grid.csv
+done < compile-combos.csv
 mv -t deploy release-* wrap-* libauklet-*
 
 echo 'Installing AWS CLI...'
