@@ -41,6 +41,6 @@ uninstall:
 	sudo rm -f ${INSTALL}/libauklet.a
 
 clean:
-	rm -f x x-raw x-dbg x.o rt.o lib_test libauklet.a
+	rm -f x x-raw x-dbg x.o rt.o lib_test libauklet.a libauklet.tgz
 
 .PHONY: all clean install uninstall

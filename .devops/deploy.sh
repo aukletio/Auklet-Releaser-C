@@ -42,13 +42,13 @@ do
       echo 'Compiling wrapper...'
       GOARCH=arm GOARM=$fam go build -o wrap-$VERSION-$GOOS-arm$fam ./wrap
       echo 'Compiling library...'
-      CC=$cc AR=$ar TARNAME="libauklet-$VERSION-$GOOS-arm$fam.tgz" make libauklet.tgz
+      CC=$cc AR=$ar TARNAME="libauklet-$VERSION-$GOOS-arm$fam.tgz" make clean libauklet.tgz
     done
   else
     echo 'Compiling wrapper...'
     GOARCH=$arch go build -o wrap-$VERSION-$GOOS-$arch ./wrap
     echo 'Compiling library...'
-    CC=$cc AR=$ar TARNAME="libauklet-$VERSION-$GOOS-$arch.tgz" make libauklet.tgz
+    CC=$cc AR=$ar TARNAME="libauklet-$VERSION-$GOOS-$arch.tgz" make clean libauklet.tgz
   fi
   echo "DONE: $GOOS/$arch"
   echo
