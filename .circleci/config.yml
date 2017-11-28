@@ -6,7 +6,14 @@ jobs:
             TZ: "/usr/share/zoneinfo/America/Detroit"
         working_directory: ~/go/src/github.com/ESG-USA/Auklet-Profiler-C
         docker:
-            - image: circleci/ruby:2.2.7-node-browsers
+            # Ubuntu provides the easiest cross-compilation
+            # environment for libauklet.a, but all CircleCI
+            # Docker images are based on Debian Jessie.
+            #
+            # Unfortunately, this means the build takes a
+            # little longer because we have to install NodeJS
+            # and Ruby ourselves.
+            - image: buildpack-deps:xenial-scm
         steps:
 
             ##
@@ -17,9 +24,13 @@ jobs:
             - run:
                 name: Prepare OS
                 command: |
-                  echo 'Installing jq...'
+                  echo 'Installing jq and NodeJS/Ruby prerequisites...'
                   sudo apt-get update
-                  sudo apt-get -y install jq
+                  sudo apt-get -y install jq software-properties-common
+                  sudo apt-add-repository -y ppa:brightbox/ruby-ng
+                  curl -sL https://deb.nodesource.com/setup_6.x | sudo -E bash -
+                  echo 'Installing Ruby and NodeJS...'
+                  sudo apt-get -y install ruby2.2 nodejs
                   echo 'Installing Go...'
                   curl -sSL https://redirector.gvt1.com/edgedl/go/go1.8.5.linux-amd64.tar.gz | tar xzf -
                   sudo chown -R circleci:circleci ./go
