@@ -23,15 +23,15 @@ do
   if [[ "$pkg" != "" ]]; then
     apt-get -y install $pkg
   fi
-  if [[ "$a" == "arm" ]]; then
+  if [[ "$arch" == "arm" ]]; then
     ARM_FAM=(5 6 7)
-    for f in "${ARM_FAM[@]}"; do
-      echo "Wrapper: linux/arm$f"
-      GOARCH=arm GOARM=$f go build -o wrap-$VERSION-$GOOS-arm$f ./wrap
-      CC=$cc AR=$ar TARNAME="libauklet-$VERSION-$GOOS-arm$f.tgz" make libauklet.tgz
+    for fam in "${ARM_FAM[@]}"; do
+      echo "Wrapper: linux/arm$fam"
+      GOARCH=arm GOARM=$fam go build -o wrap-$VERSION-$GOOS-arm$fam ./wrap
+      CC=$cc AR=$ar TARNAME="libauklet-$VERSION-$GOOS-arm$fam.tgz" make libauklet.tgz
     done
   else
-    echo "Wrapper: linux/$a"
+    echo "Wrapper: linux/$arch"
      GOARCH=$arch go build -o wrap-$VERSION-$GOOS-$arch ./wrap
      CC=$cc AR=$ar TARNAME="libauklet-$VERSION-$GOOS-$arch.tgz" make libauklet.tgz
   fi
@@ -42,8 +42,5 @@ echo 'Installing AWS CLI...'
 # sudo apt-get -y install awscli
 
 echo 'Uploading profiler to S3...'
-# aws s3 cp $LIBTAR s3://auklet-profiler/$ENVDIR/$LIBTAR
 # cd deploy
-# for f in *; do
-#   aws s3 cp $f s3://auklet-profiler/$ENVDIR/$f
-# done
+# for f in *; do aws s3 cp $f s3://auklet-profiler/$ENVDIR/$f; done
