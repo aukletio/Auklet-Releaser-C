@@ -40,13 +40,13 @@ do
     for fam in "${ARM_FAM[@]}"; do
       echo "ARM family: $fam"
       echo 'Compiling wrapper...'
-      GOARCH=arm GOARM=$fam go build -v -o wrap-$VERSION-$GOOS-arm$fam ./wrap
+      GOARCH=arm GOARM=$fam go build -o wrap-$VERSION-$GOOS-arm$fam ./wrap
       echo 'Compiling library...'
       CC=$cc AR=$ar TARNAME="libauklet-$VERSION-$GOOS-arm$fam.tgz" make libauklet.tgz
     done
   else
     echo 'Compiling wrapper...'
-    GOARCH=$arch go build -v -o wrap-$VERSION-$GOOS-$arch ./wrap
+    GOARCH=$arch go build -o wrap-$VERSION-$GOOS-$arch ./wrap
     echo 'Compiling library...'
     CC=$cc AR=$ar TARNAME="libauklet-$VERSION-$GOOS-$arch.tgz" make libauklet.tgz
   fi
