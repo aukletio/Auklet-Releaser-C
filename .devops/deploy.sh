@@ -15,12 +15,15 @@ echo 'OS/Arch: linux/amd64'
 GOOS=linux GOARCH=amd64 go build -o release-$VERSION-linux-amd64 ./release
 echo 'OS/Arch: windows/amd64'
 GOOS=windows GOARCH=amd64 go build -o release-$VERSION-windows-amd64.exe ./release
+echo
 
 echo 'Preparing for cross compilation...'
 echo 'deb http://emdebian.org/tools/debian/ jessie main' | sudo tee /etc/apt/sources.list.d/crosstools.list
 curl -sS http://emdebian.org/tools/debian/emdebian-toolchain-archive.key | sudo apt-key add -
+echo
 
 echo 'Compiling wrapper and library...'
+echo
 export GOOS=linux
 while IFS=, read arch cc ar pkg
 do
@@ -29,7 +32,7 @@ do
     echo "Installing $pkg cross compilation toolchain..."
     sudo dpkg --add-architecture $pkg
     sudo apt-get -qq update
-    sudo apt-get -qq -y install crossbuild-essential-$pkg
+    sudo apt-get -y install crossbuild-essential-$pkg > /dev/null
     echo "$pkg cross compilation toolchain installed; proceeding with compilation..."
   fi
   if [[ "$arch" == "arm" ]]; then
