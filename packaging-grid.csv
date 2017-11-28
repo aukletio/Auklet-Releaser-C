@@ -1,4 +1,4 @@
 amd64,cc,ar,
 arm,arm-linux-gnueabihf-gcc,arm-linux-gnueabihf-ar,armhf
-arm64,aarch64-linux-gnueabi-gcc,aarch64-linux-gnu-ar,arm64
+arm64,aarch64-linux-gnu-cc,aarch64-linux-gnu-ar,arm64
 mips64,mips-linux-gnu-gcc,mips-linux-gnu-ar,mipsel
