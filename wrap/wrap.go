@@ -379,8 +379,9 @@ func valid(sum string) bool {
 
 // Device contains information that need to be posted to device endpoint
 type Device struct {
-	Mac  string `json:"mac_address_hash,omitempty"`
-	Zone string `json:"timezone,omitempty"`
+	Mac   string `json:"mac_address_hash,omitempty"`
+	Zone  string `json:"timezone,omitempty"`
+	AppID string `json:"application,omitempty"`
 }
 
 func postDevice() error {
@@ -409,8 +410,9 @@ func postDevice() error {
 
 	zone, _ := time.Now().Zone()
 	d := Device{
-		Mac:  hash,
-		Zone: zone,
+		Mac:   hash,
+		Zone:  zone,
+		AppID: envar["APP_ID"],
 	}
 
 	b, err := json.Marshal(d)
