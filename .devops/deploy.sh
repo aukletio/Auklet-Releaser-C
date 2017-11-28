@@ -6,7 +6,6 @@ if [[ "$1" == "" ]]; then
 fi
 ENVDIR=$1
 VERSION="$(cat VERSION)"
-mkdir deploy
 export TIMESTAMP="$(date --rfc-3339=seconds | sed 's/ /T/')"
 export GOFLAGS="-ldflags \"-X main.Version=$VERSION -X main.BuildDate=$TIMESTAMP\""
 
@@ -39,11 +38,9 @@ do
   echo "DONE: $GOOS/$arch"
   echo
 done < compile-combos.csv
-mv -t deploy release-* wrap-* libauklet-*
 
 echo 'Installing AWS CLI...'
 apt-get -y install awscli > /dev/null 2>&1
 
 echo 'Uploading profiler components to S3...'
-cd deploy
-for f in *; do aws s3 cp $f s3://auklet-profiler/$ENVDIR/$VERSION/$f; done
+for f in {release-,wrap-,libauklet-}*; do aws s3 cp $f s3://auklet-profiler/$ENVDIR/$VERSION/$f; done
