@@ -5,8 +5,7 @@ echo 'Initializing...'
 cd ~ # Prevents codebase contamination.
 rm -rf node_modules bug.txt enhancement.txt breaking.txt
 npm install --no-spin semver semver-extra > /dev/null
-echo '---'
-gem install github_changelog_generator -v 1.14.3
+gem install github_changelog_generator -v 1.14.3 > /dev/null
 # 1. Get all tags in the remote repo. Strip duplicate results for annotated tags.
 echo 'Getting latest production version...'
 TAGS=$(eval cd $CIRCLE_WORKING_DIRECTORY ; git ls-remote -q --tags | sed -E 's/[0-9a-f]{40}\trefs\/tags\/(.+)/\1/g;s/.+\^\{\}//g' | sed ':a;N;$!ba;s/\n/ /g')
