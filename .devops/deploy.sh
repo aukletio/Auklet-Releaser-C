@@ -45,7 +45,7 @@ do
       CC=$cc AR=$ar TARNAME="libauklet-$VERSION-$GOOS-arm$fam.tgz" make libauklet.tgz
     done
   else
-    echo 'Compiling wrapper...' 
+    echo 'Compiling wrapper...'
     GOARCH=$arch go build -v -o wrap-$VERSION-$GOOS-$arch ./wrap
     echo 'Compiling library...'
     CC=$cc AR=$ar TARNAME="libauklet-$VERSION-$GOOS-$arch.tgz" make libauklet.tgz
@@ -56,8 +56,8 @@ done < packaging-grid.csv
 mv -t deploy release-* wrap-* libauklet-*
 
 echo 'Installing AWS CLI...'
-# sudo apt-get -y install awscli
+sudo apt-get -y install awscli
 
 echo 'Uploading profiler to S3...'
-# cd deploy
-# for f in *; do aws s3 cp $f s3://auklet-profiler/$ENVDIR/$f; done
+cd deploy
+for f in *; do aws s3 cp $f s3://auklet-profiler/$ENVDIR/$VERSION/$f; done
