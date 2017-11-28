@@ -25,15 +25,15 @@ jobs:
                 name: Prepare OS
                 command: |
                   echo 'Installing jq, NodeJS/Ruby prerequisites and other compilation requirements...'
-                  apt-get update
-                  apt-get -y install jq software-properties-common build-essential
-                  apt-add-repository -y ppa:brightbox/ruby-ng
-                  curl -sL https://deb.nodesource.com/setup_8.x | bash -
+                  apt-get update > /dev/null 2>&1
+                  apt-get -y install jq software-properties-common build-essential > /dev/null 2>&1
+                  apt-add-repository -y ppa:brightbox/ruby-ng > /dev/null 2>&1
+                  curl -sL https://deb.nodesource.com/setup_8.x | bash - > /dev/null
                   echo 'Installing Ruby and NodeJS...'
-                  apt-get -y install ruby2.2 nodejs
-                  gem install rubygems-update -v 2.6.13
-                  gem update --system
-                  npm install npm@5.3.0 -g
+                  apt-get -y install ruby2.2 nodejs > /dev/null 2>&1
+                  gem install rubygems-update -v 2.6.13 > /dev/null
+                  gem update --system > /dev/null
+                  npm install npm@5.3.0 -g > /dev/null
                   echo 'Installing Go...'
                   curl -sSL https://redirector.gvt1.com/edgedl/go/go1.8.5.linux-amd64.tar.gz | tar xzf -
                   mv go /usr/local

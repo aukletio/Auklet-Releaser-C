@@ -25,7 +25,7 @@ do
   echo "OS/Arch: $GOOS/$arch"
   if [[ "$pkg" != "" ]]; then
     echo "Installing $pkg cross compilation toolchain..."
-    apt-get -y install $pkg > /dev/null
+    apt-get -y install $pkg > /dev/null 2>&1
     echo "$pkg cross compilation toolchain installed; proceeding with compilation..."
   fi
   if [[ "$arch" == "arm" ]]; then
