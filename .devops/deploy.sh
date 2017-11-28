@@ -29,20 +29,13 @@ do
     echo "$pkg cross compilation toolchain installed; proceeding with compilation..."
   fi
   if [[ "$arch" == "arm" ]]; then
-    ARM_FAM=(5 6 7)
-    for fam in "${ARM_FAM[@]}"; do
-      echo "ARM family: $fam"
-      echo 'Compiling wrapper...'
-      GOARCH=arm GOARM=$fam go build -o wrap-$VERSION-$GOOS-arm$fam ./wrap
-      echo 'Compiling library...'
-      CC=$cc AR=$ar TARNAME="libauklet-$VERSION-$GOOS-arm$fam.tgz" make clean libauklet.tgz
-    done
-  else
-    echo 'Compiling wrapper...'
-    GOARCH=$arch go build -o wrap-$VERSION-$GOOS-$arch ./wrap
-    echo 'Compiling library...'
-    CC=$cc AR=$ar TARNAME="libauklet-$VERSION-$GOOS-$arch.tgz" make clean libauklet.tgz
+    # We don't support ARM 5 or 6.
+    export GOARM=7
   fi
+  echo 'Compiling wrapper...'
+  GOARCH=$arch go build -o wrap-$VERSION-$GOOS-$arch ./wrap
+  echo 'Compiling library...'
+  CC=$cc AR=$ar TARNAME="libauklet-$VERSION-$GOOS-$arch.tgz" make clean libauklet.tgz
   echo "DONE: $GOOS/$arch"
   echo
 done < packaging-grid.csv
