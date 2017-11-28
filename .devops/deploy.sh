@@ -20,18 +20,18 @@ echo 'Compiling wrapper and library...'
 export GOOS=linux
 while IFS=, read arch cc ar pkg
 do
+  echo "Wrapper: linux/$arch"
   if [[ "$pkg" != "" ]]; then
-    apt-get -y install $pkg
+    sudo apt-get -y install $pkg
   fi
   if [[ "$arch" == "arm" ]]; then
     ARM_FAM=(5 6 7)
     for fam in "${ARM_FAM[@]}"; do
-      echo "Wrapper: linux/arm$fam"
+      echo "ARM family: $fam"
       GOARCH=arm GOARM=$fam go build -o wrap-$VERSION-$GOOS-arm$fam ./wrap
       CC=$cc AR=$ar TARNAME="libauklet-$VERSION-$GOOS-arm$fam.tgz" make libauklet.tgz
     done
   else
-    echo "Wrapper: linux/$arch"
      GOARCH=$arch go build -o wrap-$VERSION-$GOOS-$arch ./wrap
      CC=$cc AR=$ar TARNAME="libauklet-$VERSION-$GOOS-$arch.tgz" make libauklet.tgz
   fi
