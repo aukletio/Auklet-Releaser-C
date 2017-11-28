@@ -273,10 +273,36 @@ func decode(s string) []byte {
 	return b
 }
 
+type Certs struct {
+	Ca         string `json:"ck_ca"`
+	Cert       string `json:"ck_cert"`
+	PrivateKey string `json:"ck_private_key"`
+}
+
+func getcerts() *Certs {
+	ep := envar["BASE_URL"] + "/certificates/"
+	resp, err := http.Get(ep)
+	if err != nil {
+		log.Panic(err)
+	}
+
+	if resp.StatusCode != 200 {
+		log.Fatal("wrapper: getcerts: got unexpected status ", resp.Status)
+	}
+
+	var c Certs
+	err = json.NewDecoder(resp.Body).Decode(&c)
+	if err != nil {
+		log.Panic(err)
+	}
+	return &c
+}
+
 func connect() (sarama.SyncProducer, error) {
-	ca := decode(envar["CA"])
-	cert := decode(envar["CERT"])
-	key := decode(envar["PRIVATE_KEY"])
+	certs := getcerts()
+	ca := decode(certs.Ca)
+	cert := decode(certs.Cert)
+	key := decode(certs.PrivateKey)
 
 	certpool := x509.NewCertPool()
 	certpool.AppendCertsFromPEM(ca)
@@ -375,9 +401,6 @@ func env() {
 		"BROKERS",
 		"PROF_TOPIC",
 		"EVENT_TOPIC",
-		"CA",
-		"CERT",
-		"PRIVATE_KEY",
 	}
 
 	prefix := "AUKLET_"
