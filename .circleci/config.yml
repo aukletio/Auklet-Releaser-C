@@ -28,7 +28,7 @@ jobs:
                   apt-get update
                   apt-get -y install jq software-properties-common build-essential
                   apt-add-repository -y ppa:brightbox/ruby-ng
-                  curl -sL https://deb.nodesource.com/setup_6.x | bash -
+                  curl -sL https://deb.nodesource.com/setup_8.x | bash -
                   echo 'Installing Ruby and NodeJS...'
                   apt-get -y install ruby2.2 nodejs
                   echo 'Installing Go...'
