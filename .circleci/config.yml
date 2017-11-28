@@ -31,9 +31,6 @@ jobs:
                   curl -sL https://deb.nodesource.com/setup_8.x | bash - > /dev/null
                   echo 'Installing Ruby and NodeJS...'
                   apt-get -y install ruby2.2 nodejs > /dev/null 2>&1
-                  gem install rubygems-update -v 2.6.13 > /dev/null
-                  gem update --system > /dev/null
-                  npm install npm@5.3.0 -g > /dev/null
                   echo 'Installing Go...'
                   curl -sSL https://redirector.gvt1.com/edgedl/go/go1.8.5.linux-amd64.tar.gz | tar xzf -
                   mv go /usr/local
