@@ -36,11 +36,11 @@ do
     ARM_FAM=(5 6 7)
     for fam in "${ARM_FAM[@]}"; do
       echo "ARM family: $fam"
-      GOARCH=arm GOARM=$fam go build -o wrap-$VERSION-$GOOS-arm$fam ./wrap
+      GOARCH=arm GOARM=$fam go build -v -o wrap-$VERSION-$GOOS-arm$fam ./wrap
       CC=$cc AR=$ar TARNAME="libauklet-$VERSION-$GOOS-arm$fam.tgz" make libauklet.tgz
     done
   else
-     GOARCH=$arch go build -o wrap-$VERSION-$GOOS-$arch ./wrap
+     GOARCH=$arch go build -v -o wrap-$VERSION-$GOOS-$arch ./wrap
      CC=$cc AR=$ar TARNAME="libauklet-$VERSION-$GOOS-$arch.tgz" make libauklet.tgz
   fi
   echo "DONE: $GOOS/$arch"
