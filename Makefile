@@ -13,23 +13,26 @@ x: x-dbg
 
 # instrumented, debuggable test program
 x-dbg: x.o rt.o
-	gcc -o $@ $^ ${PLIBS}
+	${CC} -o $@ $^ ${PLIBS}
 
 # uninstrumented test program
 x-raw: x.c
-	gcc -o $@ $< ${CFLAGS} -lpthread
+	${CC} -o $@ $< ${CFLAGS} -lpthread
 
 x.o: x.c
-	gcc -o $@ -c ${CFLAGS} ${PFLAGS} $<
+	${CC} -o $@ -c ${CFLAGS} ${PFLAGS} $<
 
 lib_test: lib_test.c lib.c
-	gcc -o $@ ${CFLAGS} -g -lpthread $<
+	${CC} -o $@ ${CFLAGS} -g -lpthread $<
 
 rt.o: rt.c lib.c
-	gcc -o $@ -c ${CFLAGS} -DAUKLET_VERSION=\"$$(cat VERSION)\" -DAUKLET_TIMESTAMP=\"${TIMESTAMP}\" $<
+	${CC} -o $@ -c ${CFLAGS} -DAUKLET_VERSION=\"$$(cat VERSION)\" -DAUKLET_TIMESTAMP=\"${TIMESTAMP}\" $<
 
 libauklet.a: rt.o
-	ar rcs $@ $<
+	${AR} rcs $@ $<
+
+libauklet.tgz: libauklet.a
+	tar cz -f ${TARNAME} $<
 
 install: libauklet.a
 	sudo cp $< ${INSTALL}/$<

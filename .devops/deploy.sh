@@ -8,32 +8,35 @@ ENVDIR=$1
 VERSION="$(cat VERSION)"
 TIMESTAMP="$(date --rfc-3339=seconds | sed 's/ /T/')"
 mkdir deploy
-
-echo 'Compiling wrapper and releaser...'
 export GOFLAGS="-ldflags \"-X main.Version=$VERSION -X main.BuildDate=$TIMESTAMP\""
+
+echo 'Compiling releaser...'
 echo 'Releaser: linux/amd64'
 GOOS=linux GOARCH=amd64 go build -o release-$VERSION-linux-amd64 ./release
 echo 'Releaser: windows/amd64'
 GOOS=windows GOARCH=amd64 go build -o release-$VERSION-windows-amd64.exe ./release
-WRAPPER_ARCHS=( amd64 arm arm64 mips64 mips64le )
-for a in "${WRAPPER_ARCHS[@]}"; do
+
+echo 'Compiling wrapper and library...'
+export GOOS=linux
+while IFS=, read arch cc ar pkg
+do
+  if [[ "$pkg" != "" ]]; then
+    apt-get -y install $pkg
+  fi
   if [[ "$a" == "arm" ]]; then
-    ARM_FAM=( 5 6 7 )
+    ARM_FAM=(5 6 7)
     for f in "${ARM_FAM[@]}"; do
       echo "Wrapper: linux/arm$f"
-      GOOS=linux GOARCH=arm GOARM=$f go build -o wrap-$VERSION-linux-arm$f ./wrap
+      GOARCH=arm GOARM=$f go build -o wrap-$VERSION-$GOOS-arm$f ./wrap
+      CC=$cc AR=$ar TARNAME="libauklet-$VERSION-$GOOS-arm$f.tgz" make libauklet.tgz
     done
   else
     echo "Wrapper: linux/$a"
-    GOOS=linux GOARCH=$a go build -o wrap-$VERSION-linux-$a ./wrap
+     GOARCH=$arch go build -o wrap-$VERSION-$GOOS-$arch ./wrap
+     CC=$cc AR=$ar TARNAME="libauklet-$VERSION-$GOOS-$arch.tgz" make libauklet.tgz
   fi
-done
-mv -t deploy release-* wrap-*
-
-echo 'Compiling/packaging profiler...'
-LIBTAR="libauklet-$VERSION.tgz"
-make libauklet.a
-tar cz -f $LIBTAR libauklet.a
+done < file
+mv -t deploy release-* wrap-* libauklet-*
 
 echo 'Installing AWS CLI...'
 # sudo apt-get -y install awscli
