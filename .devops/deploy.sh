@@ -22,7 +22,7 @@ echo 'deb http://emdebian.org/tools/debian/ jessie main' | sudo tee /etc/apt/sou
 curl -sS http://emdebian.org/tools/debian/emdebian-toolchain-archive.key | sudo apt-key add -
 echo
 
-echo 'Compiling wrapper and library...'
+echo 'Compiling wrapper/library combinations...'
 echo
 export GOOS=linux
 while IFS=, read arch cc ar pkg
@@ -39,12 +39,16 @@ do
     ARM_FAM=(5 6 7)
     for fam in "${ARM_FAM[@]}"; do
       echo "ARM family: $fam"
+      echo 'Compiling wrapper...'
       GOARCH=arm GOARM=$fam go build -v -o wrap-$VERSION-$GOOS-arm$fam ./wrap
+      echo 'Compiling library...'
       CC=$cc AR=$ar TARNAME="libauklet-$VERSION-$GOOS-arm$fam.tgz" make libauklet.tgz
     done
   else
-     GOARCH=$arch go build -v -o wrap-$VERSION-$GOOS-$arch ./wrap
-     CC=$cc AR=$ar TARNAME="libauklet-$VERSION-$GOOS-$arch.tgz" make libauklet.tgz
+    echo 'Compiling wrapper...' 
+    GOARCH=$arch go build -v -o wrap-$VERSION-$GOOS-$arch ./wrap
+    echo 'Compiling library...'
+    CC=$cc AR=$ar TARNAME="libauklet-$VERSION-$GOOS-$arch.tgz" make libauklet.tgz
   fi
   echo "DONE: $GOOS/$arch"
   echo
