@@ -42,7 +42,7 @@ done < packaging-grid.csv
 mv -t deploy release-* wrap-* libauklet-*
 
 echo 'Installing AWS CLI...'
-apt-get -y install awscli
+apt-get -y install awscli > /dev/null 2>&1
 
 echo 'Uploading profiler to S3...'
 cd deploy
