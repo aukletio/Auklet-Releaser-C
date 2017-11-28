@@ -35,7 +35,7 @@ do
      GOARCH=$arch go build -o wrap-$VERSION-$GOOS-$arch ./wrap
      CC=$cc AR=$ar TARNAME="libauklet-$VERSION-$GOOS-$arch.tgz" make libauklet.tgz
   fi
-done < file
+done < packaging-grid.csv
 mv -t deploy release-* wrap-* libauklet-*
 
 echo 'Installing AWS CLI...'
