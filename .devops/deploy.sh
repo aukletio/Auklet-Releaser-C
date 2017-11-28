@@ -44,6 +44,6 @@ mv -t deploy release-* wrap-* libauklet-*
 echo 'Installing AWS CLI...'
 apt-get -y install awscli > /dev/null 2>&1
 
-echo 'Uploading profiler to S3...'
+echo 'Uploading profiler components to S3...'
 cd deploy
 for f in *; do aws s3 cp $f s3://auklet-profiler/$ENVDIR/$VERSION/$f; done
