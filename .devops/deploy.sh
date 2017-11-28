@@ -30,7 +30,7 @@ do
     sudo dpkg --add-architecture $pkg
     sudo apt-get update
     sudo apt-get -y install crossbuild-essential-$pkg
-    echo "$pkg cross compilation toolchaininstalled; proceeding with compilation..."
+    echo "$pkg cross compilation toolchain installed; proceeding with compilation..."
   fi
   if [[ "$arch" == "arm" ]]; then
     ARM_FAM=(5 6 7)
@@ -44,6 +44,7 @@ do
      CC=$cc AR=$ar TARNAME="libauklet-$VERSION-$GOOS-$arch.tgz" make libauklet.tgz
   fi
   echo "DONE: $GOOS/$arch"
+  echo
 done < packaging-grid.csv
 mv -t deploy release-* wrap-* libauklet-*
 
