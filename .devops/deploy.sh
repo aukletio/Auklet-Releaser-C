@@ -25,7 +25,7 @@ do
   echo "OS/Arch: $GOOS/$arch"
   if [[ "$pkg" != "" ]]; then
     echo "Installing $pkg cross compilation toolchain..."
-    sudo apt-get -y install $pkg > /dev/null
+    apt-get -y install $pkg > /dev/null
     echo "$pkg cross compilation toolchain installed; proceeding with compilation..."
   fi
   if [[ "$arch" == "arm" ]]; then
@@ -49,7 +49,7 @@ done < packaging-grid.csv
 mv -t deploy release-* wrap-* libauklet-*
 
 echo 'Installing AWS CLI...'
-sudo apt-get -y install awscli
+apt-get -y install awscli
 
 echo 'Uploading profiler to S3...'
 cd deploy
