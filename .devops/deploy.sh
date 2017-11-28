@@ -6,8 +6,8 @@ if [[ "$1" == "" ]]; then
 fi
 ENVDIR=$1
 VERSION="$(cat VERSION)"
-TIMESTAMP="$(date --rfc-3339=seconds | sed 's/ /T/')"
 mkdir deploy
+export TIMESTAMP="$(date --rfc-3339=seconds | sed 's/ /T/')"
 export GOFLAGS="-ldflags \"-X main.Version=$VERSION -X main.BuildDate=$TIMESTAMP\""
 
 echo 'Compiling releaser...'
