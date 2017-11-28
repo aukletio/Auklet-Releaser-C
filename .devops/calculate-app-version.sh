@@ -5,6 +5,7 @@ echo 'Initializing...'
 cd ~ # Prevents codebase contamination.
 rm -rf node_modules bug.txt enhancement.txt breaking.txt
 npm install --no-spin semver semver-extra > /dev/null
+echo '---'
 gem install github_changelog_generator -v 1.14.3 > /dev/null
 # 1. Get all tags in the remote repo. Strip duplicate results for annotated tags.
 echo 'Getting latest production version...'
