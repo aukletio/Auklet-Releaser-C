@@ -16,6 +16,14 @@ GOOS=linux GOARCH=amd64 go build -o release-$VERSION-linux-amd64 ./release
 echo 'Releaser: windows/amd64'
 GOOS=windows GOARCH=amd64 go build -o release-$VERSION-windows-amd64.exe ./release
 
+echo 'Preparing for cross compilation...'
+echo 'deb http://emdebian.org/tools/debian/ jessie main' > sudo tee /etc/apt/sources.list.d/crosstools.list
+curl http://emdebian.org/tools/debian/emdebian-toolchain-archive.key | sudo apt-key add -
+sudo dpkg --add-architecture armhf
+sudo dpkg --add-architecture arm64
+sudo dpkg --add-architecture mips
+sudo apt-get update
+
 echo 'Compiling wrapper and library...'
 export GOOS=linux
 while IFS=, read arch cc ar pkg

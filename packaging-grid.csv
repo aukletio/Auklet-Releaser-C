@@ -1,4 +1,4 @@
 amd64,cc,ar,
-arm,arm-linux-gnueabihf-gcc,arm-linux-gnueabihf-ar,gcc-arm-linux-gnueabihf
-arm64,aarch64-linux-gnueabi-gcc,aarch64-linux-gnu-ar,gcc-aarch64-linux-gnu
-mips64,mips-linux-gnu-gcc,mips-linux-gnu-ar,gcc-mips-linux-gnu
+arm,arm-linux-gnueabihf-gcc,arm-linux-gnueabihf-ar,crossbuild-essential-armhf
+arm64,aarch64-linux-gnueabi-gcc,aarch64-linux-gnu-ar,crossbuild-essential-arm64
+mips64,mips-linux-gnu-gcc,mips-linux-gnu-ar,crossbuild-essential-mips
