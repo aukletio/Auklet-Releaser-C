@@ -24,9 +24,9 @@ jobs:
             - run:
                 name: Prepare OS
                 command: |
-                  echo 'Installing jq and NodeJS/Ruby prerequisites...'
+                  echo 'Installing jq, NodeJS/Ruby prerequisites and other compilation requirements...'
                   apt-get update
-                  apt-get -y install jq software-properties-common
+                  apt-get -y install jq software-properties-common build-essential
                   apt-add-repository -y ppa:brightbox/ruby-ng
                   curl -sL https://deb.nodesource.com/setup_6.x | bash -
                   echo 'Installing Ruby and NodeJS...'
