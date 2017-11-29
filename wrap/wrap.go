@@ -388,6 +388,7 @@ func postDevice() error {
 	//Mac addresses are generally 6 bytes long
 	sum := make([]byte, 6)
 	var hash string
+	var url string
 	apikey := envar["API_KEY"]
 	interfaces, err := net.Interfaces()
 
@@ -416,38 +417,42 @@ func postDevice() error {
 	}
 
 	b, err := json.Marshal(d)
-	url := envar["BASE_URL"] + "/devices"
+	url = envar["BASE_URL"] + "/devices/" + hash
 
-	client := &http.Client{
-		Timeout: 5 * time.Second,
+	res, err := http.Get(url)
+
+	if res.StatusCode != 200 {
+		url = envar["BASE_URL"] + "/devices"
+		client := &http.Client{
+			Timeout: 5 * time.Second,
+		}
+
+		req, err := http.NewRequest("POST", url, bytes.NewReader(b))
+		if err != nil {
+			return err
+		}
+
+		req.Header.Add("content-type", "application/json")
+		req.Header.Add("apikey", apikey)
+
+		resp, err := client.Do(req)
+		if err != nil {
+			return err
+		}
+		log.Print(resp.Status)
+
+		switch resp.StatusCode {
+		case 200:
+			log.Println("not created")
+		case 201: // created
+			log.Printf("Device object created with apikey %v\n", apikey)
+		case 502: // bad gateway
+			log.Println("Bad Gateway")
+		default:
+		}
 	}
-	req, err := http.NewRequest("POST", url, bytes.NewReader(b))
-	if err != nil {
-		return err
-	}
-
-	req.Header.Add("content-type", "application/json")
-	req.Header.Add("apikey", apikey)
-
-	resp, err := client.Do(req)
-	if err != nil {
-		return err
-	}
-	log.Print(resp.Status)
-
-	switch resp.StatusCode {
-	case 200:
-		log.Println("not created")
-	case 201: // created
-		log.Printf("Device object created with apikey %v\n", apikey)
-	case 502: // bad gateway
-		log.Println("Bad Gateway")
-	default:
-
-	}
-	// If we get to this point no matter what response code is this function will return nil
-	return err
-
+	// If we get to this point wedo not return, whatever the response code is we do not return any error
+	return nil
 }
 
 var envar map[string]string
