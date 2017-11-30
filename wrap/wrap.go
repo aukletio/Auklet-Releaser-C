@@ -3,7 +3,6 @@ package main
 import (
 	"bufio"
 	"bytes"
-	"crypto/md5"
 	"crypto/sha512"
 	"crypto/tls"
 	"crypto/x509"
@@ -55,6 +54,19 @@ func checksum(path string) string {
 	return sum
 }
 
+var deviceIP string
+
+func getDeviceIP() bool {
+	conn, err := net.Dial("udp", "34.235.138.75:80")
+	if err != nil {
+		return false
+	}
+	defer conn.Close()
+	localAddr := conn.LocalAddr().(*net.UDPAddr)
+	deviceIP = localAddr.IP.String()
+	return true
+}
+
 // System contains data pertaining to overall system metrics
 type System struct {
 	CPUPercent float64 `json:"cpu_percent"`
@@ -82,7 +94,7 @@ func (e Event) topic() string {
 func (e *Event) brand() {
 	e.UUID = uuid.NewV4().String()
 	e.CheckSum = cksum
-	e.IP = currentIP
+	e.IP = deviceIP
 }
 
 func event(state *os.ProcessState) *Event {
@@ -136,7 +148,7 @@ func event(state *os.ProcessState) *Event {
 			}
 			return ""
 		}(),
-		IP:            currentIP,
+		IP:            deviceIP,
 		SystemMetrics: s,
 	}
 }
@@ -205,7 +217,7 @@ func (n Node) topic() string {
 func (n *Node) brand() {
 	n.UUID = uuid.NewV4().String()
 	n.CheckSum = cksum
-	n.IP = currentIP
+	n.IP = deviceIP
 }
 
 func logs(logger io.Writer) (func(), error) {
@@ -387,26 +399,25 @@ type Device struct {
 func postDevice() error {
 	//Mac addresses are generally 6 bytes long
 	sum := make([]byte, 6)
-	var hash string
 	var url string
+	var hash string
 	apikey := envar["API_KEY"]
 	interfaces, err := net.Interfaces()
 
-	// If we cant get interfaces on the device we send empty hash
 	if err != nil {
-		hash = ""
+		log.Fatal("Couldent get the network interface, are you connected to internet?")
 	}
 
 	if err == nil {
 		for _, i := range interfaces {
-			if bytes.Compare(i.HardwareAddr, nil) != 0 {
-				fmt.Println([]byte(i.HardwareAddr))
-				for h, k := range []byte(i.HardwareAddr) {
-					sum[h] += k
-				}
+			if bytes.Compare(i.HardwareAddr, nil) == 0 {
+				continue
+			}
+			for h, k := range i.HardwareAddr {
+				sum[h] += k
 			}
 		}
-		hash = fmt.Sprintf("%x", md5.Sum(sum))
+		hash = fmt.Sprintf("%x", string(sum))
 	}
 
 	zone, _ := time.Now().Zone()
@@ -443,15 +454,18 @@ func postDevice() error {
 
 		switch resp.StatusCode {
 		case 200:
-			log.Println("not created")
+			log.Println("Device object not created")
 		case 201: // created
 			log.Printf("Device object created with apikey %v\n", apikey)
 		case 502: // bad gateway
-			log.Println("Bad Gateway")
+			log.Println("Device object api Bad Gateway")
+		case 401:
+			log.Printf("Authentication failed on creating device object with apikey %v\n", apikey)
 		default:
+			log.Println("Unknown Error on posting device object")
 		}
 	}
-	// If we get to this point wedo not return, whatever the response code is we do not return any error
+	// If we get to this point, whatever the response code is we do not return any error
 	return nil
 }
 
@@ -485,13 +499,14 @@ func env() {
 	}
 }
 
-var currentIP string
-
 func main() {
 	logger := os.Stdout
 	log.SetOutput(logger)
 
 	env()
+	if !getDeviceIP() {
+		log.Println("Could not get the IP address")
+	}
 
 	args := os.Args
 	if len(args) < 2 {
@@ -505,15 +520,9 @@ func main() {
 		log.Print("invalid checksum: ", cksum)
 	}
 
-	conn, err := net.Dial("udp", "8.8.8.8:80")
-	defer conn.Close()
-	localAddr := conn.LocalAddr().(*net.UDPAddr)
-	currentIP = localAddr.IP.String()
-
-	//todo: What needs to be done if the device object doesnt get posted
 	devicePosted := postDevice()
 	if devicePosted != nil {
-		log.Print("Did not make a post request")
+		log.Print("Failed to post device object")
 	}
 
 	obj := make(chan Object)
