@@ -89,7 +89,7 @@ static void
 sigerr(int n)
 {
 	stacktrace(n);
-	_exit(42);
+	_exit(EXIT_FAILURE);
 }
 
 /* Set up signal handlers. */
