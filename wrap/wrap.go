@@ -54,17 +54,15 @@ func checksum(path string) string {
 	return sum
 }
 
-var deviceIP string
-
-func getDeviceIP() bool {
+func DeviceIP() string {
 	conn, err := net.Dial("udp", "34.235.138.75:80")
 	if err != nil {
-		return false
+		log.Println("could not get the device IP")
+		return ""
 	}
 	defer conn.Close()
 	localAddr := conn.LocalAddr().(*net.UDPAddr)
-	deviceIP = localAddr.IP.String()
-	return true
+	return localAddr.IP.String()
 }
 
 // System contains data pertaining to overall system metrics
@@ -405,7 +403,7 @@ func postDevice() error {
 	interfaces, err := net.Interfaces()
 
 	if err != nil {
-		log.Fatal("Couldent get the network interface, are you connected to internet?")
+		log.Fatal(err)
 	}
 
 	if err == nil {
@@ -462,7 +460,7 @@ func postDevice() error {
 		case 401:
 			log.Printf("Authentication failed on creating device object with apikey %v\n", apikey)
 		default:
-			log.Println("Unknown Error on posting device object")
+			log.Println(resp.StatusCode)
 		}
 	}
 	// If we get to this point, whatever the response code is we do not return any error
@@ -499,14 +497,14 @@ func env() {
 	}
 }
 
+var deviceIP string
+
 func main() {
 	logger := os.Stdout
 	log.SetOutput(logger)
 
 	env()
-	if !getDeviceIP() {
-		log.Println("Could not get the IP address")
-	}
+	deviceIP = DeviceIP()
 
 	args := os.Args
 	if len(args) < 2 {
