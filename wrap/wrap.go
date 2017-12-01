@@ -65,6 +65,28 @@ func DeviceIP() string {
 	return localAddr.IP.String()
 }
 
+var inboundRate, outboundRate uint64
+
+func networkStat() {
+
+	/* Total network I/O bytes recieved and sent per second from the system
+	since the start of the system */
+
+	var inbound, outbound, inboundPrev, outboundPrev uint64
+	for {
+		if tempNet, err := hnet.IOCounters(false); err == nil {
+			inbound = tempNet[0].BytesRecv
+			outbound = tempNet[0].BytesSent
+			inboundRate = inbound - inboundPrev
+			outboundRate = outbound - outboundPrev
+			inboundPrev = inbound
+			outboundPrev= outbound
+		}
+
+		time.Sleep(time.Second)
+	}
+}
+
 // System contains data pertaining to overall system metrics
 type System struct {
 	CPUPercent float64 `json:"cpu_percent"`
@@ -103,8 +125,6 @@ func event(state *os.ProcessState) *Event {
 	}
 
 	var (
-		inbound    uint64
-		outbound   uint64
 		cpuPercent float64
 		memPercent float64
 	)
@@ -120,18 +140,12 @@ func event(state *os.ProcessState) *Event {
 		memPercent = tempMem.UsedPercent
 	}
 
-	/* Total network I/O bytes recieved and sent from the system
-	since the start of the system */
-	if tempNet, err := hnet.IOCounters(false); err == nil {
-		inbound = tempNet[0].BytesRecv
-		outbound = tempNet[0].BytesSent
-	}
 
 	s := System{
 		CPUPercent: cpuPercent,
 		MemPercent: memPercent,
-		Inbound:    inbound,
-		Outbound:   outbound,
+		Inbound:    inboundRate,
+		Outbound:   outboundRate,
 	}
 
 	local := time.Now()
@@ -161,7 +175,6 @@ func usage() {
 	log.Fatalf("usage: %v command [args ...]\n", os.Args[0])
 }
 
-var inboundPrev, outboundPrev uint64
 
 func run(obj chan Object, cmd *exec.Cmd) {
 	cmd.Stdout = os.Stdout
@@ -505,6 +518,7 @@ func main() {
 
 	env()
 	deviceIP = DeviceIP()
+	go networkStat()
 
 	args := os.Args
 	if len(args) < 2 {
