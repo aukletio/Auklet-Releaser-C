@@ -124,29 +124,21 @@ func event(state *os.ProcessState) *Event {
 		return nil
 	}
 
-	var (
-		cpuPercent float64
-		memPercent float64
-	)
+	var s System
 
 	/* System-wide cpu usage since the start of the child process */
 	if tempCPU, err := cpu.Percent(0, false); err == nil {
-		cpuPercent = tempCPU[0]
+		s.CPUPercent = tempCPU[0]
 	}
 
 	/*System-wide current virtual memory (ram) consumption
 	percentage at the time of child process termination */
 	if tempMem, err := mem.VirtualMemory(); err == nil {
-		memPercent = tempMem.UsedPercent
+		s.MemPercent = tempMem.UsedPercent
 	}
 
-
-	s := System{
-		CPUPercent: cpuPercent,
-		MemPercent: memPercent,
-		Inbound:    inboundRate,
-		Outbound:   outboundRate,
-	}
+	s.Inbound = inboundRate
+	s.Outbound = outboundRate
 
 	local := time.Now()
 	zone, _ := local.Zone()
@@ -419,17 +411,15 @@ func postDevice() error {
 		log.Fatal(err)
 	}
 
-	if err == nil {
-		for _, i := range interfaces {
-			if bytes.Compare(i.HardwareAddr, nil) == 0 {
-				continue
-			}
-			for h, k := range i.HardwareAddr {
-				sum[h] += k
-			}
+	for _, i := range interfaces {
+		if bytes.Compare(i.HardwareAddr, nil) == 0 {
+			continue
 		}
-		hash = fmt.Sprintf("%x", string(sum))
+		for h, k := range i.HardwareAddr {
+			sum[h] += k
+		}
 	}
+	hash = fmt.Sprintf("%x", string(sum))
 
 	zone, _ := time.Now().Zone()
 	d := Device{
