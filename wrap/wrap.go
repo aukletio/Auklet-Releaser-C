@@ -105,6 +105,7 @@ type Event struct {
 	IP            string    `json:"public_ip"`
 	Status        int       `json:"exit_status"`
 	Signal        string    `json:"signal,omitempty"`
+	Device        string    `json:"mac_address_hash,omitempty"`
 	SystemMetrics System    `json:"system_metrics"`
 }
 
@@ -155,6 +156,7 @@ func event(state *os.ProcessState) *Event {
 		}(),
 		IP:            deviceIP,
 		SystemMetrics: s,
+		Device: hash,
 	}
 }
 
@@ -399,11 +401,12 @@ type Device struct {
 	AppID string `json:"application,omitempty"`
 }
 
+var hash string
+
 func postDevice() error {
 	//Mac addresses are generally 6 bytes long
 	sum := make([]byte, 6)
 	var url string
-	var hash string
 	apikey := envar["API_KEY"]
 	interfaces, err := net.Interfaces()
 
