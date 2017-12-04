@@ -140,6 +140,7 @@ static void
 setup(void)
 {
 	log = comm(SOCK_SEQPACKET, "log");
+	dprintf(log, "Auklet Instrument version %s (%s)\n", AUKLET_VERSION, AUKLET_TIMESTAMP);
 	sock = comm(SOCK_STREAM, "data");
 	if (!sock)
 		return;
@@ -164,7 +165,7 @@ void
 __cyg_profile_func_enter(void *fn, void *cs)
 {
 	F f = {
-		.fn = (uintptr_t)fn, 
+		.fn = (uintptr_t)fn,
 		.cs = (uintptr_t)cs,
 	};
 	instenter(&sp, f);
