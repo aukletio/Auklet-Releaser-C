@@ -156,7 +156,7 @@ func event(state *os.ProcessState) *Event {
 		}(),
 		IP:            deviceIP,
 		SystemMetrics: s,
-		Device: hash,
+		Device:        hash,
 	}
 }
 
