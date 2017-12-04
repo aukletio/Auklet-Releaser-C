@@ -66,7 +66,6 @@ emit(void)
 		//dprintf(log, "emit: send: %s\n", strerror(errno));
 		//exit(1);
 	}
-	reset(&root);
 	free(b.buf);
 }
 
@@ -141,8 +140,6 @@ setup(void)
 {
 	log = comm(SOCK_SEQPACKET, "log");
 	sock = comm(SOCK_STREAM, "data");
-	if (!sock)
-		return;
 	signals();
 	timers();
 	instenter = push;
