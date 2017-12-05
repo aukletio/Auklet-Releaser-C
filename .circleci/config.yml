@@ -1,0 +1,83 @@
+version: 2
+
+jobs:
+    build:
+        environment:
+            TZ: "/usr/share/zoneinfo/America/Detroit"
+        working_directory: ~/go/src/github.com/ESG-USA/Auklet-Profiler-C
+        docker:
+            # Ubuntu provides the easiest cross-compilation
+            # environment for libauklet.a, but all CircleCI
+            # Docker images are based on Debian Jessie.
+            #
+            # Unfortunately, this means the build takes a
+            # little longer because we have to install NodeJS
+            # and Ruby ourselves.
+            - image: buildpack-deps:xenial-scm
+        steps:
+
+            ##
+            # SETUP
+            ##
+            - add_ssh_keys
+            - checkout
+            - run:
+                name: Prepare OS
+                command: |
+                  echo 'Installing jq, NodeJS/Ruby prerequisites and other compilation requirements...'
+                  apt-get update > /dev/null 2>&1
+                  apt-get -y install jq software-properties-common build-essential > /dev/null 2>&1
+                  apt-add-repository -y ppa:brightbox/ruby-ng > /dev/null 2>&1
+                  curl -sL https://deb.nodesource.com/setup_8.x | bash - > /dev/null
+                  echo 'Installing Ruby and NodeJS...'
+                  apt-get -y install ruby2.2 nodejs > /dev/null 2>&1
+                  echo 'Installing Go...'
+                  curl -sSL https://redirector.gvt1.com/edgedl/go/go1.8.5.linux-amd64.tar.gz | tar xzf -
+                  mv go /usr/local
+                  echo 'export GOPATH=$(cd ; pwd)/go' >> $BASH_ENV
+                  echo 'export PATH=$PATH:/usr/local/go/bin:$GOPATH/bin' >> $BASH_ENV
+            - run:
+                name: Calculate codebase version
+                command: |
+                  git config --global user.email "$ESGBOT_GIT_EMAIL" && git config --global user.name "$ESGBOT_GIT_NAME"
+                  bash .devops/calculate-app-version.sh
+                  cp ~/.version VERSION
+
+            ##
+            # TESTS
+            ##
+            - run:
+                name: Download Go dependencies
+                command: |
+                  go get -t -d -v ./...
+            - run:
+                name: Run tests
+                command: |
+                  make lib_test && ./lib_test
+
+            ##
+            # DEPLOYMENT
+            ##
+            - run:
+                name: Deploy Edge (If staging)
+                command: |
+                  set -ou pipefail
+                  if [ "${CIRCLE_BRANCH}" == "edge" ]; then
+                    bash .devops/deploy.sh staging
+                  fi
+            - run:
+                name: Deploy QA (If master)
+                command: |
+                  set -ou pipefail
+                  if [ "${CIRCLE_BRANCH}" == "master" ]; then
+                    bash .devops/deploy.sh qa
+                    bash .devops/post-release.sh
+                  fi
+            - run:
+                name: Deploy Production (If production)
+                command: |
+                  set -ou pipefail
+                  if [ "${CIRCLE_BRANCH}" == "production" ]; then
+                    bash .devops/deploy.sh production
+                    bash .devops/post-release.sh
+                  fi
