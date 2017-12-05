@@ -60,7 +60,25 @@ func checksum(path string) string {
 	return sum
 }
 
-//DeviceIP gets the public IP address of the device
+type frame struct {
+	Fn uint64 `json:"fn,omitempty"`
+	Cs uint64 `json:"cs,omitempty"`
+}
+
+type sig syscall.Signal
+
+func (s sig) String() string {
+	return syscall.Signal(s).String()
+}
+
+func (s sig) Signal() {}
+
+// MarshalText allows a sig to be represented as a string in JSON objects.
+func (s sig) MarshalText() ([]byte, error) {
+	return []byte(s.String()), nil
+}
+
+// DeviceIP gets the public IP address of the device
 func DeviceIP() string {
 	conn, err := net.Dial("udp", "34.235.138.75:80")
 	if err != nil {
@@ -75,9 +93,8 @@ func DeviceIP() string {
 var inboundRate, outboundRate uint64
 
 func networkStat() {
-
-	/* Total network I/O bytes recieved and sent per second from the system
-	since the start of the system */
+	// Total network I/O bytes recieved and sent per second from the system
+	// since the start of the system.
 
 	var inbound, outbound, inboundPrev, outboundPrev uint64
 	for {
@@ -110,7 +127,8 @@ type Event struct {
 	Zone          string    `json:"timezone"`
 	IP            string    `json:"public_ip"`
 	Status        int       `json:"exit_status"`
-	Signal        string    `json:"signal,omitempty"`
+	Signal        sig       `json:"signal,omitempty"`
+	Trace         []frame   `json:"stack_trace,omitempty"`
 	Device        string    `json:"mac_address_hash,omitempty"`
 	SystemMetrics System    `json:"system_metrics"`
 }
@@ -125,45 +143,53 @@ func (e *Event) brand() {
 	e.IP = deviceIP
 }
 
-func event(state *os.ProcessState) *Event {
-	ws, ok := state.Sys().(syscall.WaitStatus)
-	if !ok {
-		log.Print("expected type syscall.WaitStatus; non-POSIX system?")
-		return nil
-	}
-
+func metrics() System {
 	var s System
 
-	/* System-wide cpu usage since the start of the child process */
+	// System-wide cpu usage since the start of the child process
 	if tempCPU, err := cpu.Percent(0, false); err == nil {
 		s.CPUPercent = tempCPU[0]
 	}
 
-	/*System-wide current virtual memory (ram) consumption
-	percentage at the time of child process termination */
+	// System-wide current virtual memory (ram) consumption
+	// percentage at the time of child process termination
 	if tempMem, err := mem.VirtualMemory(); err == nil {
 		s.MemPercent = tempMem.UsedPercent
 	}
 
 	s.Inbound = inboundRate
 	s.Outbound = outboundRate
+	return s
+}
+
+func event(evt chan Event, state *os.ProcessState) *Event {
+	ws, ok := state.Sys().(syscall.WaitStatus)
+	if !ok {
+		log.Print("expected type syscall.WaitStatus; non-POSIX system?")
+		return nil
+	}
 
 	local := time.Now()
 	zone, _ := local.Zone()
-	return &Event{
-		Time:   local,
-		Zone:   zone,
-		Status: ws.ExitStatus(),
-		Signal: func() string {
-			if ws.Signaled() {
-				return ws.Signal().String()
-			}
-			return ""
-		}(),
-		IP:            deviceIP,
-		SystemMetrics: s,
+	e := Event{
 		Device:        hash,
+		IP:            deviceIP,
+		Status:        ws.ExitStatus(),
+		SystemMetrics: metrics(),
+		Time:          local,
+		Zone:          zone,
 	}
+
+	if ws.Signaled() {
+		e.Signal = sig(ws.Signal())
+	}
+
+	if x, ok := <-evt; ok {
+		log.Print("event: got stacktrace")
+		e.Signal = x.Signal
+		e.Trace = x.Trace
+	}
+	return &e
 }
 
 func check(err error) {
@@ -176,7 +202,7 @@ func usage() {
 	log.Fatalf("usage: %v command [args ...]\n", os.Args[0])
 }
 
-func run(obj chan Object, cmd *exec.Cmd) {
+func run(obj chan Object, evt chan Event, cmd *exec.Cmd) {
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
 
@@ -193,7 +219,7 @@ func run(obj chan Object, cmd *exec.Cmd) {
 
 	go func() {
 		cmd.Wait()
-		obj <- event(cmd.ProcessState)
+		obj <- event(evt, cmd.ProcessState)
 		done <- struct{}{}
 	}()
 
@@ -214,8 +240,7 @@ type Node struct {
 	CheckSum string `json:"checksum,omitempty"`
 	IP       string `json:"public_ip,omitempty"`
 	UUID     string `json:"uuid,omitempty"`
-	Fn       uint64 `json:"fn,omitempty"`
-	Cs       uint64 `json:"cs,omitempty"`
+	frame
 	Ncalls   uint   `json:"ncalls,omitempty"`
 	Nsamples uint   `json:"nsamples,omitempty"`
 	Callees  []Node `json:"callees,omitempty"`
@@ -257,6 +282,50 @@ func logs(logger io.Writer) (func(), error) {
 		}
 		log.Print("closing logs socket")
 		l.Close()
+	}, nil
+}
+
+func stacktrace(evt chan Event) (func(), error) {
+	s, err := net.Listen("unix", "stacktrace-"+strconv.Itoa(os.Getpid()))
+	if err != nil {
+		return func() {}, err
+	}
+	log.Print("stacktrace socket opened")
+
+	done := make(chan error)
+
+	go func() {
+		c, err := s.Accept()
+		if err != nil {
+			done <- err
+			return
+		}
+		log.Print("stacktrace connection accepted")
+		line := bufio.NewScanner(c)
+
+		// quits on EOF
+		for line.Scan() {
+			var s Event
+			err := json.Unmarshal(line.Bytes(), &s)
+			if err != nil {
+				close(evt)
+				done <- err
+				return
+			}
+			evt <- s
+		}
+		close(evt)
+		log.Print("stacktrace socket EOF")
+		done <- nil
+	}()
+
+	return func() {
+		// wait for socket relay to finish
+		if err := <-done; err != nil {
+			log.Print(err)
+		}
+		log.Print("closing stacktrace socket")
+		s.Close()
 	}, nil
 }
 
@@ -415,7 +484,6 @@ func postDevice() error {
 	var url string
 	apikey := envar["API_KEY"]
 	interfaces, err := net.Interfaces()
-
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -460,20 +528,7 @@ func postDevice() error {
 		if err != nil {
 			return err
 		}
-		log.Print(resp.Status)
-
-		switch resp.StatusCode {
-		case 200:
-			log.Println("Device object not created")
-		case 201: // created
-			log.Printf("Device object created with apikey %v\n", apikey)
-		case 502: // bad gateway
-			log.Println("Device object api Bad Gateway")
-		case 401:
-			log.Printf("Authentication failed on creating device object with apikey %v\n", apikey)
-		default:
-			log.Println(resp.StatusCode)
-		}
+		log.Print("postDevice:", resp.Status)
 	}
 	// If we get to this point, whatever the response code is we do not return any error
 	return nil
@@ -538,6 +593,7 @@ func main() {
 	}
 
 	obj := make(chan Object)
+	evt := make(chan Event)
 
 	wprod, err := produce(obj)
 	check(err)
@@ -547,10 +603,14 @@ func main() {
 	check(err)
 	defer wrelay()
 
+	wstack, err := stacktrace(evt)
+	check(err)
+	defer wstack()
+
 	lc, err := logs(logger)
 	check(err)
 	defer lc()
 
-	run(obj, cmd)
+	run(obj, evt, cmd)
 	close(obj)
 }
