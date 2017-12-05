@@ -128,7 +128,7 @@ type Event struct {
 	IP            string    `json:"public_ip"`
 	Status        int       `json:"exit_status"`
 	Signal        sig       `json:"signal,omitempty"`
-	Trace         []frame   `json:"stacktrace,omitempty"`
+	Trace         []frame   `json:"stack_trace,omitempty"`
 	Device        string    `json:"mac_address_hash,omitempty"`
 	SystemMetrics System    `json:"system_metrics"`
 }
