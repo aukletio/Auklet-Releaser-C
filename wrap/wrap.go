@@ -116,16 +116,16 @@ type System struct {
 
 // Event contains data pertaining to the termination of a child process.
 type Event struct {
-	CheckSum      string    `json:"checksum"`
-	UUID          string    `json:"uuid"`
-	Time          time.Time `json:"timestamp"`
-	Zone          string    `json:"timezone"`
-	IP            string    `json:"public_ip"`
-	Status        int       `json:"exit_status"`
-	Signal        sig       `json:"signal,omitempty"`
-	Trace         interface{}   `json:"stack_trace,omitempty"`
-	Device        string    `json:"mac_address_hash,omitempty"`
-	SystemMetrics System    `json:"system_metrics"`
+	CheckSum      string      `json:"checksum"`
+	UUID          string      `json:"uuid"`
+	Time          time.Time   `json:"timestamp"`
+	Zone          string      `json:"timezone"`
+	IP            string      `json:"public_ip"`
+	Status        int         `json:"exit_status"`
+	Signal        sig         `json:"signal,omitempty"`
+	Trace         interface{} `json:"stack_trace,omitempty"`
+	Device        string      `json:"mac_address_hash,omitempty"`
+	SystemMetrics System      `json:"system_metrics"`
 }
 
 func (e Event) topic() string {
@@ -233,9 +233,9 @@ func run(obj chan Object, evt chan Event, cmd *exec.Cmd) {
 // Profile represents arbitrary JSON data from the instrument that can be sent
 // to the backend.
 type Profile struct {
-	CheckSum string `json:"checksum,omitempty"`
-	IP       string `json:"public_ip,omitempty"`
-	UUID     string `json:"uuid,omitempty"`
+	CheckSum string      `json:"checksum,omitempty"`
+	IP       string      `json:"public_ip,omitempty"`
+	UUID     string      `json:"uuid,omitempty"`
 	Profile  interface{} `json:"profile"`
 }
 
