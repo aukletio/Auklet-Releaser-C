@@ -170,7 +170,7 @@ func event(evt chan Event, state *os.ProcessState) *Event {
 	}
 
 	local := time.Now()
-	zone, _ := local.Zone()
+	zone := local.Location().String()
 	e := Event{
 		Device:        hash,
 		IP:            deviceIP,
