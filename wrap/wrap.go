@@ -105,7 +105,7 @@ type System struct {
 // Event contains data pertaining to the termination of a child process.
 type Event struct {
 	CheckSum      string    `json:"checksum"`
-	UUID          string    `json:"id"`
+	UUID          string    `json:"uuid"`
 	Time          time.Time `json:"timestamp"`
 	Zone          string    `json:"timezone"`
 	IP            string    `json:"public_ip"`
@@ -213,7 +213,7 @@ func run(obj chan Object, cmd *exec.Cmd) {
 type Node struct {
 	CheckSum string `json:"checksum,omitempty"`
 	IP       string `json:"public_ip,omitempty"`
-	UUID     string `json:"id,omitempty"`
+	UUID     string `json:"uuid,omitempty"`
 	Fn       uint64 `json:"fn,omitempty"`
 	Cs       uint64 `json:"cs,omitempty"`
 	Ncalls   uint   `json:"ncalls,omitempty"`
