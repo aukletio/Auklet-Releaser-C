@@ -28,6 +28,12 @@ import (
 	hnet "github.com/shirou/gopsutil/net"
 )
 
+// BuildDate is provided at compile-time; DO NOT MODIFY.
+var BuildDate = "no timestamp"
+
+// Version is provided at compile-time; DO NOT MODIFY.
+var Version = "local-build"
+
 // Object represents something that can be sent to the backend. It must have a
 // topic and implement a brand() method that fills UUID and checksum fields.
 type Object interface {
@@ -468,6 +474,7 @@ func env() {
 func main() {
 	logger := os.Stdout
 	log.SetOutput(logger)
+	log.Printf("Auklet Wrapper version %s (%s)\n", Version, BuildDate)
 
 	env()
 

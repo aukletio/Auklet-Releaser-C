@@ -14,6 +14,12 @@ import (
 	"os/exec"
 )
 
+// BuildDate is provided at compile-time; DO NOT MODIFY.
+var BuildDate = "no timestamp"
+
+// Version is provided at compile-time; DO NOT MODIFY.
+var Version = "local-build"
+
 // A Dwarf represents a pared-down dwarf.LineEntry.
 type Dwarf struct {
 	Address uint64
@@ -210,6 +216,7 @@ func env() {
 }
 
 func main() {
+	log.Printf("Auklet Releaser version %s (%s)\n", Version, BuildDate)
 	if len(os.Args) < 2 {
 		usage()
 	}
