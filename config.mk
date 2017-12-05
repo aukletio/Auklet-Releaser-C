@@ -7,3 +7,6 @@ INSTALL = /usr/local/lib
 # for compiling with the profiler runtime
 PFLAGS = -g -finstrument-functions
 PLIBS = -lpthread
+
+# overridden by CricleCI to insert build timestamp
+TIMESTAMP ?= 'no timestamp'
