@@ -96,8 +96,8 @@ func networkStat() {
 
 // System contains data pertaining to overall system metrics
 type System struct {
-	CPUPercent float64 `json:"cpu_percent"`
-	MemPercent float64 `json:"mem_percent"`
+	CPUPercent float64 `json:"system_cpu_usage"`
+	MemPercent float64 `json:"system_mem_usage"`
 	Inbound    uint64  `json:"inbound_traffic"`
 	Outbound   uint64  `json:"outbound_traffic"`
 }
