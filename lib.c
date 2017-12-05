@@ -352,7 +352,7 @@ marshals(B *b, N *sp, int sig)
 	append(b,
 	"{"
 		"\"signal\":%d,"
-		"\"stacktrace\":[", sig);
+		"\"stack_trace\":[", sig);
 	for (N *n = sp; n; n = n->parent) {
 		append(b,
 		"{"
