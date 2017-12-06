@@ -236,7 +236,7 @@ type Profile struct {
 	CheckSum string      `json:"checksum,omitempty"`
 	IP       string      `json:"public_ip,omitempty"`
 	UUID     string      `json:"uuid,omitempty"`
-	Profile  interface{} `json:"profile"`
+	Tree     interface{} `json:"tree"`
 }
 
 func (p Profile) topic() string {
