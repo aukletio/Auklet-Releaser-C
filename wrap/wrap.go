@@ -534,25 +534,22 @@ func postDevice() error {
 	return nil
 }
 
-var envar map[string]string
+var envar = map[string]string{
+	"BASE_URL":    "https://api.auklet.io/v1",
+	"BROKERS":     "",
+	"PROF_TOPIC":  "",
+	"EVENT_TOPIC": "",
+	"CA":          "",
+	"CERT":        "",
+	"PRIVATE_KEY": "",
+}
 
 func env() {
-	envar = make(map[string]string)
-	keys := []string{
-		"BASE_URL",
-		"BROKERS",
-		"PROF_TOPIC",
-		"EVENT_TOPIC",
-		"CA",
-		"CERT",
-		"PRIVATE_KEY",
-	}
-
 	prefix := "AUKLET_"
 	ok := true
-	for _, k := range keys {
+	for k, _ := range envar {
 		v := os.Getenv(prefix + k)
-		if v == "" {
+		if v == "" && envar[k] == "" {
 			ok = false
 			log.Printf("empty envar %v\n", prefix+k)
 		} else {
