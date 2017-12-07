@@ -189,21 +189,18 @@ func (rel *Release) release(deployName string) {
 	log.Println("release():", deployName, rel.DeployHash)
 }
 
-var envar map[string]string
+var envar = map[string]string{
+	"BASE_URL": "https://api.auklet.io/v1",
+	"API_KEY":  "",
+	"APP_ID":   "",
+}
 
 func env() {
-	envar = make(map[string]string)
-	keys := []string{
-		"BASE_URL",
-		"API_KEY",
-		"APP_ID",
-	}
-
 	prefix := "AUKLET_"
 	ok := true
-	for _, k := range keys {
+	for k, _ := range envar {
 		v := os.Getenv(prefix + k)
-		if v == "" {
+		if v == "" && envar[k] == "" {
 			ok = false
 			log.Printf("empty envar %v\n", prefix+k)
 		} else {
