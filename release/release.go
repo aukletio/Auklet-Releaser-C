@@ -198,7 +198,7 @@ var envar = map[string]string{
 func env() {
 	prefix := "AUKLET_"
 	ok := true
-	for k, _ := range envar {
+	for k := range envar {
 		v := os.Getenv(prefix + k)
 		if v == "" && envar[k] == "" {
 			ok = false
