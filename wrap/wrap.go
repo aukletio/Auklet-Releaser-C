@@ -29,6 +29,12 @@ import (
 	hnet "github.com/shirou/gopsutil/net"
 )
 
+// BuildDate is provided at compile-time; DO NOT MODIFY.
+var BuildDate = "no timestamp"
+
+// Version is provided at compile-time; DO NOT MODIFY.
+var Version = "local-build"
+
 // Object represents something that can be sent to the backend. It must have a
 // topic and implement a brand() method that fills UUID and checksum fields.
 type Object interface {
@@ -54,10 +60,61 @@ func checksum(path string) string {
 	return sum
 }
 
+type frame struct {
+	Fn uint64 `json:"fn,omitempty"`
+	Cs uint64 `json:"cs,omitempty"`
+}
+
+type sig syscall.Signal
+
+func (s sig) String() string {
+	return syscall.Signal(s).String()
+}
+
+func (s sig) Signal() {}
+
+// MarshalText allows a sig to be represented as a string in JSON objects.
+func (s sig) MarshalText() ([]byte, error) {
+	return []byte(s.String()), nil
+}
+
+// DeviceIP gets the public IP address of the device
+func DeviceIP() string {
+	conn, err := net.Dial("udp", "34.235.138.75:80")
+	if err != nil {
+		log.Println("could not get the device IP")
+		return ""
+	}
+	defer conn.Close()
+	localAddr := conn.LocalAddr().(*net.UDPAddr)
+	return localAddr.IP.String()
+}
+
+var inboundRate, outboundRate uint64
+
+func networkStat() {
+	// Total network I/O bytes recieved and sent per second from the system
+	// since the start of the system.
+
+	var inbound, outbound, inboundPrev, outboundPrev uint64
+	for {
+		if tempNet, err := hnet.IOCounters(false); err == nil {
+			inbound = tempNet[0].BytesRecv
+			outbound = tempNet[0].BytesSent
+			inboundRate = inbound - inboundPrev
+			outboundRate = outbound - outboundPrev
+			inboundPrev = inbound
+			outboundPrev = outbound
+		}
+
+		time.Sleep(time.Second)
+	}
+}
+
 // System contains data pertaining to overall system metrics
 type System struct {
-	CPUPercent float64 `json:"cpu_percent"`
-	MemPercent float64 `json:"mem_percent"`
+	CPUPercent float64 `json:"system_cpu_usage"`
+	MemPercent float64 `json:"system_mem_usage"`
 	Inbound    uint64  `json:"inbound_traffic"`
 	Outbound   uint64  `json:"outbound_traffic"`
 }
@@ -67,8 +124,12 @@ type Event struct {
 	CheckSum      string    `json:"checksum"`
 	UUID          string    `json:"uuid"`
 	Time          time.Time `json:"timestamp"`
+	Zone          string    `json:"timezone"`
+	IP            string    `json:"public_ip"`
 	Status        int       `json:"exit_status"`
-	Signal        string    `json:"signal,omitempty"`
+	Signal        sig       `json:"signal,omitempty"`
+	Trace         []frame   `json:"stack_trace,omitempty"`
+	Device        string    `json:"mac_address_hash,omitempty"`
 	SystemMetrics System    `json:"system_metrics"`
 }
 
@@ -79,58 +140,56 @@ func (e Event) topic() string {
 func (e *Event) brand() {
 	e.UUID = uuid.NewV4().String()
 	e.CheckSum = cksum
+	e.IP = deviceIP
 }
 
-func event(state *os.ProcessState) *Event {
+func metrics() System {
+	var s System
+
+	// System-wide cpu usage since the start of the child process
+	if tempCPU, err := cpu.Percent(0, false); err == nil {
+		s.CPUPercent = tempCPU[0]
+	}
+
+	// System-wide current virtual memory (ram) consumption
+	// percentage at the time of child process termination
+	if tempMem, err := mem.VirtualMemory(); err == nil {
+		s.MemPercent = tempMem.UsedPercent
+	}
+
+	s.Inbound = inboundRate
+	s.Outbound = outboundRate
+	return s
+}
+
+func event(evt chan Event, state *os.ProcessState) *Event {
 	ws, ok := state.Sys().(syscall.WaitStatus)
 	if !ok {
 		log.Print("expected type syscall.WaitStatus; non-POSIX system?")
 		return nil
 	}
 
-	var (
-		inbound    uint64
-		outbound   uint64
-		cpuPercent float64
-		memPercent float64
-	)
-
-	/* System-wide cpu usage since the start of the child process */
-	if tempCPU, err := cpu.Percent(0, false); err == nil {
-		cpuPercent = tempCPU[0]
+	local := time.Now()
+	zone, _ := local.Zone()
+	e := Event{
+		Device:        hash,
+		IP:            deviceIP,
+		Status:        ws.ExitStatus(),
+		SystemMetrics: metrics(),
+		Time:          local,
+		Zone:          zone,
 	}
 
-	/*System-wide current virtual memory (ram) consumption
-	percentage at the time of child process termination */
-	if tempMem, err := mem.VirtualMemory(); err == nil {
-		memPercent = tempMem.UsedPercent
+	if ws.Signaled() {
+		e.Signal = sig(ws.Signal())
 	}
 
-	/* Total network I/O bytes recieved and sent from the system
-	since the start of the system */
-	if tempNet, err := hnet.IOCounters(false); err == nil {
-		inbound = tempNet[0].BytesRecv
-		outbound = tempNet[0].BytesSent
+	if x, ok := <-evt; ok {
+		log.Print("event: got stacktrace")
+		e.Signal = x.Signal
+		e.Trace = x.Trace
 	}
-
-	s := System{
-		CPUPercent: cpuPercent,
-		MemPercent: memPercent,
-		Inbound:    inbound,
-		Outbound:   outbound,
-	}
-
-	return &Event{
-		Time:   time.Now(),
-		Status: ws.ExitStatus(),
-		Signal: func() string {
-			if ws.Signaled() {
-				return ws.Signal().String()
-			}
-			return ""
-		}(),
-		SystemMetrics: s,
-	}
+	return &e
 }
 
 func check(err error) {
@@ -143,9 +202,7 @@ func usage() {
 	log.Fatalf("usage: %v command [args ...]\n", os.Args[0])
 }
 
-var inboundPrev, outboundPrev uint64
-
-func run(obj chan Object, cmd *exec.Cmd) {
+func run(obj chan Object, evt chan Event, cmd *exec.Cmd) {
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
 
@@ -162,7 +219,7 @@ func run(obj chan Object, cmd *exec.Cmd) {
 
 	go func() {
 		cmd.Wait()
-		obj <- event(cmd.ProcessState)
+		obj <- event(evt, cmd.ProcessState)
 		done <- struct{}{}
 	}()
 
@@ -181,9 +238,9 @@ func run(obj chan Object, cmd *exec.Cmd) {
 // Node is used by json.Unmarshal() to check JSON generated by the instrument.
 type Node struct {
 	CheckSum string `json:"checksum,omitempty"`
+	IP       string `json:"public_ip,omitempty"`
 	UUID     string `json:"uuid,omitempty"`
-	Fn       uint64 `json:"fn,omitempty"`
-	Cs       uint64 `json:"cs,omitempty"`
+	frame
 	Ncalls   uint   `json:"ncalls,omitempty"`
 	Nsamples uint   `json:"nsamples,omitempty"`
 	Callees  []Node `json:"callees,omitempty"`
@@ -196,6 +253,7 @@ func (n Node) topic() string {
 func (n *Node) brand() {
 	n.UUID = uuid.NewV4().String()
 	n.CheckSum = cksum
+	n.IP = deviceIP
 }
 
 func logs(logger io.Writer) (func(), error) {
@@ -224,6 +282,50 @@ func logs(logger io.Writer) (func(), error) {
 		}
 		log.Print("closing logs socket")
 		l.Close()
+	}, nil
+}
+
+func stacktrace(evt chan Event) (func(), error) {
+	s, err := net.Listen("unix", "stacktrace-"+strconv.Itoa(os.Getpid()))
+	if err != nil {
+		return func() {}, err
+	}
+	log.Print("stacktrace socket opened")
+
+	done := make(chan error)
+
+	go func() {
+		c, err := s.Accept()
+		if err != nil {
+			done <- err
+			return
+		}
+		log.Print("stacktrace connection accepted")
+		line := bufio.NewScanner(c)
+
+		// quits on EOF
+		for line.Scan() {
+			var s Event
+			err := json.Unmarshal(line.Bytes(), &s)
+			if err != nil {
+				close(evt)
+				done <- err
+				return
+			}
+			evt <- s
+		}
+		close(evt)
+		log.Print("stacktrace socket EOF")
+		done <- nil
+	}()
+
+	return func() {
+		// wait for socket relay to finish
+		if err := <-done; err != nil {
+			log.Print(err)
+		}
+		log.Print("closing stacktrace socket")
+		s.Close()
 	}, nil
 }
 
@@ -417,6 +519,71 @@ func valid(sum string) bool {
 	return false
 }
 
+// Device contains information that need to be posted to device endpoint
+type Device struct {
+	Mac   string `json:"mac_address_hash,omitempty"`
+	Zone  string `json:"timezone,omitempty"`
+	AppID string `json:"application,omitempty"`
+}
+
+var hash string
+
+func postDevice() error {
+	//Mac addresses are generally 6 bytes long
+	sum := make([]byte, 6)
+	var url string
+	apikey := envar["API_KEY"]
+	interfaces, err := net.Interfaces()
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	for _, i := range interfaces {
+		if bytes.Compare(i.HardwareAddr, nil) == 0 {
+			continue
+		}
+		for h, k := range i.HardwareAddr {
+			sum[h] += k
+		}
+	}
+	hash = fmt.Sprintf("%x", string(sum))
+
+	zone, _ := time.Now().Zone()
+	d := Device{
+		Mac:   hash,
+		Zone:  zone,
+		AppID: envar["APP_ID"],
+	}
+
+	b, err := json.Marshal(d)
+	url = envar["BASE_URL"] + "/devices/" + hash
+
+	res, err := http.Get(url)
+
+	if res.StatusCode != 200 {
+		url = envar["BASE_URL"] + "/devices"
+		client := &http.Client{
+			Timeout: 5 * time.Second,
+		}
+
+		req, err := http.NewRequest("POST", url, bytes.NewReader(b))
+		if err != nil {
+			return err
+		}
+
+		req.Header.Add("content-type", "application/json")
+		req.Header.Add("apikey", apikey)
+
+		resp, err := client.Do(req)
+		if err != nil {
+			return err
+		}
+		log.Print("postDevice:", resp.Status)
+	}
+	// If we get to this point, whatever the response code is we do not return any error
+	return nil
+}
+
 var envar map[string]string
 
 func env() {
@@ -444,11 +611,16 @@ func env() {
 	}
 }
 
+var deviceIP string
+
 func main() {
 	logger := os.Stdout
 	log.SetOutput(logger)
+	log.Printf("Auklet Wrapper version %s (%s)\n", Version, BuildDate)
 
 	env()
+	deviceIP = DeviceIP()
+	go networkStat()
 
 	args := os.Args
 	if len(args) < 2 {
@@ -462,7 +634,13 @@ func main() {
 		log.Print("invalid checksum: ", cksum)
 	}
 
+	devicePosted := postDevice()
+	if devicePosted != nil {
+		log.Print("Failed to post device object")
+	}
+
 	obj := make(chan Object)
+	evt := make(chan Event)
 
 	wprod, err := produce(obj)
 	check(err)
@@ -472,10 +650,14 @@ func main() {
 	check(err)
 	defer wrelay()
 
+	wstack, err := stacktrace(evt)
+	check(err)
+	defer wstack()
+
 	lc, err := logs(logger)
 	check(err)
 	defer lc()
 
-	run(obj, cmd)
+	run(obj, evt, cmd)
 	close(obj)
 }
