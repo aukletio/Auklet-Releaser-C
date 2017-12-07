@@ -37,7 +37,6 @@ An Auklet configuration is defined by the following environment variables.
 
 	AUKLET_APP_ID
 	AUKLET_API_KEY
-	AUKLET_BASE_URL
 	AUKLET_BROKERS
 	AUKLET_PROF_TOPIC
 	AUKLET_EVENT_TOPIC
@@ -61,7 +60,6 @@ file, `.auklet`, and sourced from within `.env`. For example:
 
 	$ cat .env
 	. .auklet
-	export AUKLET_BASE_URL=https://api.auklet.io/v1
 	export AUKLET_BROKERS=broker1,broker2,broker3
 	export AUKLET_PROF_TOPIC=z8u1-profiler
 	export AUKLET_EVENT_TOPIC=z8u1-events
@@ -78,13 +76,6 @@ A comma-delimited list of broker addresses. For example:
 ## `AUKLET_EVENT_TOPIC`, `AUKLET_PROF_TOPIC`
 
 Topics to which `wrap` should send event and profile data, respectively.
-
-## `AUKLET_BASE_URL`
-
-A URL, without a trailing slash, to be used when creating and checking releases.
-It is accessed by both `wrap` and `release` commands. For example:
-
-	https://api.auklet.io/v1
 
 ## `AUKLET_CA`, `AUKLET_CERT`, `AUKLET_PRIVATE_KEY`
 
