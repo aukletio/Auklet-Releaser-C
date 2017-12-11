@@ -495,7 +495,7 @@ func (d *Device) get() bool {
 	}
 
 	log.Print("Device.get() " + resp.Status)
-	return resp.ContentLength <= 2
+	return !(resp.ContentLength <= 2)
 }
 
 func ifacehash() string {
