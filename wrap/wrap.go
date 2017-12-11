@@ -482,7 +482,7 @@ func NewDevice() *Device {
 
 // Determine whether this device is already known by the backend.
 func (d *Device) get() bool {
-	url := envar["BASE_URL"] + "/devices/" + d.Mac
+	url := envar["BASE_URL"] + "/devices/?mac_address_hash=" + d.Mac
 	req, err := http.NewRequest("GET", url, nil)
 	if err != nil {
 		log.Fatal(err)
