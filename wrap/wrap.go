@@ -460,10 +460,8 @@ type Device struct {
 	Mac   string `json:"mac_address_hash"`
 	Zone  string `json:"timezone"`
 	AppID string `json:"application"`
-	IP    string
+	IP    string `json:"-"`
 }
-
-var device = NewDevice()
 
 func NewDevice() *Device {
 	conn, err := net.Dial("udp", "34.235.138.75:80")
@@ -494,7 +492,7 @@ func (d *Device) get() bool {
 		log.Fatal(err)
 	}
 
-	log.Print("Device.get() " + resp.Status)
+	log.Print("Device.get() length = ", resp.ContentLength)
 	return !(resp.ContentLength <= 2)
 }
 
@@ -510,10 +508,12 @@ func ifacehash() string {
 		if bytes.Compare(i.HardwareAddr, nil) == 0 {
 			continue
 		}
+		log.Print(i.HardwareAddr)
 		for h, k := range i.HardwareAddr {
 			sum[h] += k
 		}
 	}
+	//sum[0]++
 	return fmt.Sprintf("%x", string(sum))
 }
 
@@ -524,8 +524,9 @@ func (d *Device) post() error {
 		// couldn't marshal json
 		log.Fatal(err)
 	}
+	log.Print(string(b))
 
-	url := envar["BASE_URL"] + "/devices"
+	url := envar["BASE_URL"] + "/devices/"
 	req, err := http.NewRequest("POST", url, bytes.NewReader(b))
 	if err != nil {
 		// couldn't create this request
@@ -561,6 +562,7 @@ func env() {
 			ok = false
 			log.Printf("empty envar %v\n", prefix+k)
 		} else {
+			//log.Print(k, v)
 			envar[k] = v
 		}
 	}
@@ -569,12 +571,15 @@ func env() {
 	}
 }
 
+var device *Device
+
 func main() {
 	logger := os.Stdout
 	log.SetOutput(logger)
 	log.Printf("Auklet Wrapper version %s (%s)\n", Version, BuildDate)
 
 	env()
+	device = NewDevice()
 	go networkStat()
 
 	args := os.Args
