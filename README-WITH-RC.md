@@ -1,7 +1,7 @@
 # Change Log
 
-## [Upcoming Changes](https://github.com/ESG-USA/Auklet-Profiler-C/tree/master)
-
+## Upcoming Changes
+### [0.1.0-rc.1](https://github.com/ESG-USA/Auklet-Profiler-C/tree/0.1.0-rc.1) (Mon Dec 11 21:37:09 2017 UTC)
 **Implemented enhancements:**
 
 - Post Release Objects to API [\#2](https://github.com/ESG-USA/Auklet-Profiler-C/pull/2) ([kdsch](https://github.com/kdsch))
