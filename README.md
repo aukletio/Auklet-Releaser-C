@@ -109,6 +109,8 @@ It is accessed by both `wrap` and `release` commands. For example:
 
 	https://api-staging.auklet.io/v1
 
+If not defined, `wrap` and `release` default to the production endpoint.
+
 # Assign a Configuration
 
 	. .env.staging

@@ -78,18 +78,6 @@ func (s sig) MarshalText() ([]byte, error) {
 	return []byte(s.String()), nil
 }
 
-// DeviceIP gets the public IP address of the device
-func DeviceIP() string {
-	conn, err := net.Dial("udp", "34.235.138.75:80")
-	if err != nil {
-		log.Println("could not get the device IP")
-		return ""
-	}
-	defer conn.Close()
-	localAddr := conn.LocalAddr().(*net.UDPAddr)
-	return localAddr.IP.String()
-}
-
 var inboundRate, outboundRate uint64
 
 func networkStat() {
@@ -140,7 +128,7 @@ func (e Event) topic() string {
 func (e *Event) brand() {
 	e.UUID = uuid.NewV4().String()
 	e.CheckSum = cksum
-	e.IP = deviceIP
+	e.IP = device.IP
 }
 
 func metrics() System {
@@ -169,15 +157,13 @@ func event(evt chan Event, state *os.ProcessState) *Event {
 		return nil
 	}
 
-	local := time.Now()
-	zone, _ := local.Zone()
 	e := Event{
-		Device:        hash,
-		IP:            deviceIP,
+		Device:        device.Mac,
+		IP:            device.IP,
 		Status:        ws.ExitStatus(),
 		SystemMetrics: metrics(),
-		Time:          local,
-		Zone:          zone,
+		Time:          time.Now(),
+		Zone:          device.Zone,
 	}
 
 	if ws.Signaled() {
@@ -253,7 +239,7 @@ func (n Node) topic() string {
 func (n *Node) brand() {
 	n.UUID = uuid.NewV4().String()
 	n.CheckSum = cksum
-	n.IP = deviceIP
+	n.IP = device.IP
 }
 
 func logs(logger io.Writer) (func(), error) {
@@ -519,20 +505,50 @@ func valid(sum string) bool {
 	return false
 }
 
-// Device contains information that need to be posted to device endpoint
+// Device contains information about the device that the backend needs to know.
 type Device struct {
-	Mac   string `json:"mac_address_hash,omitempty"`
-	Zone  string `json:"timezone,omitempty"`
-	AppID string `json:"application,omitempty"`
+	Mac   string `json:"mac_address_hash"`
+	Zone  string `json:"timezone"`
+	AppID string `json:"application"`
+	IP    string `json:"-"`
 }
 
-var hash string
+func NewDevice() *Device {
+	conn, err := net.Dial("udp", "34.235.138.75:80")
+	if err != nil {
+		log.Fatal(err)
+	}
+	localAddr := conn.LocalAddr().(*net.UDPAddr)
+	zone, _ := time.Now().Zone()
+	return &Device{
+		Mac:   ifacehash(),
+		Zone:  zone,
+		AppID: envar["APP_ID"],
+		IP:    localAddr.IP.String(),
+	}
+}
 
-func postDevice() error {
-	//Mac addresses are generally 6 bytes long
+// Determine whether this device is already known by the backend.
+func (d *Device) get() bool {
+	url := envar["BASE_URL"] + "/devices/?mac_address_hash=" + d.Mac
+	req, err := http.NewRequest("GET", url, nil)
+	if err != nil {
+		log.Fatal(err)
+	}
+	req.Header.Add("apikey", envar["API_KEY"])
+	c := &http.Client{}
+	resp, err := c.Do(req)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	log.Print("Device.get() length = ", resp.ContentLength)
+	return !(resp.ContentLength <= 2)
+}
+
+func ifacehash() string {
+	// MAC addresses are generally 6 bytes long
 	sum := make([]byte, 6)
-	var url string
-	apikey := envar["API_KEY"]
 	interfaces, err := net.Interfaces()
 	if err != nil {
 		log.Fatal(err)
@@ -542,67 +558,61 @@ func postDevice() error {
 		if bytes.Compare(i.HardwareAddr, nil) == 0 {
 			continue
 		}
+		log.Print(i.HardwareAddr)
 		for h, k := range i.HardwareAddr {
 			sum[h] += k
 		}
 	}
-	hash = fmt.Sprintf("%x", string(sum))
-
-	zone, _ := time.Now().Zone()
-	d := Device{
-		Mac:   hash,
-		Zone:  zone,
-		AppID: envar["APP_ID"],
-	}
-
-	b, err := json.Marshal(d)
-	url = envar["BASE_URL"] + "/devices/" + hash
-
-	res, err := http.Get(url)
-
-	if res.StatusCode != 200 {
-		url = envar["BASE_URL"] + "/devices"
-		client := &http.Client{
-			Timeout: 5 * time.Second,
-		}
-
-		req, err := http.NewRequest("POST", url, bytes.NewReader(b))
-		if err != nil {
-			return err
-		}
-
-		req.Header.Add("content-type", "application/json")
-		req.Header.Add("apikey", apikey)
-
-		resp, err := client.Do(req)
-		if err != nil {
-			return err
-		}
-		log.Print("postDevice:", resp.Status)
-	}
-	// If we get to this point, whatever the response code is we do not return any error
-	return nil
+	//sum[0]++
+	return fmt.Sprintf("%x", string(sum))
 }
 
-var envar map[string]string
+// Post this device to the backend.
+func (d *Device) post() error {
+	b, err := json.Marshal(d)
+	if err != nil {
+		// couldn't marshal json
+		log.Fatal(err)
+	}
+	log.Print(string(b))
+
+	url := envar["BASE_URL"] + "/devices/"
+	req, err := http.NewRequest("POST", url, bytes.NewReader(b))
+	if err != nil {
+		// couldn't create this request
+		log.Fatal(err)
+	}
+	req.Header.Add("content-type", "application/json")
+	req.Header.Add("apikey", envar["API_KEY"])
+
+	c := &http.Client{}
+	resp, err := c.Do(req)
+	log.Print("Device.post() ", resp.Status)
+	return err
+}
+
+var envar = map[string]string{
+	"APP_ID":      "",
+	"API_KEY":     "",
+	"BASE_URL":    "https://api.auklet.io/v1",
+	"BROKERS":     "",
+	"PROF_TOPIC":  "",
+	"EVENT_TOPIC": "",
+	"CA":          "",
+	"CERT":        "",
+	"PRIVATE_KEY": "",
+}
 
 func env() {
-	envar = make(map[string]string)
-	keys := []string{
-		"BASE_URL",
-		"BROKERS",
-		"PROF_TOPIC",
-		"EVENT_TOPIC",
-	}
-
 	prefix := "AUKLET_"
 	ok := true
-	for _, k := range keys {
+	for k := range envar {
 		v := os.Getenv(prefix + k)
-		if v == "" {
+		if v == "" && envar[k] == "" {
 			ok = false
 			log.Printf("empty envar %v\n", prefix+k)
 		} else {
+			//log.Print(k, v)
 			envar[k] = v
 		}
 	}
@@ -611,7 +621,7 @@ func env() {
 	}
 }
 
-var deviceIP string
+var device *Device
 
 func main() {
 	logger := os.Stdout
@@ -619,7 +629,7 @@ func main() {
 	log.Printf("Auklet Wrapper version %s (%s)\n", Version, BuildDate)
 
 	env()
-	deviceIP = DeviceIP()
+	device = NewDevice()
 	go networkStat()
 
 	args := os.Args
@@ -634,9 +644,10 @@ func main() {
 		log.Print("invalid checksum: ", cksum)
 	}
 
-	devicePosted := postDevice()
-	if devicePosted != nil {
-		log.Print("Failed to post device object")
+	if !device.get() {
+		if err := device.post(); err != nil {
+			log.Print(err)
+		}
 	}
 
 	obj := make(chan Object)
