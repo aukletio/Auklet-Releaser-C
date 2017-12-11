@@ -2,6 +2,7 @@ package main
 
 import (
 	"bufio"
+	"bytes"
 	"crypto/sha512"
 	"crypto/tls"
 	"crypto/x509"
@@ -28,6 +29,12 @@ import (
 	hnet "github.com/shirou/gopsutil/net"
 )
 
+// BuildDate is provided at compile-time; DO NOT MODIFY.
+var BuildDate = "no timestamp"
+
+// Version is provided at compile-time; DO NOT MODIFY.
+var Version = "local-build"
+
 // Object represents something that can be sent to the backend. It must have a
 // topic and implement a brand() method that fills UUID and checksum fields.
 type Object interface {
@@ -53,10 +60,49 @@ func checksum(path string) string {
 	return sum
 }
 
+type frame struct {
+	Fn uint64 `json:"fn,omitempty"`
+	Cs uint64 `json:"cs,omitempty"`
+}
+
+type sig syscall.Signal
+
+func (s sig) String() string {
+	return syscall.Signal(s).String()
+}
+
+func (s sig) Signal() {}
+
+// MarshalText allows a sig to be represented as a string in JSON objects.
+func (s sig) MarshalText() ([]byte, error) {
+	return []byte(s.String()), nil
+}
+
+var inboundRate, outboundRate uint64
+
+func networkStat() {
+	// Total network I/O bytes recieved and sent per second from the system
+	// since the start of the system.
+
+	var inbound, outbound, inboundPrev, outboundPrev uint64
+	for {
+		if tempNet, err := hnet.IOCounters(false); err == nil {
+			inbound = tempNet[0].BytesRecv
+			outbound = tempNet[0].BytesSent
+			inboundRate = inbound - inboundPrev
+			outboundRate = outbound - outboundPrev
+			inboundPrev = inbound
+			outboundPrev = outbound
+		}
+
+		time.Sleep(time.Second)
+	}
+}
+
 // System contains data pertaining to overall system metrics
 type System struct {
-	CPUPercent float64 `json:"cpu_percent"`
-	MemPercent float64 `json:"mem_percent"`
+	CPUPercent float64 `json:"system_cpu_usage"`
+	MemPercent float64 `json:"system_mem_usage"`
 	Inbound    uint64  `json:"inbound_traffic"`
 	Outbound   uint64  `json:"outbound_traffic"`
 }
@@ -66,8 +112,12 @@ type Event struct {
 	CheckSum      string    `json:"checksum"`
 	UUID          string    `json:"uuid"`
 	Time          time.Time `json:"timestamp"`
+	Zone          string    `json:"timezone"`
+	IP            string    `json:"public_ip"`
 	Status        int       `json:"exit_status"`
-	Signal        string    `json:"signal,omitempty"`
+	Signal        sig       `json:"signal,omitempty"`
+	Trace         []frame   `json:"stack_trace,omitempty"`
+	Device        string    `json:"mac_address_hash,omitempty"`
 	SystemMetrics System    `json:"system_metrics"`
 }
 
@@ -78,58 +128,54 @@ func (e Event) topic() string {
 func (e *Event) brand() {
 	e.UUID = uuid.NewV4().String()
 	e.CheckSum = cksum
+	e.IP = device.IP
 }
 
-func event(state *os.ProcessState) *Event {
+func metrics() System {
+	var s System
+
+	// System-wide cpu usage since the start of the child process
+	if tempCPU, err := cpu.Percent(0, false); err == nil {
+		s.CPUPercent = tempCPU[0]
+	}
+
+	// System-wide current virtual memory (ram) consumption
+	// percentage at the time of child process termination
+	if tempMem, err := mem.VirtualMemory(); err == nil {
+		s.MemPercent = tempMem.UsedPercent
+	}
+
+	s.Inbound = inboundRate
+	s.Outbound = outboundRate
+	return s
+}
+
+func event(evt chan Event, state *os.ProcessState) *Event {
 	ws, ok := state.Sys().(syscall.WaitStatus)
 	if !ok {
 		log.Print("expected type syscall.WaitStatus; non-POSIX system?")
 		return nil
 	}
 
-	var (
-		inbound    uint64
-		outbound   uint64
-		cpuPercent float64
-		memPercent float64
-	)
-
-	/* System-wide cpu usage since the start of the child process */
-	if tempCPU, err := cpu.Percent(0, false); err == nil {
-		cpuPercent = tempCPU[0]
+	e := Event{
+		Device:        device.Mac,
+		IP:            device.IP,
+		Status:        ws.ExitStatus(),
+		SystemMetrics: metrics(),
+		Time:          time.Now(),
+		Zone:          device.Zone,
 	}
 
-	/*System-wide current virtual memory (ram) consumption
-	percentage at the time of child process termination */
-	if tempMem, err := mem.VirtualMemory(); err == nil {
-		memPercent = tempMem.UsedPercent
+	if ws.Signaled() {
+		e.Signal = sig(ws.Signal())
 	}
 
-	/* Total network I/O bytes recieved and sent from the system
-	since the start of the system */
-	if tempNet, err := hnet.IOCounters(false); err == nil {
-		inbound = tempNet[0].BytesRecv
-		outbound = tempNet[0].BytesSent
+	if x, ok := <-evt; ok {
+		log.Print("event: got stacktrace")
+		e.Signal = x.Signal
+		e.Trace = x.Trace
 	}
-
-	s := System{
-		CPUPercent: cpuPercent,
-		MemPercent: memPercent,
-		Inbound:    inbound,
-		Outbound:   outbound,
-	}
-
-	return &Event{
-		Time:   time.Now(),
-		Status: ws.ExitStatus(),
-		Signal: func() string {
-			if ws.Signaled() {
-				return ws.Signal().String()
-			}
-			return ""
-		}(),
-		SystemMetrics: s,
-	}
+	return &e
 }
 
 func check(err error) {
@@ -142,9 +188,7 @@ func usage() {
 	log.Fatalf("usage: %v command [args ...]\n", os.Args[0])
 }
 
-var inboundPrev, outboundPrev uint64
-
-func run(obj chan Object, cmd *exec.Cmd) {
+func run(obj chan Object, evt chan Event, cmd *exec.Cmd) {
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
 
@@ -161,7 +205,7 @@ func run(obj chan Object, cmd *exec.Cmd) {
 
 	go func() {
 		cmd.Wait()
-		obj <- event(cmd.ProcessState)
+		obj <- event(evt, cmd.ProcessState)
 		done <- struct{}{}
 	}()
 
@@ -180,9 +224,9 @@ func run(obj chan Object, cmd *exec.Cmd) {
 // Node is used by json.Unmarshal() to check JSON generated by the instrument.
 type Node struct {
 	CheckSum string `json:"checksum,omitempty"`
+	IP       string `json:"public_ip,omitempty"`
 	UUID     string `json:"uuid,omitempty"`
-	Fn       uint64 `json:"fn,omitempty"`
-	Cs       uint64 `json:"cs,omitempty"`
+	frame
 	Ncalls   uint   `json:"ncalls,omitempty"`
 	Nsamples uint   `json:"nsamples,omitempty"`
 	Callees  []Node `json:"callees,omitempty"`
@@ -195,6 +239,7 @@ func (n Node) topic() string {
 func (n *Node) brand() {
 	n.UUID = uuid.NewV4().String()
 	n.CheckSum = cksum
+	n.IP = device.IP
 }
 
 func logs(logger io.Writer) (func(), error) {
@@ -223,6 +268,50 @@ func logs(logger io.Writer) (func(), error) {
 		}
 		log.Print("closing logs socket")
 		l.Close()
+	}, nil
+}
+
+func stacktrace(evt chan Event) (func(), error) {
+	s, err := net.Listen("unix", "stacktrace-"+strconv.Itoa(os.Getpid()))
+	if err != nil {
+		return func() {}, err
+	}
+	log.Print("stacktrace socket opened")
+
+	done := make(chan error)
+
+	go func() {
+		c, err := s.Accept()
+		if err != nil {
+			done <- err
+			return
+		}
+		log.Print("stacktrace connection accepted")
+		line := bufio.NewScanner(c)
+
+		// quits on EOF
+		for line.Scan() {
+			var s Event
+			err := json.Unmarshal(line.Bytes(), &s)
+			if err != nil {
+				close(evt)
+				done <- err
+				return
+			}
+			evt <- s
+		}
+		close(evt)
+		log.Print("stacktrace socket EOF")
+		done <- nil
+	}()
+
+	return func() {
+		// wait for socket relay to finish
+		if err := <-done; err != nil {
+			log.Print(err)
+		}
+		log.Print("closing stacktrace socket")
+		s.Close()
 	}, nil
 }
 
@@ -366,28 +455,114 @@ func valid(sum string) bool {
 	return false
 }
 
-var envar map[string]string
+// Device contains information about the device that the backend needs to know.
+type Device struct {
+	Mac   string `json:"mac_address_hash"`
+	Zone  string `json:"timezone"`
+	AppID string `json:"application"`
+	IP    string `json:"-"`
+}
 
-func env() {
-	envar = make(map[string]string)
-	keys := []string{
-		"BASE_URL",
-		"BROKERS",
-		"PROF_TOPIC",
-		"EVENT_TOPIC",
-		"CA",
-		"CERT",
-		"PRIVATE_KEY",
+func NewDevice() *Device {
+	conn, err := net.Dial("udp", "34.235.138.75:80")
+	if err != nil {
+		log.Fatal(err)
+	}
+	localAddr := conn.LocalAddr().(*net.UDPAddr)
+	zone, _ := time.Now().Zone()
+	return &Device{
+		Mac:   ifacehash(),
+		Zone:  zone,
+		AppID: envar["APP_ID"],
+		IP:    localAddr.IP.String(),
+	}
+}
+
+// Determine whether this device is already known by the backend.
+func (d *Device) get() bool {
+	url := envar["BASE_URL"] + "/devices/?mac_address_hash=" + d.Mac
+	req, err := http.NewRequest("GET", url, nil)
+	if err != nil {
+		log.Fatal(err)
+	}
+	req.Header.Add("apikey", envar["API_KEY"])
+	c := &http.Client{}
+	resp, err := c.Do(req)
+	if err != nil {
+		log.Fatal(err)
 	}
 
+	log.Print("Device.get() length = ", resp.ContentLength)
+	return !(resp.ContentLength <= 2)
+}
+
+func ifacehash() string {
+	// MAC addresses are generally 6 bytes long
+	sum := make([]byte, 6)
+	interfaces, err := net.Interfaces()
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	for _, i := range interfaces {
+		if bytes.Compare(i.HardwareAddr, nil) == 0 {
+			continue
+		}
+		log.Print(i.HardwareAddr)
+		for h, k := range i.HardwareAddr {
+			sum[h] += k
+		}
+	}
+	//sum[0]++
+	return fmt.Sprintf("%x", string(sum))
+}
+
+// Post this device to the backend.
+func (d *Device) post() error {
+	b, err := json.Marshal(d)
+	if err != nil {
+		// couldn't marshal json
+		log.Fatal(err)
+	}
+	log.Print(string(b))
+
+	url := envar["BASE_URL"] + "/devices/"
+	req, err := http.NewRequest("POST", url, bytes.NewReader(b))
+	if err != nil {
+		// couldn't create this request
+		log.Fatal(err)
+	}
+	req.Header.Add("content-type", "application/json")
+	req.Header.Add("apikey", envar["API_KEY"])
+
+	c := &http.Client{}
+	resp, err := c.Do(req)
+	log.Print("Device.post() ", resp.Status)
+	return err
+}
+
+var envar = map[string]string{
+	"APP_ID":      "",
+	"API_KEY":     "",
+	"BASE_URL":    "https://api.auklet.io/v1",
+	"BROKERS":     "",
+	"PROF_TOPIC":  "",
+	"EVENT_TOPIC": "",
+	"CA":          "",
+	"CERT":        "",
+	"PRIVATE_KEY": "",
+}
+
+func env() {
 	prefix := "AUKLET_"
 	ok := true
-	for _, k := range keys {
+	for k := range envar {
 		v := os.Getenv(prefix + k)
-		if v == "" {
+		if v == "" && envar[k] == "" {
 			ok = false
 			log.Printf("empty envar %v\n", prefix+k)
 		} else {
+			//log.Print(k, v)
 			envar[k] = v
 		}
 	}
@@ -396,11 +571,16 @@ func env() {
 	}
 }
 
+var device *Device
+
 func main() {
 	logger := os.Stdout
 	log.SetOutput(logger)
+	log.Printf("Auklet Wrapper version %s (%s)\n", Version, BuildDate)
 
 	env()
+	device = NewDevice()
+	go networkStat()
 
 	args := os.Args
 	if len(args) < 2 {
@@ -414,7 +594,14 @@ func main() {
 		log.Print("invalid checksum: ", cksum)
 	}
 
+	if !device.get() {
+		if err := device.post(); err != nil {
+			log.Print(err)
+		}
+	}
+
 	obj := make(chan Object)
+	evt := make(chan Event)
 
 	wprod, err := produce(obj)
 	check(err)
@@ -424,10 +611,14 @@ func main() {
 	check(err)
 	defer wrelay()
 
+	wstack, err := stacktrace(evt)
+	check(err)
+	defer wstack()
+
 	lc, err := logs(logger)
 	check(err)
 	defer lc()
 
-	run(obj, cmd)
+	run(obj, evt, cmd)
 	close(obj)
 }
