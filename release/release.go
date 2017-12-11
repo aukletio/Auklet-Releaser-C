@@ -14,6 +14,12 @@ import (
 	"os/exec"
 )
 
+// BuildDate is provided at compile-time; DO NOT MODIFY.
+var BuildDate = "no timestamp"
+
+// Version is provided at compile-time; DO NOT MODIFY.
+var Version = "local-build"
+
 // A Dwarf represents a pared-down dwarf.LineEntry.
 type Dwarf struct {
 	Address uint64
@@ -183,21 +189,18 @@ func (rel *Release) release(deployName string) {
 	log.Println("release():", deployName, rel.DeployHash)
 }
 
-var envar map[string]string
+var envar = map[string]string{
+	"BASE_URL": "https://api.auklet.io/v1",
+	"API_KEY":  "",
+	"APP_ID":   "",
+}
 
 func env() {
-	envar = make(map[string]string)
-	keys := []string{
-		"BASE_URL",
-		"API_KEY",
-		"APP_ID",
-	}
-
 	prefix := "AUKLET_"
 	ok := true
-	for _, k := range keys {
+	for k := range envar {
 		v := os.Getenv(prefix + k)
-		if v == "" {
+		if v == "" && envar[k] == "" {
 			ok = false
 			log.Printf("empty envar %v\n", prefix+k)
 		} else {
@@ -210,6 +213,7 @@ func env() {
 }
 
 func main() {
+	log.Printf("Auklet Releaser version %s (%s)\n", Version, BuildDate)
 	if len(os.Args) < 2 {
 		usage()
 	}
