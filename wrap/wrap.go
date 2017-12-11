@@ -495,15 +495,7 @@ func (d *Device) get() bool {
 	}
 
 	log.Print("Device.get() " + resp.Status)
-	switch resp.StatusCode {
-	case 200:
-		return true
-	case 404:
-		// doesn't exist
-		return false
-	default:
-		return false
-	}
+	return resp.ContentLength <= 2
 }
 
 func ifacehash() string {
