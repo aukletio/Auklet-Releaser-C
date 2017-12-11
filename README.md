@@ -115,6 +115,8 @@ It is accessed by both `wrap` and `release` commands. For example:
 
 	https://api-staging.auklet.io/v1
 
+If not defined, `wrap` and `release` default to the production endpoint.
+
 ## `AUKLET_CA`, `AUKLET_CERT`, `AUKLET_PRIVATE_KEY`
 
 Base64-encoded [PEM][pem]-format certs that `wrap` uses to authenticate its Kafka
