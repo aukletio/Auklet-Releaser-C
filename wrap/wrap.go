@@ -357,10 +357,16 @@ func relay(obj chan Object) (func(), error) {
 }
 
 func getcerts() map[string][]byte {
-	ep := envar["BASE_URL"] + "/certificates/"
-	resp, err := http.Get(ep)
+	url := envar["BASE_URL"] + "/certificates"
+	req, err := http.NewRequest("GET", url, nil)
 	if err != nil {
-		log.Panic(err)
+		log.Fatal(err)
+	}
+	req.Header.Add("apikey", envar["API_KEY"])
+	c := &http.Client{}
+	resp, err := c.Do(req)
+	if err != nil {
+		log.Fatal(err)
 	}
 
 	if resp.StatusCode != 200 {
