@@ -373,6 +373,7 @@ func getcerts() map[string][]byte {
 		log.Fatal("wrapper: getcerts: got unexpected status ", resp.Status)
 	}
 
+	log.Print("getcerts:", resp.Status)
 	// resp.Body implements io.Reader
 	// ioutil.ReadAll : io.Reader -> []byte
 	// bytes.NewReader : []byte -> bytes.Reader (implements io.ReaderAt)
