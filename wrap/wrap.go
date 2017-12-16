@@ -357,7 +357,7 @@ func relay(obj chan Object) (func(), error) {
 }
 
 func getcerts() map[string][]byte {
-	url := envar["BASE_URL"] + "/certificates"
+	url := envar["BASE_URL"] + "/certificates/"
 	req, err := http.NewRequest("GET", url, nil)
 	if err != nil {
 		log.Fatal(err)
