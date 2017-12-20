@@ -33,9 +33,8 @@ busy(void *p)
 	int n = *(int *)p;
 	long end = now() + 4 * BILLION;
 	int i;
-	for (i = 0; now() < end; ++i) {
+	for (i = 0; now() < end; ++i)
 		f(n);
-	}
 	printf("busy: did %d iterations of f(%d)\n", i, n);
 }
 
