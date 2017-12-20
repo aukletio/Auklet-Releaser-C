@@ -5,19 +5,31 @@
 /* headers */
 #include "lib.c"
 
-#include <fcntl.h>
+#include <semaphore.h>
 #include <signal.h>
 #include <sys/socket.h>
 #include <sys/time.h>
 #include <sys/un.h>
 #include <unistd.h>
 
+/* macros */
+#define SIGRT(n) (SIGRTMIN + (n))
+
+/* types */
+enum {
+	REAL,
+	VIRT,
+};
+
 /* function declarations */
 static void sigprof(int n);
 static void signals(void);
+static void siginstall(int sig, void (*handler)(int));
 static void emit(void);
 static void *timer(void *);
 static void timers(void);
+static void mktimers(void);
+static void settimers(void);
 static void setup(void);
 static void cleanup(void);
 
@@ -44,6 +56,18 @@ static N root = {
 };
 static __thread N *sp = &root;
 static int sock, stack;
+static sem_t sem;
+static struct {
+	clockid_t clk;
+	struct timespec value;
+	timer_t tid;
+	int sig;
+} tmr[] = {
+	/*        clk                       value */
+	[REAL] = {CLOCK_REALTIME,           {.tv_sec = 10, .tv_nsec = 0}},
+	[VIRT] = {CLOCK_PROCESS_CPUTIME_ID, {.tv_sec =  1, .tv_nsec = 0}},
+};
+
 
 /* function definitions */
 /* Increment sample counters in the stack of the current thread. */
@@ -51,6 +75,14 @@ static void
 sigprof(int n)
 {
 	sample(sp);
+}
+
+static void
+sigemit(int n)
+{
+	dprintf(log, "sigemit(%d)\n", n);
+	settimers();
+	sem_post(&sem);
 }
 
 /* Send a JSON-encoded profile tree to the wrapper. */
@@ -62,8 +94,8 @@ emit(void)
 	marshal(&b, &root);
 	append(&b, "\n");
 	//dprintf(log, "emit: %s", b.buf);
-	if (send(sock, b.buf, b.len, 0) == -1) {
-		//dprintf(log, "emit: send: %s\n", strerror(errno));
+	if (write(sock, b.buf, b.len) == -1) {
+		dprintf(log, "emit: write: %s\n", strerror(errno));
 		//exit(1);
 	}
 	reset(&root);
@@ -78,8 +110,8 @@ stacktrace(int sig)
 	marshals(&b, sp, sig);
 	append(&b, "\n");
 	//dprintf(log, "stacktrace: %s", b.buf);
-	if (send(stack, b.buf, b.len, 0) == -1) {
-		dprintf(log, "stacktrace: send: %s\n", strerror(errno));
+	if (write(stack, b.buf, b.len) == -1) {
+		dprintf(log, "stacktrace: write: %s\n", strerror(errno));
 	}
 	free(b.buf);
 }
@@ -96,21 +128,33 @@ sigerr(int n)
 static void
 signals(void)
 {
-	int errsig[] = {SIGSEGV, SIGILL, SIGFPE};
-	struct sigaction prof, emit, err;
-	sigaction(SIGPROF, NULL, &prof);
-	prof.sa_handler = sigprof;
+	struct {
+		int sig;
+		void (*handler)(int);
+	} s[] = {
+		{SIGSEGV,     sigerr },
+		{SIGILL,      sigerr },
+		{SIGFPE,      sigerr },
+		{SIGPROF,     sigprof},
+		{SIGRT(REAL), sigemit},
+		{SIGRT(VIRT), sigemit},
+	};
+	sem_init(&sem, 0, 0);
+	for (int i = 0; i < len(s); ++i)
+		siginstall(s[i].sig, s[i].handler);
+}
 
-	/* sigfillset prevents sigprof from getting interrupted, but this
+static void
+siginstall(int sig, void (*handler)(int))
+{
+	struct sigaction sa;
+	sigaction(sig, NULL, &sa);
+	sa.sa_handler = handler;
+
+	/* sigfillset prevents handler from getting interrupted, but this
 	 * does not avoid races between handlers in different threads. */
-	sigfillset(&prof.sa_mask);
-	sigaction(SIGPROF, &prof, NULL);
-
-	for (int i = 0; i < len(errsig); ++i) {
-		sigaction(errsig[i], NULL, &err);
-		err.sa_handler = sigerr;
-		sigaction(errsig[i], &err, NULL);
-	}
+	sigfillset(&sa.sa_mask);
+	sigaction(sig, &sa, NULL);
 }
 
 /* Emit profile data periodically. Implementing this as a interval timer +
@@ -119,12 +163,11 @@ signals(void)
 static void *
 timer(void *p)
 {
-	struct timespec t = {.tv_sec = 1, .tv_nsec = 0};
 	sigset_t s;
 	sigfillset(&s);
 	pthread_sigmask(SIG_BLOCK, &s, NULL);
 	while (1) {
-		clock_nanosleep(CLOCK_PROCESS_CPUTIME_ID, 0, &t, NULL);
+		sem_wait(&sem);
 		emit();
 	}
 }
@@ -136,11 +179,36 @@ timers(void)
 #define SP {.tv_sec = 0, .tv_usec = 10000}
 	struct itimerval prof = {SP, SP};
 	setitimer(ITIMER_PROF, &prof, NULL);
+	mktimers();
+	settimers();
 	pthread_t t;
 	pthread_create(&t, NULL, timer, NULL);
 }
 
-/* Set up a communicaiton channel with the wrapper. */
+static void
+mktimers(void)
+{
+
+	for (int i = 0; i < len(tmr); ++i) {
+		timer_create(tmr[i].clk, &(struct sigevent){
+			.sigev_notify = SIGEV_SIGNAL,
+			.sigev_signo  = SIGRT(i),
+		}, &tmr[i].tid);
+	}
+}
+
+static void
+settimers(void)
+{
+	for (int i = 0; i < len(tmr); ++i) {
+		timer_settime(tmr[i].tid, 0, &(struct itimerspec){
+			.it_interval = {0, 0},
+			.it_value    = tmr[i].value,
+		}, NULL);
+	}
+}
+
+/* Set up a communication channel with the wrapper. */
 static int
 comm(int type, char *prefix)
 {

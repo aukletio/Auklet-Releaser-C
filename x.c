@@ -2,10 +2,11 @@
  * runtime test program
  */
 
+#include <pthread.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <time.h>
-#include <pthread.h>
+#include <unistd.h>
 
 #define BILLION 1000000000l
 
@@ -30,19 +31,20 @@ void *
 busy(void *p)
 {
 	int n = *(int *)p;
-	long end = now() + 5 * BILLION;
+	long end = now() + 4 * BILLION;
 	int i;
-	for (i = 0; now() < end; ++i)
+	for (i = 0; now() < end; ++i) {
 		f(n);
+	}
 	printf("busy: did %d iterations of f(%d)\n", i, n);
 }
 
 void *
 idle(void *p)
 {
-	long end = now() + 4 * BILLION;
+	long end = now() + 14 * BILLION;
 	while (now() < end)
-		;
+		sleep(30);
 	int *n;
 	*n = 42;
 }
