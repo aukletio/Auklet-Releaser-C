@@ -187,7 +187,6 @@ timers(void)
 static void
 mktimers(void)
 {
-
 	for (int i = 0; i < len(tmr); ++i) {
 		timer_create(tmr[i].clk, &(struct sigevent){
 			.sigev_notify = SIGEV_SIGNAL,
