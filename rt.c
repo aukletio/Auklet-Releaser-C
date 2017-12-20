@@ -61,7 +61,6 @@ static struct {
 	clockid_t clk;
 	struct timespec value;
 	timer_t tid;
-	int sig;
 } tmr[] = {
 	/*        clk                       value */
 	[REAL] = {CLOCK_REALTIME,           {.tv_sec = 10, .tv_nsec = 0}},
