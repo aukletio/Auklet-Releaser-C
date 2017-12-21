@@ -230,6 +230,7 @@ type Node struct {
 	Ncalls   uint   `json:"ncalls,omitempty"`
 	Nsamples uint   `json:"nsamples,omitempty"`
 	Callees  []Node `json:"callees,omitempty"`
+	Time     int64  `json:"timestamp,omitempty"`
 }
 
 func (n Node) topic() string {
@@ -240,6 +241,7 @@ func (n *Node) brand() {
 	n.UUID = uuid.NewV4().String()
 	n.CheckSum = cksum
 	n.IP = device.IP
+	n.Time = time.Now().UnixNano() / 1000000
 }
 
 func logs(logger io.Writer) (func(), error) {
