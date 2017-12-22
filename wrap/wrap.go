@@ -219,9 +219,10 @@ func run(obj chan Object, evt chan Event, cmd *exec.Cmd) {
 // Profile represents arbitrary JSON data from the instrument that can be sent
 // to the backend.
 type Profile struct {
-	CheckSum string      `json:"checksum,omitempty"`
-	IP       string      `json:"public_ip,omitempty"`
-	UUID     string      `json:"uuid,omitempty"`
+	CheckSum string      `json:"checksum"`
+	IP       string      `json:"public_ip"`
+	UUID     string      `json:"uuid"`
+	Time     int64       `json:"timestamp"`
 	Tree     interface{} `json:"tree"`
 }
 
@@ -233,6 +234,7 @@ func (n *Node) brand() {
 	n.UUID = uuid.NewV4().String()
 	n.CheckSum = cksum
 	n.IP = device.IP
+	n.Time = time.Now().UnixNano() / 1000000
 }
 
 func logs(logger io.Writer) (func(), error) {
