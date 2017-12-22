@@ -1,12 +1,12 @@
 package main
 
 import (
+	"archive/zip"
 	"bufio"
 	"bytes"
 	"crypto/sha512"
 	"crypto/tls"
 	"crypto/x509"
-	"encoding/base64"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -358,20 +358,77 @@ func relay(obj chan Object) (func(), error) {
 	}, nil
 }
 
-func decode(s string) []byte {
-	b, err := base64.StdEncoding.DecodeString(s)
-	check(err)
-	return b
+func getcerts() map[string][]byte {
+	url := envar["BASE_URL"] + "/certificates/"
+	req, err := http.NewRequest("GET", url, nil)
+	if err != nil {
+		log.Fatal(err)
+	}
+	req.Header.Add("apikey", envar["API_KEY"])
+	c := &http.Client{}
+	resp, err := c.Do(req)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	if resp.StatusCode != 200 {
+		log.Fatal("wrapper: getcerts: got unexpected status ", resp.Status)
+	}
+
+	log.Print("getcerts:", resp.Status)
+	// resp.Body implements io.Reader
+	// ioutil.ReadAll : io.Reader -> []byte
+	// bytes.NewReader : []byte -> bytes.Reader (implements io.ReaderAt)
+	// zip.NewReader : io.ReaderAt -> zip.Reader (array of zip.File)
+	// zip.Open : zip.File -> io.ReadCloser (implements io.Reader)
+	// ioutil.ReadAll : io.Reader -> []byte
+
+	b, err := ioutil.ReadAll(resp.Body)
+	if err != nil {
+		log.Panic(err)
+	}
+	z, err := zip.NewReader(bytes.NewReader(b), int64(len(b)))
+	if err != nil {
+		log.Panic(err)
+	}
+	m := make(map[string][]byte)
+	for _, f := range z.File {
+		rc, err := f.Open()
+		if err != nil {
+			log.Panic(err)
+		}
+		cert, err := ioutil.ReadAll(rc)
+		if err != nil {
+			log.Panic(err)
+		}
+		m[f.Name] = cert
+	}
+
+	filenames := []string{"ck_ca", "ck_cert", "ck_private_key"}
+	if len(m) != len(filenames) {
+		log.Printf("got zip archive with %v files, expected %v", len(m), len(filenames))
+	}
+
+	good := true
+	for _, name := range filenames {
+		if _, ok := m[name]; !ok {
+			log.Printf("could not find cert file named %v", name)
+			good = false
+		}
+	}
+
+	if !good {
+		log.Fatal("incorrect certs")
+	}
+	return m
 }
 
 func connect() (sarama.SyncProducer, error) {
-	ca := decode(envar["CA"])
-	cert := decode(envar["CERT"])
-	key := decode(envar["PRIVATE_KEY"])
+	certs := getcerts()
 
 	certpool := x509.NewCertPool()
-	certpool.AppendCertsFromPEM(ca)
-	c, err := tls.X509KeyPair(cert, key)
+	certpool.AppendCertsFromPEM(certs["ck_ca"])
+	c, err := tls.X509KeyPair(certs["ck_cert"], certs["ck_private_key"])
 	check(err)
 
 	tc := tls.Config{
