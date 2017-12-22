@@ -42,6 +42,8 @@ typedef struct n {
 	 * between threads. */
 	pthread_mutex_t lcall;
 	unsigned ncall;
+
+	int empty;
 } N;
 
 /* Type B represents a resizable text buffer. */
@@ -59,7 +61,7 @@ static void killN(N *n, int root);
 static N *hascallee(N *n, F f);
 static N *addcallee(N *n, F f);
 static void sample(N *sp);
-static void reset(N *n);
+static void setnotempty(N *n);
 
 static int growB(B *b);
 static int append(B *b, char *fmt, ...);
@@ -100,6 +102,7 @@ push(N **sp, F f)
 	++c->ncall;
 	mcheck(pthread_mutex_unlock, &c->lcall);
 	*sp = c;
+	setnotempty(*sp);
 }
 
 /* Pop a frame off a stack sp. */
@@ -218,24 +221,6 @@ sample(N *sp)
 	}
 }
 
-/* Reset all counters in the stacktree rooted at n. */
-static void
-reset(N *n)
-{
-	mcheck(pthread_mutex_lock,&n->llist);
-	for (int i = 0; i < n->len; ++i)
-		reset(n->callee[i]);
-	mcheck(pthread_mutex_unlock,&n->llist);
-
-	mcheck(pthread_mutex_lock,&n->lsamp);
-	n->nsamp = 0;
-	mcheck(pthread_mutex_unlock,&n->lsamp);
-
-	mcheck(pthread_mutex_lock,&n->lcall);
-	n->ncall = 0;
-	mcheck(pthread_mutex_unlock,&n->lcall);
-}
-
 /* Grow a buffer. */
 static int
 growB(B *b)
@@ -270,14 +255,24 @@ retry:
 	return wc;
 }
 
-/* Marshal frame and counters, if nonzero. */
-static int
-marshaln(B *b, N *n)
+static void
+setnotempty(N *n)
 {
+	n->empty = 0;
+	if (n->parent && n->parent->empty)
+		setnotempty(n->parent);
+}
+
+static int
+marshal(B *b, N *n)
+{
+	append(b, "{");
+
 	if (n->f.fn)
-		append(b, "\"fn\":%ld,", n->f.fn);
+		append(b, "\"fn\":%ld,", (unsigned long)n->f.fn);
+
 	if (n->f.cs)
-		append(b, "\"cs\":%ld,", n->f.cs);
+		append(b, "\"cs\":%ld,", (unsigned long)n->f.cs);
 
 	mcheck(pthread_mutex_lock, &n->lcall);
 	if (n->ncall)
@@ -288,40 +283,34 @@ marshaln(B *b, N *n)
 	if (n->nsamp)
 		append(b, "\"nsamples\":%u,", n->nsamp);
 	mcheck(pthread_mutex_unlock, &n->lsamp);
-	return 1;
-}
 
-/* Marshal a callee list. */
-static int
-marshalc(B *b, N *n)
-{
+	/* It's convenient, but hacky, to clear the counters here while we're
+	 * walking the tree. All counters are cleared after a tree is emitted,
+	 * so that the next tree begins at zero.  We also set the empty flag
+	 * so that future calls to marshal can skip empty branches. */
+	n->ncall = 0;
+	n->nsamp = 0;
+	n->empty = 1;
+
 	mcheck(pthread_mutex_lock, &n->llist);
 	if (n->len) {
 		append(b, "\"callees\":[");
 		for (int i = 0; i < n->len; ++i) {
+			if (n->callee[i]->empty)
+				continue;
 			marshal(b, n->callee[i]);
 			append(b, ",");
 		}
 		if (',' == b->buf[b->len - 1])
-			--b->len; /* overwrite trailing comma */
+			b->len -= 1;
 		append(b, "]");
 	} else {
 		if (',' == b->buf[b->len - 1])
-			--b->len; /* overwrite trailing comma */
+			b->len -= 1;
 	}
 	mcheck(pthread_mutex_unlock, &n->llist);
-	return 1;
-}
 
-/* Marshal a node. */
-static int
-marshal(B *b, N *n)
-{
-	append(b, "{");
-	marshaln(b, n);
-	marshalc(b, n);
 	append(b, "}");
-	return 1;
 }
 
 static int

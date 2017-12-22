@@ -66,7 +66,6 @@ emit(void)
 		//dprintf(log, "emit: send: %s\n", strerror(errno));
 		//exit(1);
 	}
-	reset(&root);
 	free(b.buf);
 }
 
