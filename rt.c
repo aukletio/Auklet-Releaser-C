@@ -97,7 +97,6 @@ emit(void)
 		dprintf(log, "emit: write: %s\n", strerror(errno));
 		//exit(1);
 	}
-	reset(&root);
 	free(b.buf);
 }
 
