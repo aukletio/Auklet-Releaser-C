@@ -44,6 +44,14 @@ that the shell will know about executables built with `go install`.
 
 	go get github.com/Shopify/sarama
 
+# Development Tools
+
+`autobuild` is an optional script that can be run in a separate terminal window.
+When source files change, it runs `make`, allowing the developer to find
+compile-time errors immediately without needing an IDE.
+
+`autobuild` requires [entr](http://www.entrproject.org/).
+
 # Build
 
 To build and install all components, run

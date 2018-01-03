@@ -230,11 +230,11 @@ func (p Profile) topic() string {
 	return envar["PROF_TOPIC"]
 }
 
-func (n *Node) brand() {
-	n.UUID = uuid.NewV4().String()
-	n.CheckSum = cksum
-	n.IP = device.IP
-	n.Time = time.Now().UnixNano() / 1000000
+func (p *Profile) brand() {
+	p.UUID = uuid.NewV4().String()
+	p.CheckSum = cksum
+	p.IP = device.IP
+	p.Time = time.Now().UnixNano() / 1000000
 }
 
 func logs(logger io.Writer) (func(), error) {
@@ -330,7 +330,7 @@ func relay(obj chan Object) (func(), error) {
 		// quits on EOF
 		for line.Scan() {
 			var p Profile
-			err := json.Unmarshal(line.Bytes(), &p.Profile)
+			err := json.Unmarshal(line.Bytes(), &p.Tree)
 			if err != nil {
 				done <- err
 				return
