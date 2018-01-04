@@ -3,7 +3,6 @@ include config.mk
 all: go x lib_test
 
 go:
-	dep ensure -v
 	go install ./wrap ./release
 
 # instrumented, stripped test program

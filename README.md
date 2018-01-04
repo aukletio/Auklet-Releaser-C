@@ -56,6 +56,10 @@ compile-time errors immediately without needing an IDE.
 
 # Build
 
+To ensure you have all the correct dependencies, run
+
+	dep ensure
+
 To build and install all components, run
 
 	make
