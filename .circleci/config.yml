@@ -46,6 +46,12 @@ jobs:
                   cp ~/.version VERSION
 
             ##
+            # RESTORE CACHES
+            ##
+            - restore_cache:
+                key: v1-dependency-cache-{{ checksum "Gopkg.lock" }}-{{ checksum "Gopkg.toml" }}
+
+            ##
             # TESTS
             ##
             - run:
@@ -61,6 +67,14 @@ jobs:
                 command: |
                   set -ou pipefail
                   bash .devops/deploy.sh staging
+
+            ##
+            # SAVE CACHES
+            ##
+            - save_cache:
+                key: v1-dependency-cache-{{ checksum "Gopkg.lock" }}-{{ checksum "Gopkg.toml" }}
+                paths:
+                    - /home/circleci/go/pkg/dep/sources
 
             ##
             # DEPLOYMENT
