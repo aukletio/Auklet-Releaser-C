@@ -49,7 +49,7 @@ jobs:
             # RESTORE CACHES
             ##
             - restore_cache:
-                key: v1-dependency-cache-{{ checksum "Gopkg.lock" }}-{{ checksum "Gopkg.toml" }}
+                key: v2-dependency-cache-{{ checksum "Gopkg.lock" }}-{{ checksum "Gopkg.toml" }}
 
             ##
             # TESTS
@@ -72,9 +72,9 @@ jobs:
             # SAVE CACHES
             ##
             - save_cache:
-                key: v1-dependency-cache-{{ checksum "Gopkg.lock" }}-{{ checksum "Gopkg.toml" }}
+                key: v2-dependency-cache-{{ checksum "Gopkg.lock" }}-{{ checksum "Gopkg.toml" }}
                 paths:
-                    - /home/circleci/go/pkg/dep/sources
+                    - /root/go/pkg/dep/sources
 
             ##
             # DEPLOYMENT
