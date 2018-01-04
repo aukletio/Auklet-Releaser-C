@@ -445,7 +445,7 @@ func connect() (sarama.SyncProducer, error) {
 	return sarama.NewSyncProducer(brokers, config)
 }
 
-func produce(obj chan Object) (func(), error) {
+func produce(obj chan Object, cmd *exec.Cmd) (func(), error) {
 	// Create a Kafka producer with the desired config
 	p, err := connect()
 	if err != nil {
@@ -456,6 +456,18 @@ func produce(obj chan Object) (func(), error) {
 
 	done := make(chan error)
 	go func() {
+		cksum = checksum(cmd.Path)
+		if !valid(cksum) {
+			//log.Fatal("invalid checksum: ", cksum)
+			log.Print("invalid checksum: ", cksum)
+		}
+
+		if !device.get() {
+			if err := device.post(); err != nil {
+				log.Print(err)
+			}
+		}
+
 		// receive Kafka-bound objects from clients
 		for o := range obj {
 			o.brand()
@@ -643,18 +655,6 @@ func main() {
 	}
 	cmd := exec.Command(args[1], args[2:]...)
 
-	cksum = checksum(cmd.Path)
-	if !valid(cksum) {
-		//log.Fatal("invalid checksum: ", cksum)
-		log.Print("invalid checksum: ", cksum)
-	}
-
-	if !device.get() {
-		if err := device.post(); err != nil {
-			log.Print(err)
-		}
-	}
-
 	obj := make(chan Object)
 	evt := make(chan Event)
 
@@ -673,7 +673,7 @@ func main() {
 	wrun, err := run(obj, evt, cmd)
 	check(err)
 
-	wprod, err := produce(obj)
+	wprod, err := produce(obj, cmd)
 	check(err)
 
 	wrun()
