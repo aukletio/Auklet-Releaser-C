@@ -23,7 +23,7 @@ sends live profile data to the backend.
 
 # Go Setup
 
-`wrap` and `release` need at least Go 1.8. See the [getting started page][gs] to
+`wrap` and `release` need at least Go 1.8 and [dep](https://github.com/golang/dep) 0.3.2 or later. See the [getting started page][gs] to
 download Go. Then see [How to Write Go Code - Organization][org] to set up your
 system.
 
@@ -38,11 +38,12 @@ Conventionally, your `~/.profile` should contain the following:
 The first line tells Go where your workspace is located. The second makes sure
 that the shell will know about executables built with `go install`.
 
-`wrap` needs [package sarama][ps], a Kafka client. Install it with
+After setting up Go on your system, install `dep` by running:
 
-[ps]: https://github.com/Shopify/sarama
-
-	go get github.com/Shopify/sarama
+```
+curl -L -s https://github.com/golang/dep/releases/download/v0.3.2/dep-linux-amd64 -o $GOPATH/bin/dep
+chmod +x $GOPATH/bin/dep
+```
 
 # Development Tools
 
