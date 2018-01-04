@@ -643,6 +643,7 @@ var device *Device
 func main() {
 	logger := os.Stdout
 	log.SetOutput(logger)
+	log.SetFlags(log.Lmicroseconds)
 	log.Printf("Auklet Wrapper version %s (%s)\n", Version, BuildDate)
 
 	env()
