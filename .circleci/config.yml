@@ -57,7 +57,7 @@ jobs:
             - run:
                 name: Download Go dependencies
                 command: |
-                  dep ensure
+                  dep ensure -v
             - run:
                 name: Run tests
                 command: |
