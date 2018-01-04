@@ -183,14 +183,14 @@ func usage() {
 	log.Fatalf("usage: %v command [args ...]\n", os.Args[0])
 }
 
-func run(obj chan Object, evt chan Event, cmd *exec.Cmd) {
+func run(obj chan Object, evt chan Event, cmd *exec.Cmd) (func(), error) {
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
 
 	log.Print("starting child")
 	err := cmd.Start()
 	if err != nil {
-		panic(err)
+		return func() {}, err
 	}
 
 	cpu.Percent(0, false)
@@ -204,16 +204,19 @@ func run(obj chan Object, evt chan Event, cmd *exec.Cmd) {
 		done <- struct{}{}
 	}()
 
-	for {
-		select {
-		case s := <-sig:
-			log.Print("relaying signal: ", s)
-			cmd.Process.Signal(s)
-		case <-done:
-			log.Print("child exited")
-			return
+	return func() {
+		defer close(obj)
+		for {
+			select {
+			case s := <-sig:
+				log.Print("relaying signal: ", s)
+				cmd.Process.Signal(s)
+			case <-done:
+				log.Print("child exited")
+				return
+			}
 		}
-	}
+	}, nil
 }
 
 // Profile represents arbitrary JSON data from the instrument that can be sent
@@ -671,6 +674,7 @@ func main() {
 	check(err)
 	defer lc()
 
-	run(obj, evt, cmd)
-	close(obj)
+	wrun, err := run(obj, evt, cmd)
+	check(err)
+	defer wrun()
 }
