@@ -658,10 +658,6 @@ func main() {
 	obj := make(chan Object)
 	evt := make(chan Event)
 
-	wprod, err := produce(obj)
-	check(err)
-	defer wprod()
-
 	wrelay, err := relay(obj)
 	check(err)
 	defer wrelay()
@@ -676,5 +672,10 @@ func main() {
 
 	wrun, err := run(obj, evt, cmd)
 	check(err)
-	defer wrun()
+
+	wprod, err := produce(obj)
+	check(err)
+
+	wrun()
+	wprod()
 }
