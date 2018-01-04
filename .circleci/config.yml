@@ -34,6 +34,8 @@ jobs:
                   echo 'Installing Go...'
                   curl -sSL https://redirector.gvt1.com/edgedl/go/go1.8.5.linux-amd64.tar.gz | tar xzf -
                   mv go /usr/local
+                  curl -sSL https://github.com/golang/dep/releases/download/v0.3.2/dep-linux-amd64 -o /usr/local/go/bin/dep
+                  chmod +x /usr/local/go/bin/dep
                   echo 'export GOPATH=$(cd ; pwd)/go' >> $BASH_ENV
                   echo 'export PATH=$PATH:/usr/local/go/bin:$GOPATH/bin' >> $BASH_ENV
             - run:
@@ -49,11 +51,16 @@ jobs:
             - run:
                 name: Download Go dependencies
                 command: |
-                  go get -t -d -v ./...
+                  dep ensure
             - run:
                 name: Run tests
                 command: |
                   make lib_test && ./lib_test
+            - run:
+                name: Debug deployment
+                command: |
+                  set -ou pipefail
+                  bash .devops/deploy.sh staging
 
             ##
             # DEPLOYMENT

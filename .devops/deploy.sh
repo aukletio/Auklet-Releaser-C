@@ -39,6 +39,9 @@ do
   echo
 done < compile-combos.csv
 
+echo 'DEBUG: quitting deploy now.'
+exit
+
 echo 'Installing AWS CLI...'
 apt-get -y install awscli > /dev/null 2>&1
 
