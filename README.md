@@ -23,10 +23,11 @@ sends live profile data to the backend.
 
 # Go Setup
 
-`wrap` and `release` need at least Go 1.8 and [dep](https://github.com/golang/dep) 0.3.2 or later. See the [getting started page][gs] to
+`wrap` and `release` need at least Go 1.8 and [dep][godep] 0.3.2. See the [getting started page][gs] to
 download Go. Then see [How to Write Go Code - Organization][org] to set up your
 system.
 
+[godep]: https://github.com/golang/dep
 [gs]: https://golang.org/doc/install
 [org]: https://golang.org/doc/code.html#Organization
 
