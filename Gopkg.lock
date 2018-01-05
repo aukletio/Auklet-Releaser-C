@@ -77,7 +77,6 @@
   revision = "e181e095bae94582363434144c61a9653aff6e50"
 
 [[projects]]
-  branch = "master"
   name = "github.com/rdegges/go-ipify"
   packages = ["."]
   revision = "2d94a6a86c4055118cc30fae2aaed47ec01f2210"
@@ -111,6 +110,6 @@
 [solve-meta]
   analyzer-name = "dep"
   analyzer-version = 1
-  inputs-digest = "6e1b88f6d025627e3c755538123fd17e1edd01076b74b2d6f62485621f3d6a8b"
+  inputs-digest = "4e78ae979a4df6faa26aca5107470c422a811bb1041a8ec3af4220def5f953d1"
   solver-name = "gps-cdcl"
   solver-version = 1
