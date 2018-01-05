@@ -21,7 +21,13 @@ enum {
 	VIRT,
 };
 
+enum {
+	OFF,
+	ON,
+};
+
 /* function declarations */
+static void setinststate(int s);
 static void sigprof(int n);
 static void signals(void);
 static void siginstall(int sig, void (*handler)(int));
@@ -33,15 +39,15 @@ static void settimers(void);
 static void setup(void);
 static void cleanup(void);
 
-static void enternop(N **sp, F f) {}
-static F exitnop(N **sp) {}
+static int enternop(N **sp, F f) {}
+static int exitnop(N **sp) {}
 
 void __cyg_profile_func_enter(void *fn, void *cs);
 void __cyg_profile_func_exit(void *fn, void *cs);
 
 /* global variables */
-static void (*instenter)(N **sp, F f) = enternop;
-static F (*instexit)(N **sp) = exitnop;
+static int (*instenter)(N **sp, F f) = enternop;
+static int (*instexit)(N **sp) = exitnop;
 static N root = {
 	.f = {0, 0},
 	.parent = NULL,
@@ -67,8 +73,21 @@ static struct {
 	[VIRT] = {CLOCK_PROCESS_CPUTIME_ID, {.tv_sec =  1, .tv_nsec = 0}},
 };
 
-
 /* function definitions */
+static void
+setinststate(int s)
+{
+	switch (s) {
+	case ON:
+		instenter = push;
+		instexit = pop;
+		break;
+	case OFF:
+		instenter = enternop;
+		instexit = exitnop;
+	}
+}
+
 /* Increment sample counters in the stack of the current thread. */
 static void
 sigprof(int n)
@@ -237,8 +256,7 @@ setup(void)
 	stack = comm(SOCK_STREAM, "stacktrace");
 	signals();
 	timers();
-	instenter = push;
-	instexit = pop;
+	setinststate(ON);
 }
 
 /* Clean up the profiler runtime. */
@@ -246,8 +264,7 @@ __attribute__ ((destructor (101)))
 static void
 cleanup(void)
 {
-	instenter = enternop;
-	instexit = exitnop;
+	setinststate(OFF);
 	killN(&root, 1);
 }
 
@@ -259,11 +276,13 @@ __cyg_profile_func_enter(void *fn, void *cs)
 		.fn = (uintptr_t)fn,
 		.cs = (uintptr_t)cs,
 	};
-	instenter(&sp, f);
+	if (!instenter(&sp, f))
+		setinststate(OFF);
 }
 
 void
 __cyg_profile_func_exit(void *fn, void *cs)
 {
-	instexit(&sp);
+	if (!instexit(&sp))
+		setinststate(OFF);
 }

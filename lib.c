@@ -53,8 +53,8 @@ typedef struct {
 } B;
 
 /* function declarations */
-static void push(N **sp, F f);
-static F pop(N **sp);
+static int push(N **sp, F f);
+static int pop(N **sp);
 static int eqF(F a, F b);
 static N *newN(F f);
 static void killN(N *n, int root);
@@ -73,8 +73,9 @@ static int marshal(B *b, N *n);
 static int log = 0; // stdout, initially
 
 /* function definitions */
-/* Push a frame f onto a stack defined by sp. */
-static void
+/* Push a frame f onto a stack defined by sp. Return 0 if the push failed,
+ * otherwise 1. */
+static int
 push(N **sp, F f)
 {
 	pthread_mutex_lock(&(*sp)->llist);
@@ -82,8 +83,9 @@ push(N **sp, F f)
 	if (!c) {
 		c = addcallee(*sp, f);
 		if (!c) {
+			pthread_mutex_unlock(&(*sp)->llist);
 			dprintf(log, "push: couldn't add callee\n");
-			exit(1);
+			return 0;
 		}
 	}
 	pthread_mutex_unlock(&(*sp)->llist);
@@ -92,19 +94,19 @@ push(N **sp, F f)
 	pthread_mutex_unlock(&c->lcall);
 	*sp = c;
 	setnotempty(*sp);
+	return 1;
 }
 
 /* Pop a frame off a stack sp. */
-static F
+static int
 pop(N **sp)
 {
-	F f = (*sp)->f;
 	if (!(*sp)->parent) {
 		dprintf(log, "pop: called with NULL parent\n");
-		exit(1);
+		return 0;
 	}
 	*sp = (*sp)->parent;
-	return f;
+	return 1;
 }
 
 static int
