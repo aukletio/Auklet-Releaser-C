@@ -43,7 +43,7 @@ done < compile-combos.csv
 echo 'Installing AWS CLI...'
 apt-get -y install awscli > /dev/null 2>&1
 
-if [[ "$ENVDIR" == "pr" ]]; then
+if [[ "$ENVDIR" == "production" ]]; then
   echo 'Erasing production profiler components in public S3...'
   aws s3 rm s3://auklet/release/latest/ --recursive
   aws s3 rm s3://auklet/wrap/latest/ --recursive
@@ -57,7 +57,7 @@ for f in {release-,wrap-,libauklet-}*; do
   S3_LOCATION="s3://auklet-profiler/$ENVDIR/$VERSION/$f"
   aws s3 cp $f $S3_LOCATION
   # Upload to the public bucket for production builds.
-  if [[ "$ENVDIR" == "pr" ]]; then
+  if [[ "$ENVDIR" == "production" ]]; then
     # Get the component name.
     COMPONENT=$(echo $f | cut -f1 -d"-")
     # Copy to the public versioned directory.
