@@ -22,27 +22,27 @@ typedef struct {
 
 /* Type N represents a node in a stacktree. A stacktree is an aggregation of
  * stacktraces. Stack pointers (type (N *)) should be declared thread-specific
- * (__thread). */
+ * (__thread). Mutex locks prefixed with l are used to avoid races between
+ * instrumented threads. */
 typedef struct n { 
 	F f; 
 	struct n *parent;
 
-	/* If two sigprof calls run at the same time (in different threads),
-	 * there is a possible data race on nsamp. */
+	/* lsamp guards nsamp in sample, marshal, and sane. */
 	pthread_mutex_t lsamp;
 	unsigned nsamp;
 
-	/* push locks l to prevent races in the callee list. Contention, but not
-	 * deadlock, is possible if two threads push at the same stack pointer. */
+	/* llist guards callee, cap, and len in push. */
 	pthread_mutex_t llist;
 	struct n **callee;
 	unsigned cap, len;
 
-	/* push modifies ncall only when it has acquired l, to avoid races
-	 * between threads. */
+	/* lcall guards ncall in push. */
 	pthread_mutex_t lcall;
 	unsigned ncall;
 
+	/* A node is empty if nsamp == ncall == 0 for itself and all of its
+	 * children. */
 	int empty;
 } N;
 
@@ -149,7 +149,10 @@ dumpN(N *n, unsigned ind)
 		dumpN(n->callee[i], ind + 1);
 }
 
-/* Delete a node n and its callees. */
+/* Delete a node n and its callees. If root is 0, free the children of the given
+ * node, but not the node itself. This allows us to avoid feeing the
+ * statically-allocated root node that is required for thread-local storage
+ * initialization. */
 static void
 killN(N *n, int root)
 {
@@ -158,8 +161,6 @@ killN(N *n, int root)
 	//dprintf(log, "free(%p)\n", n->callee);
 	free(n->callee);
 
-	/* allows us to avoid freeing the statically-allocated root
- 	* (necessary for TLS initialization) */
 	if (!root) {
 		//dprintf(log, "free(%p)\n", n);
 		free(n);
@@ -176,7 +177,8 @@ hascallee(N *n, F f)
 	return NULL;
 }
 
-/* Add to node n a callee with frame f. */
+/* Add to node n a callee with frame f. If there is a memory allocation error,
+ * return NULL, otherwise, a pointer to the created node. */
 static N *
 addcallee(N *n, F f)
 {
@@ -199,7 +201,7 @@ addcallee(N *n, F f)
 	return new;
 }
 
-/* Increments nsamp in the stack defined by sp. */
+/* Increment nsamp in the stack defined by sp. */
 static void
 sample(N *sp)
 {
@@ -210,7 +212,7 @@ sample(N *sp)
 	}
 }
 
-/* Grow a buffer. */
+/* Grow a buffer. If there is a memory allocation error, return 0. */
 static int
 growB(B *b)
 {
@@ -225,7 +227,9 @@ growB(B *b)
 	return 1;
 }
 
-/* Append a formatted string to buffer b. */
+/* Append a formatted string to buffer b. Return the number of characters
+ * written, or if an error, 0. It is assumed that the arguments would result
+ * in writing at least one character. */
 static int
 append(B *b, char *fmt, ...)
 {
@@ -302,6 +306,9 @@ marshal(B *b, N *n)
 	append(b, "}");
 }
 
+/* Return whether the given tree satisfies the property that each parent node's
+ * nsamp counter is greater than or equal to the sum of the nsamp counters of
+ * its children. */
 static int
 sane(N *n)
 {
@@ -324,6 +331,7 @@ sane(N *n)
 	return ok;
 }
 
+/* Marshal a stacktrace to JSON. */
 static int
 marshals(B *b, N *sp, int sig)
 {
