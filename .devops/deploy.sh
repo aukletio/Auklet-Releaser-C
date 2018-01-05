@@ -64,7 +64,7 @@ for f in {release-,wrap-,libauklet-}*; do
     VERSIONED_NAME="${f/$VERSION/$VERSION_SIMPLE}"
     aws s3 cp $S3_LOCATION s3://auklet/$COMPONENT/$VERSION_SIMPLE/$VERSIONED_NAME
     # Copy to the public "latest" directory.
-    LATEST_NAME="${f/$VERSION_SIMPLE/latest}"
+    LATEST_NAME="${f/$VERSION/latest}"
     aws s3 cp $S3_LOCATION s3://auklet/$COMPONENT/latest/$LATEST_NAME
   fi
 done
