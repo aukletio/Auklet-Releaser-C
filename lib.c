@@ -73,22 +73,11 @@ static int marshal(B *b, N *n);
 static int log = 0; // stdout, initially
 
 /* function definitions */
-void
-mcheck(int (*op)(pthread_mutex_t *), pthread_mutex_t *m)
-{
-	int ret = op(m);
-	if (ret) {
-		char *msg = strerror(ret);
-		dprintf(log, "mcheck: ret = %d, msg = %s\n", ret, msg);
-		exit(1);
-	}
-}
-
 /* Push a frame f onto a stack defined by sp. */
 static void
 push(N **sp, F f)
 {
-	mcheck(pthread_mutex_lock, &(*sp)->llist);
+	pthread_mutex_lock(&(*sp)->llist);
 	N *c = hascallee(*sp, f);
 	if (!c) {
 		c = addcallee(*sp, f);
@@ -97,10 +86,10 @@ push(N **sp, F f)
 			exit(1);
 		}
 	}
-	mcheck(pthread_mutex_unlock, &(*sp)->llist);
-	mcheck(pthread_mutex_lock, &c->lcall);
+	pthread_mutex_unlock(&(*sp)->llist);
+	pthread_mutex_lock(&c->lcall);
 	++c->ncall;
-	mcheck(pthread_mutex_unlock, &c->lcall);
+	pthread_mutex_unlock(&c->lcall);
 	*sp = c;
 	setnotempty(*sp);
 }
@@ -215,9 +204,9 @@ static void
 sample(N *sp)
 {
 	for (N *n = sp; n; n = n->parent) {
-		mcheck(pthread_mutex_lock, &n->lsamp);
+		pthread_mutex_lock(&n->lsamp);
 		++n->nsamp;
-		mcheck(pthread_mutex_unlock, &n->lsamp);
+		pthread_mutex_unlock(&n->lsamp);
 	}
 }
 
@@ -274,15 +263,15 @@ marshal(B *b, N *n)
 	if (n->f.cs)
 		append(b, "\"cs\":%ld,", (unsigned long)n->f.cs);
 
-	mcheck(pthread_mutex_lock, &n->lcall);
+	pthread_mutex_lock(&n->lcall);
 	if (n->ncall)
 		append(b, "\"ncalls\":%u,", n->ncall);
-	mcheck(pthread_mutex_unlock, &n->lcall);
+	pthread_mutex_unlock(&n->lcall);
 
-	mcheck(pthread_mutex_lock, &n->lsamp);
+	pthread_mutex_lock(&n->lsamp);
 	if (n->nsamp)
 		append(b, "\"nsamples\":%u,", n->nsamp);
-	mcheck(pthread_mutex_unlock, &n->lsamp);
+	pthread_mutex_unlock(&n->lsamp);
 
 	/* It's convenient, but hacky, to clear the counters here while we're
 	 * walking the tree. All counters are cleared after a tree is emitted,
@@ -292,7 +281,7 @@ marshal(B *b, N *n)
 	n->nsamp = 0;
 	n->empty = 1;
 
-	mcheck(pthread_mutex_lock, &n->llist);
+	pthread_mutex_lock(&n->llist);
 	if (n->len) {
 		append(b, "\"callees\":[");
 		for (int i = 0; i < n->len; ++i) {
@@ -308,7 +297,7 @@ marshal(B *b, N *n)
 		if (',' == b->buf[b->len - 1])
 			b->len -= 1;
 	}
-	mcheck(pthread_mutex_unlock, &n->llist);
+	pthread_mutex_unlock(&n->llist);
 
 	append(b, "}");
 }
@@ -319,7 +308,7 @@ sane(N *n)
 	int ok = 1;
 	unsigned sum = 0;
 
-	mcheck(pthread_mutex_lock, &n->lsamp);
+	pthread_mutex_lock(&n->lsamp);
 	for (int i = 0; i < n->len; ++i) {
 		if (!sane(n->callee[i]))
 			ok = 0;
@@ -331,7 +320,7 @@ sane(N *n)
 		dumpN(n, 0);
 		ok = 0;
 	}
-	mcheck(pthread_mutex_unlock, &n->lsamp);
+	pthread_mutex_unlock(&n->lsamp);
 	return ok;
 }
 
