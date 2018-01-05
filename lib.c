@@ -14,6 +14,27 @@
 /* macros */
 #define len(x) (sizeof(x)/sizeof(x[0]))
 
+/* fault injector */
+#if defined(FAULT_RATE)
+static void *
+fault_inject(void *p)
+{
+	uint32_t x;
+	if (!p)
+		return NULL;
+	getrandom(&x, sizeof(x), 0);
+	if (x < UINT32_MAX/FAULT_RATE) {
+		dprintf(log, "fault injected\n");
+		free(p);
+		return NULL;
+	}
+	return p;
+}
+
+#define malloc(size)       fault_inject(malloc(size))
+#define realloc(ptr, size) fault_inject(realloc((ptr), (size)))
+#endif
+
 /* types */
 /* Type F represents a stack frame holding function address and callsite. */
 typedef struct {
