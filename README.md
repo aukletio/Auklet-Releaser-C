@@ -46,6 +46,8 @@ curl -L -s https://github.com/golang/dep/releases/download/v0.3.2/dep-linux-amd6
 chmod +x $GOPATH/bin/dep
 ```
 
+If you want to build `wrap` and `release` on Mac OS X, you can install `dep` via Homebrew by running `brew install dep`, or by changing the above `curl` command to download `dep-darwin-amd64`.
+
 # Development Tools
 
 `autobuild` is an optional script that can be run in a separate terminal window.
