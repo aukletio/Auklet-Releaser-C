@@ -32,6 +32,7 @@ static void sigprof(int n);
 static void signals(void);
 static void siginstall(int sig, void (*handler)(int));
 static void emit(void);
+static void stacktrace(int sig);
 static void *timer(void *);
 static void timers(void);
 static void mktimers(void);
@@ -41,6 +42,8 @@ static void cleanup(void);
 
 static int enternop(N **sp, F f) {}
 static int exitnop(N **sp) {}
+static void emitnop(void) {}
+static void stacknop(int n) {}
 
 void __cyg_profile_func_enter(void *fn, void *cs);
 void __cyg_profile_func_exit(void *fn, void *cs);
@@ -48,6 +51,8 @@ void __cyg_profile_func_exit(void *fn, void *cs);
 /* global variables */
 static int (*instenter)(N **sp, F f) = enternop;
 static int (*instexit)(N **sp) = exitnop;
+static void (*instemit)(void) = emitnop;
+static void (*inststack)(int) = stacknop;
 static N root = {
 	.f = {0, 0},
 	.parent = NULL,
@@ -81,10 +86,14 @@ setinststate(int s)
 	case ON:
 		instenter = push;
 		instexit = pop;
+		instemit = emit;
+		inststack = stacktrace;
 		break;
 	case OFF:
 		instenter = enternop;
 		instexit = exitnop;
+		instemit = emitnop;
+		inststack = stacknop;
 	}
 }
 
@@ -137,7 +146,7 @@ stacktrace(int sig)
 static void
 sigerr(int n)
 {
-	stacktrace(n);
+	inststack(n);
 	_exit(EXIT_FAILURE);
 }
 
@@ -185,7 +194,7 @@ timer(void *p)
 	pthread_sigmask(SIG_BLOCK, &s, NULL);
 	while (1) {
 		sem_wait(&sem);
-		emit();
+		instemit();
 	}
 }
 
@@ -250,6 +259,9 @@ __attribute__ ((constructor (101)))
 static void
 setup(void)
 {
+#if defined(FAULT_RATE)
+	srand(FAULT_RATE);
+#endif
 	log = comm(SOCK_SEQPACKET, "log");
 	dprintf(log, "Auklet Instrument version %s (%s)\n", AUKLET_VERSION, AUKLET_TIMESTAMP);
 	sock = comm(SOCK_STREAM, "data");

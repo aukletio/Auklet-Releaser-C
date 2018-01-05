@@ -14,27 +14,6 @@
 /* macros */
 #define len(x) (sizeof(x)/sizeof(x[0]))
 
-/* fault injector */
-#if defined(FAULT_RATE)
-static void *
-fault_inject(void *p)
-{
-	uint32_t x;
-	if (!p)
-		return NULL;
-	getrandom(&x, sizeof(x), 0);
-	if (x < UINT32_MAX/FAULT_RATE) {
-		dprintf(log, "fault injected\n");
-		free(p);
-		return NULL;
-	}
-	return p;
-}
-
-#define malloc(size)       fault_inject(malloc(size))
-#define realloc(ptr, size) fault_inject(realloc((ptr), (size)))
-#endif
-
 /* types */
 /* Type F represents a stack frame holding function address and callsite. */
 typedef struct {
@@ -94,6 +73,24 @@ static int marshal(B *b, N *n);
 static int log = 0; // stdout, initially
 
 /* function definitions */
+#if defined(FAULT_RATE)
+static void *
+fault_inject(void *p)
+{
+	if (!p)
+		return NULL;
+	if (rand() < RAND_MAX/FAULT_RATE) {
+		dprintf(log, "fault injected\n");
+		free(p);
+		errno = ENOMEM;
+		return NULL;
+	}
+	return p;
+}
+#define malloc(size)       fault_inject(malloc(size))
+#define realloc(ptr, size) fault_inject(realloc((ptr), (size)))
+#endif
+
 /* Push a frame f onto a stack defined by sp. Return 0 if the push failed,
  * otherwise 1. */
 static int
