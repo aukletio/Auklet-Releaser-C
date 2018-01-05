@@ -529,8 +529,7 @@ func NewDevice() *Device {
 		IP:    ip,
 	}
 	go func() {
-		t := time.Tick(5 * time.Minute)
-		for _ = range t {
+		for _ = range time.Tick(5 * time.Minute) {
 			ip, err := ipify.GetIp()
 			if err != nil {
 				log.Print(err)
