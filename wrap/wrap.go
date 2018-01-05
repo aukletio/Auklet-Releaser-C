@@ -517,27 +517,27 @@ type Device struct {
 }
 
 func NewDevice() *Device {
-	ip, err := ipify.GetIp()
-	if err != nil {
-		log.Print(err)
-	}
 	zone, _ := time.Now().Zone()
 	d := &Device{
 		Mac:   ifacehash(),
 		Zone:  zone,
 		AppID: envar["APP_ID"],
-		IP:    ip,
+		IP:    getip(),
 	}
 	go func() {
 		for _ = range time.Tick(5 * time.Minute) {
-			ip, err := ipify.GetIp()
-			if err != nil {
-				log.Print(err)
-			}
-			d.IP = ip
+			d.IP = getip()
 		}
 	}()
 	return d
+}
+
+func getip() string {
+	ip, err := ipify.GetIp()
+	if err != nil {
+		log.Print(err)
+	}
+	return ip
 }
 
 // Determine whether this device is already known by the backend.
