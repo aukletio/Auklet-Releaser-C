@@ -23,6 +23,7 @@ import (
 	"time"
 
 	"github.com/Shopify/sarama"
+	"github.com/rdegges/go-ipify"
 	"github.com/satori/go.uuid"
 	"github.com/shirou/gopsutil/cpu"
 	"github.com/shirou/gopsutil/mem"
@@ -516,17 +517,16 @@ type Device struct {
 }
 
 func NewDevice() *Device {
-	conn, err := net.Dial("udp", "34.235.138.75:80")
+	ip, err := ipify.GetIp()
 	if err != nil {
-		log.Fatal(err)
+		log.Print(err)
 	}
-	localAddr := conn.LocalAddr().(*net.UDPAddr)
 	zone, _ := time.Now().Zone()
 	return &Device{
 		Mac:   ifacehash(),
 		Zone:  zone,
 		AppID: envar["APP_ID"],
-		IP:    localAddr.IP.String(),
+		IP:    ip,
 	}
 }
 
