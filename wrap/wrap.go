@@ -522,12 +522,23 @@ func NewDevice() *Device {
 		log.Print(err)
 	}
 	zone, _ := time.Now().Zone()
-	return &Device{
+	d := &Device{
 		Mac:   ifacehash(),
 		Zone:  zone,
 		AppID: envar["APP_ID"],
 		IP:    ip,
 	}
+	go func() {
+		t := time.Tick(5 * time.Minute)
+		for _ = range t {
+			ip, err := ipify.GetIp()
+			if err != nil {
+				log.Print(err)
+			}
+			d.IP = ip
+		}
+	}()
+	return d
 }
 
 // Determine whether this device is already known by the backend.
