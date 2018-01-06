@@ -5,6 +5,7 @@
 /* headers */
 #include <errno.h>
 #include <pthread.h>
+#include <setjmp.h>
 #include <stdarg.h>
 #include <stdint.h>
 #include <stdio.h>
@@ -63,13 +64,14 @@ static N *addcallee(N *n, F f);
 static void sample(N *sp);
 static void setnotempty(N *n);
 
-static int growB(B *b);
+static void growB(B *b);
 static int append(B *b, char *fmt, ...);
 
 static int marshaln(B *b, N *n);
 static int marshalc(B *b, N *n);
 static int marshal(B *b, N *n);
 
+static jmp_buf nomem;
 static int log = 0; // stdout, initially
 
 /* function definitions */
@@ -232,23 +234,22 @@ sample(N *sp)
 	}
 }
 
-/* Grow a buffer. If there is a memory allocation error, return 0. */
-static int
+/* Grow a buffer. If there is a memory allocation error, jump to nomem. */
+static void
 growB(B *b)
 {
 	unsigned newcap = b->cap ? b->cap * 2 : 32;
 	char *c = (char *)realloc(b->buf, newcap * sizeof(char));
 	if (!c) {
 		dprintf(log, "growB: realloc: %s\n", strerror(errno));
-		return 0;
+		longjmp(nomem, 1);
 	}
 	b->buf = c;
 	b->cap = newcap;
-	return 1;
 }
 
 /* Append a formatted string to buffer b. Return the number of characters
- * written, or if an error, 0. It is assumed that the arguments would result
+ * written. It is assumed that the arguments would result
  * in writing at least one character. */
 static int
 append(B *b, char *fmt, ...)
@@ -259,8 +260,7 @@ retry:
 	va_start(ap, fmt);
 	wc = vsnprintf(b->buf + b->len, b->cap - b->len, fmt, ap);
 	if (wc >= b->cap - b->len) {
-		if (!growB(b))
-			return 0;
+		growB(b);
 		goto retry;
 	}
 	va_end(ap);
@@ -276,6 +276,8 @@ setnotempty(N *n)
 		setnotempty(n->parent);
 }
 
+/* Marshal the given tree n to JSON. The caller is required to first
+ * call setjmp(nomem) to catch memory allocation errors. */
 static int
 marshal(B *b, N *n)
 {
@@ -351,7 +353,8 @@ sane(N *n)
 	return ok;
 }
 
-/* Marshal a stacktrace to JSON. */
+/* Marshal a stacktrace to JSON. The caller is required to first call 
+ * setjmp(nomem) to handle memory allocation errors. */
 static int
 marshals(B *b, N *sp, int sig)
 {

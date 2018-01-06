@@ -82,6 +82,7 @@ static struct {
 static void
 setinststate(int s)
 {
+	dprintf(log, "instrument state: %s\n", s ? "on" : "off");
 	switch (s) {
 	case ON:
 		instenter = push;
@@ -116,8 +117,14 @@ sigemit(int n)
 static void
 emit(void)
 {
+	int err;
 	B b = {0, 0, 0};
 	//dumpN(&root, 0);
+	err = setjmp(nomem);
+	if (err) {
+		setinststate(OFF);
+		return;
+	}
 	marshal(&b, &root);
 	append(&b, "\n");
 	//dprintf(log, "emit: %s", b.buf);
@@ -132,7 +139,13 @@ emit(void)
 static void
 stacktrace(int sig)
 {
+	int err;
 	B b = {0, 0, 0};
+	err = setjmp(nomem);
+	if (err) {
+		setinststate(OFF);
+		return;
+	}
 	marshals(&b, sp, sig);
 	append(&b, "\n");
 	//dprintf(log, "stacktrace: %s", b.buf);

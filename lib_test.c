@@ -12,6 +12,10 @@ F f = {0xaced, 0xfade};
 int
 callee_test(void)
 {
+	int err;
+	err = setjmp(nomem);
+	if (err)
+		return 0;
 	N *root = newN(z);
 	N *c = addcallee(root, f);
 	//dumpN(root, 0);
@@ -28,6 +32,10 @@ callee_test(void)
 int
 marshal_test(void)
 {
+	int err;
+	err = setjmp(nomem);
+	if (err)
+		return 0;
 	N *root = newN(z);
 	B b = {0, 0, 0};
 	char *e = "{}";
@@ -48,6 +56,10 @@ marshal_test(void)
 int
 marshal_test2(void)
 {
+	int err;
+	err = setjmp(nomem);
+	if (err)
+		return 0;
 	N *root = newN(z);
 	B b = {0, 0, 0};
 	char *e = "{\"callees\":[{"
@@ -86,6 +98,10 @@ sample_test(void)
 int
 marshals_test(void)
 {
+	int err;
+	err = setjmp(nomem);
+	if (err)
+		return 0;
 	N *root = newN(z);
 	B b = {0, 0, 0};
 	char *e = "{\"signal\":11,\"stack_trace\":[{"
