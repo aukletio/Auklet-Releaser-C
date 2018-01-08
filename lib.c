@@ -172,7 +172,7 @@ dumpN(N *n, unsigned ind)
 }
 
 /* Delete a node n and its callees. If root is 0, free the children of the given
- * node, but not the node itself. This allows us to avoid feeing the
+ * node, but not the node itself. This allows us to avoid freeing the
  * statically-allocated root node that is required for thread-local storage
  * initialization. */
 static void
