@@ -128,10 +128,8 @@ emit(void)
 	marshal(&b, &root);
 	append(&b, "\n");
 	//dprintf(log, "emit: %s", b.buf);
-	if (write(sock, b.buf, b.len) == -1) {
+	if (write(sock, b.buf, b.len) == -1)
 		dprintf(log, "emit: write: %s\n", strerror(errno));
-		//exit(1);
-	}
 	free(b.buf);
 }
 
@@ -149,9 +147,8 @@ stacktrace(int sig)
 	marshals(&b, sp, sig);
 	append(&b, "\n");
 	//dprintf(log, "stacktrace: %s", b.buf);
-	if (write(stack, b.buf, b.len) == -1) {
+	if (write(stack, b.buf, b.len) == -1)
 		dprintf(log, "stacktrace: write: %s\n", strerror(errno));
-	}
 	free(b.buf);
 }
 
