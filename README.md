@@ -4,14 +4,23 @@
 
 **Implemented enhancements:**
 
+- APM-936: Populate public-facing S3 bucket with Auklet profiler binaries [\#44](https://github.com/ESG-USA/Auklet-Profiler-C/pull/44) ([rjenkinsjr](https://github.com/rjenkinsjr))
+- APM-941: Add dependency management to Go [\#41](https://github.com/ESG-USA/Auklet-Profiler-C/pull/41) ([rjenkinsjr](https://github.com/rjenkinsjr))
 - Post Release Objects to API [\#2](https://github.com/ESG-USA/Auklet-Profiler-C/pull/2) ([kdsch](https://github.com/kdsch))
 
 **Merged pull requests:**
 
+- wrap.go: Use ipify to get public IP address [\#43](https://github.com/ESG-USA/Auklet-Profiler-C/pull/43) ([kdsch](https://github.com/kdsch))
+- Fix Compile-Time Errors [\#40](https://github.com/ESG-USA/Auklet-Profiler-C/pull/40) ([kdsch](https://github.com/kdsch))
+- wrap.go: Add millisecond timestamp to profiles [\#39](https://github.com/ESG-USA/Auklet-Profiler-C/pull/39) ([kdsch](https://github.com/kdsch))
+- Use combined realtime and virtual time profile emission [\#38](https://github.com/ESG-USA/Auklet-Profiler-C/pull/38) ([kdsch](https://github.com/kdsch))
 - wrap.go: Add default value for BASE\_URL envar [\#35](https://github.com/ESG-USA/Auklet-Profiler-C/pull/35) ([kdsch](https://github.com/kdsch))
+- lib.c: Use efficient JSON marshaler [\#34](https://github.com/ESG-USA/Auklet-Profiler-C/pull/34) ([kdsch](https://github.com/kdsch))
+- Decouple lib.c and wrap.go [\#33](https://github.com/ESG-USA/Auklet-Profiler-C/pull/33) ([kdsch](https://github.com/kdsch))
 - lib.c: Add missing underscore in stack\_trace [\#32](https://github.com/ESG-USA/Auklet-Profiler-C/pull/32) ([kdsch](https://github.com/kdsch))
 - Revert "wrap.go: Use long form of timezone name" [\#30](https://github.com/ESG-USA/Auklet-Profiler-C/pull/30) ([MZein1292](https://github.com/MZein1292))
 - wrap.go: Use long form of timezone name [\#29](https://github.com/ESG-USA/Auklet-Profiler-C/pull/29) ([kdsch](https://github.com/kdsch))
+- APM-862 Retrieve Kafka certs from Auklet API [\#27](https://github.com/ESG-USA/Auklet-Profiler-C/pull/27) ([kdsch](https://github.com/kdsch))
 - APM-464: DevOps improvements [\#26](https://github.com/ESG-USA/Auklet-Profiler-C/pull/26) ([rjenkinsjr](https://github.com/rjenkinsjr))
 - Post device object to device endpoint [\#25](https://github.com/ESG-USA/Auklet-Profiler-C/pull/25) ([npalaska](https://github.com/npalaska))
 - lib\_test.c: Add sample count sanity check [\#24](https://github.com/ESG-USA/Auklet-Profiler-C/pull/24) ([kdsch](https://github.com/kdsch))

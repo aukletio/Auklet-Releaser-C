@@ -1,6 +1,22 @@
 # Change Log
 
 ## Upcoming Changes
+### [0.1.0-rc.2](https://github.com/ESG-USA/Auklet-Profiler-C/tree/0.1.0-rc.2) (Tue Jan  9 20:27:42 2018 UTC)
+**Implemented enhancements:**
+
+- APM-936: Populate public-facing S3 bucket with Auklet profiler binaries [\#44](https://github.com/ESG-USA/Auklet-Profiler-C/pull/44) ([rjenkinsjr](https://github.com/rjenkinsjr))
+- APM-941: Add dependency management to Go [\#41](https://github.com/ESG-USA/Auklet-Profiler-C/pull/41) ([rjenkinsjr](https://github.com/rjenkinsjr))
+
+**Merged pull requests:**
+
+- wrap.go: Use ipify to get public IP address [\#43](https://github.com/ESG-USA/Auklet-Profiler-C/pull/43) ([kdsch](https://github.com/kdsch))
+- Fix Compile-Time Errors [\#40](https://github.com/ESG-USA/Auklet-Profiler-C/pull/40) ([kdsch](https://github.com/kdsch))
+- wrap.go: Add millisecond timestamp to profiles [\#39](https://github.com/ESG-USA/Auklet-Profiler-C/pull/39) ([kdsch](https://github.com/kdsch))
+- Use combined realtime and virtual time profile emission [\#38](https://github.com/ESG-USA/Auklet-Profiler-C/pull/38) ([kdsch](https://github.com/kdsch))
+- lib.c: Use efficient JSON marshaler [\#34](https://github.com/ESG-USA/Auklet-Profiler-C/pull/34) ([kdsch](https://github.com/kdsch))
+- Decouple lib.c and wrap.go [\#33](https://github.com/ESG-USA/Auklet-Profiler-C/pull/33) ([kdsch](https://github.com/kdsch))
+- APM-862 Retrieve Kafka certs from Auklet API [\#27](https://github.com/ESG-USA/Auklet-Profiler-C/pull/27) ([kdsch](https://github.com/kdsch))
+
 ### [0.1.0-rc.1](https://github.com/ESG-USA/Auklet-Profiler-C/tree/0.1.0-rc.1) (Mon Dec 11 21:37:09 2017 UTC)
 **Implemented enhancements:**
 
