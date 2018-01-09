@@ -23,10 +23,11 @@ sends live profile data to the backend.
 
 # Go Setup
 
-`wrap` and `release` need at least Go 1.8. See the [getting started page][gs] to
+`wrap` and `release` need at least Go 1.8 and [dep][godep] 0.3.2. See the [getting started page][gs] to
 download Go. Then see [How to Write Go Code - Organization][org] to set up your
 system.
 
+[godep]: https://github.com/golang/dep
 [gs]: https://golang.org/doc/install
 [org]: https://golang.org/doc/code.html#Organization
 
@@ -38,13 +39,28 @@ Conventionally, your `~/.profile` should contain the following:
 The first line tells Go where your workspace is located. The second makes sure
 that the shell will know about executables built with `go install`.
 
-`wrap` needs [package sarama][ps], a Kafka client. Install it with
+After setting up Go on your system, install `dep` by running:
 
-[ps]: https://github.com/Shopify/sarama
+```
+curl -L -s https://github.com/golang/dep/releases/download/v0.3.2/dep-linux-amd64 -o $GOPATH/bin/dep
+chmod +x $GOPATH/bin/dep
+```
 
-	go get github.com/Shopify/sarama
+If you want to build `wrap` and `release` on Mac OS X, you can install `dep` via Homebrew by running `brew install dep`, or by changing the above `curl` command to download `dep-darwin-amd64`.
+
+# Development Tools
+
+`autobuild` is an optional script that can be run in a separate terminal window.
+When source files change, it runs `make`, allowing the developer to find
+compile-time errors immediately without needing an IDE.
+
+`autobuild` requires [entr](http://www.entrproject.org/).
 
 # Build
+
+To ensure you have all the correct dependencies, run
+
+	dep ensure
 
 To build and install all components, run
 
@@ -69,9 +85,6 @@ An Auklet configuration is defined by the following environment variables.
 	AUKLET_BROKERS
 	AUKLET_PROF_TOPIC
 	AUKLET_EVENT_TOPIC
-	AUKLET_CA
-	AUKLET_CERT
-	AUKLET_PRIVATE_KEY
 
 To view your current configuration, run `env | grep AUKLET`.
 
@@ -93,9 +106,6 @@ file, `.auklet`, and sourced from within `.env.staging`. For example:
 	export AUKLET_BROKERS=broker1,broker2,broker3
 	export AUKLET_PROF_TOPIC=z8u1-profiler
 	export AUKLET_EVENT_TOPIC=z8u1-events
-	export AUKLET_CA=LS0tLS1CRUdJTiBDRVJUSUZJQ0FURS...
-	export AUKLET_CERT=LS0tLS1CRUdJTiBDRVJUSUZJQ0FU...
-	export AUKLET_PRIVATE_KEY=LS0tLS1CRUdJTiBQUklW...
 
 ## `AUKLET_BROKERS`
 
@@ -116,13 +126,6 @@ It is accessed by both `wrap` and `release` commands. For example:
 	https://api-staging.auklet.io/v1
 
 If not defined, `wrap` and `release` default to the production endpoint.
-
-## `AUKLET_CA`, `AUKLET_CERT`, `AUKLET_PRIVATE_KEY`
-
-Base64-encoded [PEM][pem]-format certs that `wrap` uses to authenticate its Kafka
-connection.
-
-[pem]: https://en.wikipedia.org/wiki/Privacy-enhanced_Electronic_Mail
 
 # Assign a Configuration
 

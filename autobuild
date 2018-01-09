@@ -1,0 +1,3 @@
+#!/bin/sh
+# http://www.entrproject.org/
+find -name "*.go" -o -name "*.c" | entr make
