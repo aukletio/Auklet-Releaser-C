@@ -39,7 +39,10 @@
 
 [[projects]]
   name = "github.com/go-ole/go-ole"
-  packages = [".","oleutil"]
+  packages = [
+    ".",
+    "oleutil"
+  ]
   revision = "0e87ea779d9deb219633b828a023b32e1244dd57"
   version = "v1.2.0"
 
@@ -48,6 +51,12 @@
   name = "github.com/golang/snappy"
   packages = ["."]
   revision = "553a641470496b2327abcac10b36396bd98e45c9"
+
+[[projects]]
+  branch = "master"
+  name = "github.com/jpillora/backoff"
+  packages = ["."]
+  revision = "8eab2debe79d12b7bd3d10653910df25fa9552ba"
 
 [[projects]]
   name = "github.com/pierrec/lz4"
@@ -68,6 +77,11 @@
   revision = "e181e095bae94582363434144c61a9653aff6e50"
 
 [[projects]]
+  name = "github.com/rdegges/go-ipify"
+  packages = ["."]
+  revision = "2d94a6a86c4055118cc30fae2aaed47ec01f2210"
+
+[[projects]]
   name = "github.com/satori/go.uuid"
   packages = ["."]
   revision = "879c5887cd475cd7864858769793b2ceb0d44feb"
@@ -75,19 +89,27 @@
 
 [[projects]]
   name = "github.com/shirou/gopsutil"
-  packages = ["cpu","internal/common","mem","net"]
+  packages = [
+    "cpu",
+    "internal/common",
+    "mem",
+    "net"
+  ]
   revision = "7ec06ec280df1dd1f08befc535049d49d63ae18a"
   version = "v2.17.12"
 
 [[projects]]
   branch = "master"
   name = "golang.org/x/sys"
-  packages = ["unix","windows"]
+  packages = [
+    "unix",
+    "windows"
+  ]
   revision = "a3f2cbd54cf5dfe3fbaccf76375fdb12f67654c8"
 
 [solve-meta]
   analyzer-name = "dep"
   analyzer-version = 1
-  inputs-digest = "4f1fb87b27d0b4bb2fccec94a6fe27bab0de61a9648c76007303d4c1fa98dea7"
+  inputs-digest = "4e78ae979a4df6faa26aca5107470c422a811bb1041a8ec3af4220def5f953d1"
   solver-name = "gps-cdcl"
   solver-version = 1
