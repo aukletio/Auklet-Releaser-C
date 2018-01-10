@@ -58,6 +58,7 @@ static int push(N **sp, F f);
 static int pop(N **sp);
 static int eqF(F a, F b);
 static N *newN(F f);
+static void dumpN(N *n, unsigned ind);
 static void killN(N *n, int root);
 static N *hascallee(N *n, F f);
 static N *addcallee(N *n, F f);
@@ -67,9 +68,8 @@ static void setnotempty(N *n);
 static void growB(B *b);
 static int append(B *b, char *fmt, ...);
 
-static int marshaln(B *b, N *n);
-static int marshalc(B *b, N *n);
-static int marshal(B *b, N *n);
+static void marshal(B *b, N *n);
+static void marshals(B *b, N *sp, int sig);
 
 static jmp_buf nomem;
 static int log = 0; // stdout, initially
@@ -151,6 +151,7 @@ newN(F f)
 	n->llist = (pthread_mutex_t)PTHREAD_MUTEX_INITIALIZER;
 	n->lsamp = (pthread_mutex_t)PTHREAD_MUTEX_INITIALIZER;
 	n->lcall = (pthread_mutex_t)PTHREAD_MUTEX_INITIALIZER;
+	n->empty = 1;
 	return n;
 }
 
@@ -278,7 +279,7 @@ setnotempty(N *n)
 
 /* Marshal the given tree n to JSON. The caller is required to first
  * call setjmp(nomem) to catch memory allocation errors. */
-static int
+static void
 marshal(B *b, N *n)
 {
 	append(b, "{");
@@ -355,7 +356,7 @@ sane(N *n)
 
 /* Marshal a stacktrace to JSON. The caller is required to first call 
  * setjmp(nomem) to handle memory allocation errors. */
-static int
+static void
 marshals(B *b, N *sp, int sig)
 {
 	append(b,

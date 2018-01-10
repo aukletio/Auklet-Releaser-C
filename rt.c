@@ -64,6 +64,7 @@ static N root = {
 	.cap = 0,
 	.len = 0,
 	.ncall = 0,
+	.empty = 1,
 };
 static __thread N *sp = &root;
 static int sock, stack;
