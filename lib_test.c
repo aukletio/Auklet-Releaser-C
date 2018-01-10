@@ -58,7 +58,8 @@ marshal_test2(void)
 	B b = {0, 0, 0};
 	char *e = "{\"callees\":[{"
 		"\"fn\":44269,"
-		"\"cs\":64222"
+		"\"cs\":64222,"
+		"\"ncalls\":1"
 	"}]}";
 	int ret = 1;
 
@@ -69,7 +70,9 @@ marshal_test2(void)
 		goto end;
 	}
 	N *root = newN(z);
-	addcallee(root, f);
+	N *sp = root;
+	push(&sp, f);
+	//addcallee(root, f);
 	marshal(&b, root);
 	if (strcmp(b.buf, e)) {
 		printf("%s:\n"
