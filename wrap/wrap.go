@@ -23,6 +23,7 @@ import (
 	"time"
 
 	"github.com/Shopify/sarama"
+	"github.com/rdegges/go-ipify"
 	"github.com/satori/go.uuid"
 	"github.com/shirou/gopsutil/cpu"
 	"github.com/shirou/gopsutil/mem"
@@ -531,18 +532,27 @@ type Device struct {
 }
 
 func NewDevice() *Device {
-	conn, err := net.Dial("udp", "34.235.138.75:80")
-	if err != nil {
-		log.Fatal(err)
-	}
-	localAddr := conn.LocalAddr().(*net.UDPAddr)
 	zone, _ := time.Now().Zone()
-	return &Device{
+	d := &Device{
 		Mac:   ifacehash(),
 		Zone:  zone,
 		AppID: envar["APP_ID"],
-		IP:    localAddr.IP.String(),
+		IP:    getip(),
 	}
+	go func() {
+		for _ = range time.Tick(5 * time.Minute) {
+			d.IP = getip()
+		}
+	}()
+	return d
+}
+
+func getip() string {
+	ip, err := ipify.GetIp()
+	if err != nil {
+		log.Print(err)
+	}
+	return ip
 }
 
 // Determine whether this device is already known by the backend.
