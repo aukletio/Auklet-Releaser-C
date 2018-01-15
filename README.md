@@ -151,3 +151,4 @@ The local environment has separate containers for the wrapper and release. All c
 1. Build your environment with `docker-compose build`.
 1. To run the release locally, run `docker-compose run auklet /makeRelease`.
 1. To run the wrapper locally, run `docker-compose run auklet /runWrapper`.
+1. To run auklet inside a shell, run `docker-compose run auklet /bin/bash`.
