@@ -143,3 +143,11 @@ debug info.) Then run
 
 	wrap ./x
 
+# Docker Setup
+
+The local environment has separate containers for the wrapper and release. All containers are indirectly based on Debian Jessie.
+
+1. Install Docker for Mac Beta.
+1. Build your environment with `docker-compose build`.
+1. To run the release locally, run `docker-compose run release`.
+1. To run the wrapper locally, run `docker-compose run wrapper`.
