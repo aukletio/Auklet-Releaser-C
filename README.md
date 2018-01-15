@@ -149,5 +149,5 @@ The local environment has separate containers for the wrapper and release. All c
 
 1. Install Docker for Mac Beta.
 1. Build your environment with `docker-compose build`.
-1. To run the release locally, run `docker-compose run release`.
-1. To run the wrapper locally, run `docker-compose run wrapper`.
+1. To run the release locally, run `docker-compose run auklet /makeRelease`.
+1. To run the wrapper locally, run `docker-compose run auklet /runWrapper`.

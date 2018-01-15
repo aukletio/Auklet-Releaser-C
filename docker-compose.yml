@@ -1,11 +1,10 @@
 version: '2'
 
 services:
-  wrapper:
+  auklet:
     build:
       context: .
       dockerfile: ./compose/auklet/Dockerfile
-    command: /runWrapper.sh
     env_file: .env
     volumes:
       - .:/go/src/github.com/user/myProject/app
@@ -14,7 +13,6 @@ services:
     build:
       context: .
       dockerfile: ./compose/auklet/Dockerfile
-    command: /makeRelease.sh
     env_file: .env
     volumes:
       - .:/go/src/github.com/user/myProject/app
