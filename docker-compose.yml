@@ -5,7 +5,7 @@ services:
     build:
       context: .
       dockerfile: ./compose/auklet/Dockerfile
-    command: /startAuklet.sh
+    command: /runWrapper.sh
     env_file: .env
     volumes:
       - .:/go/src/github.com/user/myProject/app
