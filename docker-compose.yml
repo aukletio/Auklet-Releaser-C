@@ -1,0 +1,23 @@
+version: '2'
+
+volumes:
+  producer_pipcache: {}
+
+services:
+  wrapper:
+    build:
+      context: .
+      dockerfile: ./compose/auklet/Dockerfile
+    command: /startAuklet.sh
+    env_file: .env
+    volumes:
+      - .:/go/src/github.com/user/myProject/app
+
+  release:
+    build:
+      context: .
+      dockerfile: ./compose/auklet/Dockerfile
+    command: /makeRelease.sh
+    env_file: .env
+    volumes:
+      - .:/go/src/github.com/user/myProject/app
