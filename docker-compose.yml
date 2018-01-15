@@ -1,8 +1,5 @@
 version: '2'
 
-volumes:
-  producer_pipcache: {}
-
 services:
   wrapper:
     build:
