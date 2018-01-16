@@ -200,8 +200,16 @@ func run(obj chan Object, evt chan Event, cmd *exec.Cmd) (func(), error) {
 	signal.Notify(sig, syscall.SIGINT)
 
 	go func() {
+		timeout := 20 * time.Second
+		t := time.NewTimer(timeout)
+
 		cmd.Wait()
-		obj <- event(evt, cmd.ProcessState)
+		select {
+		case obj <- event(evt, cmd.ProcessState):
+			t.Stop()
+		case <-t.C:
+			log.Print("relay: obj <- &p timed out")
+		}
 		done <- struct{}{}
 	}()
 
@@ -331,6 +339,9 @@ func relay(obj chan Object) (func(), error) {
 		log.Print("data connection accepted")
 		line := bufio.NewScanner(c)
 
+		timeout := 20 * time.Second
+		t := time.NewTimer(timeout)
+
 		// quits on EOF
 		for line.Scan() {
 			var p Profile
@@ -339,7 +350,15 @@ func relay(obj chan Object) (func(), error) {
 				done <- err
 				return
 			}
-			obj <- &p
+
+			select {
+			case obj <- &p:
+				t.Stop()
+			case <-t.C:
+				log.Print("relay: obj <- &p timed out")
+				done <- nil
+				return
+			}
 		}
 		log.Print("data socket EOF")
 		done <- nil
@@ -453,7 +472,6 @@ func produce(obj chan Object, cmd *exec.Cmd) (func(), error) {
 		// bad config or closed client
 		return func() {}, err
 	}
-	log.Println("kafka producer connected")
 
 	done := make(chan error)
 	go func() {
@@ -468,6 +486,8 @@ func produce(obj chan Object, cmd *exec.Cmd) (func(), error) {
 				log.Print(err)
 			}
 		}
+
+		log.Println("kafka producer connected")
 
 		// receive Kafka-bound objects from clients
 		for o := range obj {
