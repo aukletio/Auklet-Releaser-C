@@ -5,7 +5,6 @@
 #include <pthread.h>
 #include <stdio.h>
 #include <stdlib.h>
-#include <time.h>
 #include <unistd.h>
 
 #define BILLION 1000000000l
@@ -39,7 +38,7 @@ busy(void *p)
 }
 
 void *
-idle(void *p)
+idle()
 {
 	sleep(24);
 	int *n;
@@ -50,7 +49,7 @@ int
 main(int argc, char **argv)
 {
 	int n = 0, m = 0;
-	pthread_t a, b;
+	pthread_t a;
 	if (argc > 1)
 		n = atoi(argv[1]);
 	m = n + 1;
