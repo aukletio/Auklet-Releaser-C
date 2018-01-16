@@ -208,7 +208,7 @@ func run(obj chan Object, evt chan Event, cmd *exec.Cmd) (func(), error) {
 		case obj <- event(evt, cmd.ProcessState):
 			t.Stop()
 		case <-t.C:
-			log.Print("relay: obj <- &p timed out")
+			log.Print("run: obj <- &p timed out")
 		}
 		done <- struct{}{}
 	}()
