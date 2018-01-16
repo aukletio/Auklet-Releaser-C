@@ -38,7 +38,7 @@ busy(void *p)
 }
 
 void *
-idle()
+idle(void *p)
 {
 	sleep(24);
 	int *n;
