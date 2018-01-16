@@ -1,7 +1,6 @@
 # Change Log
 
-## [Upcoming Changes](https://github.com/ESG-USA/Auklet-Profiler-C/tree/master)
-
+## [0.1.0](https://github.com/ESG-USA/Auklet-Profiler-C/tree/0.1.0) (Tue Jan 16 21:31:32 2018 UTC)
 **Implemented enhancements:**
 
 - APM-936: Populate public-facing S3 bucket with Auklet profiler binaries [\#44](https://github.com/ESG-USA/Auklet-Profiler-C/pull/44) ([rjenkinsjr](https://github.com/rjenkinsjr))
@@ -10,6 +9,7 @@
 
 **Merged pull requests:**
 
+- Docker containers for release and wrapper [\#48](https://github.com/ESG-USA/Auklet-Profiler-C/pull/48) ([shogun656](https://github.com/shogun656))
 - wrap.go: Use ipify to get public IP address [\#43](https://github.com/ESG-USA/Auklet-Profiler-C/pull/43) ([kdsch](https://github.com/kdsch))
 - Fix Compile-Time Errors [\#40](https://github.com/ESG-USA/Auklet-Profiler-C/pull/40) ([kdsch](https://github.com/kdsch))
 - wrap.go: Add millisecond timestamp to profiles [\#39](https://github.com/ESG-USA/Auklet-Profiler-C/pull/39) ([kdsch](https://github.com/kdsch))

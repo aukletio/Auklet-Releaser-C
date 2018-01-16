@@ -1,6 +1,10 @@
 # Change Log
 
-## Upcoming Changes
+## [0.1.0](https://github.com/ESG-USA/Auklet-Profiler-C/tree/0.1.0) (Tue Jan 16 21:31:32 2018 UTC)
+**Merged pull requests:**
+
+- Docker containers for release and wrapper [\#48](https://github.com/ESG-USA/Auklet-Profiler-C/pull/48) ([shogun656](https://github.com/shogun656))
+
 ### [0.1.0-rc.2](https://github.com/ESG-USA/Auklet-Profiler-C/tree/0.1.0-rc.2) (Tue Jan  9 20:27:42 2018 UTC)
 **Implemented enhancements:**
 
