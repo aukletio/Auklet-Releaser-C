@@ -1,13 +1,70 @@
-instrument/inst_test
-instrument/instrument.o
-instrument/libauklet.a
+#### joe made this: http://goel.io/joe
 
-# Credentials needed by wrapper at runtime on the target
-test/target/ck_ca
-test/target/ck_cert
-test/target/ck_private_key
+#####=== C ===#####
 
-# Files needed by releaser on build machine
-test/src/snellius
-test/src/snellius-debug
-test/src/secrets.sh
+# Object files
+*.o
+*.ko
+*.obj
+*.elf
+
+# Precompiled Headers
+*.gch
+*.pch
+
+# Libraries
+*.lib
+*.a
+*.la
+*.lo
+
+# Shared objects (inc. Windows DLLs)
+*.dll
+*.so
+*.so.*
+*.dylib
+
+# Executables
+*.exe
+*.out
+*.app
+*.i*86
+*.x86_64
+*.hex
+
+# Debug files
+*.dSYM/
+
+#####=== Go ===#####
+
+# Compiled Object files, Static and Dynamic libs (Shared Objects)
+*.o
+*.a
+*.so
+
+# Folders
+_obj
+_test
+
+# Architecture specific extensions/prefixes
+*.[568vq]
+[568vq].out
+
+*.cgo1.go
+*.cgo2.c
+_cgo_defun.c
+_cgo_gotypes.go
+_cgo_export.*
+
+_testmain.go
+
+*.exe
+*.test
+*.prof
+
+#####=== Auklet ===#####
+vendor/
+auklet.conf
+lib_test
+x
+x-dbg

@@ -6,7 +6,6 @@ import (
 	"debug/dwarf"
 	"debug/elf"
 	"encoding/json"
-	"flag"
 	"fmt"
 	"io"
 	"log"
@@ -15,14 +14,31 @@ import (
 	"os/exec"
 )
 
+// BuildDate is provided at compile-time; DO NOT MODIFY.
+var BuildDate = "no timestamp"
+
+// Version is provided at compile-time; DO NOT MODIFY.
+var Version = "local-build"
+
+// A Dwarf represents a pared-down dwarf.LineEntry.
+type Dwarf struct {
+	Address uint64
+	Hash    string // git object hash
+	Line    int
+}
+
+// A Symbol represents a pared-down elf.Symbol.
+type Symbol struct {
+	Name  string
+	Value uint64
+}
+
 // A Release represents a release of a customer's app to be sent to the backend.
 type Release struct {
-	AppID       string            `json:"app_id"`
-	DeployHash  string            `json:"checksum"`
-	CommitHash  string            `json:"commit_hash,omitempty"`
-	GitTopLevel string            `json:"absolute_path_prefix,omitempty"`
-	Dwarf       []dwarf.LineEntry `json:"dwarf"`
-	Symbols     []elf.Symbol      `json:"symbols"`
+	AppID      string   `json:"app_id"`
+	DeployHash string   `json:"checksum"`
+	Dwarf      []Dwarf  `json:"dwarf"`
+	Symbols    []Symbol `json:"symbols"`
 }
 
 // A BytesReadCloser is a bytes.Reader that satisfies io.ReadCloser, which is
@@ -34,21 +50,27 @@ func (s BytesReadCloser) Close() error {
 }
 
 func usage() {
-	log.Printf("usage: %v -apikey apikey -appid appid -deploy deployfile -debug debugfile\n", os.Args[0])
-	os.Exit(1)
+	log.Fatalf("usage: %v deployfile\n", os.Args[0])
 }
 
 func (rel *Release) symbolize(debugpath string) {
 	debugfile, err := elf.Open(debugpath)
 	if err != nil {
+		log.Println("Debug filename must be <deployfile>-dbg")
 		log.Fatal(err)
 	}
 	defer debugfile.Close()
 
 	// add ELF symbols
-	rel.Symbols, err = debugfile.Symbols()
+	ss, err := debugfile.Symbols()
 	if err != nil {
 		log.Fatal(err)
+	}
+	for _, s := range ss {
+		rel.Symbols = append(rel.Symbols, Symbol{
+			Name:  s.Name,
+			Value: s.Value,
+		})
 	}
 
 	// add DWARF line entries
@@ -82,33 +104,29 @@ func (rel *Release) symbolize(debugpath string) {
 			} else if err != nil {
 				panic(err)
 			}
-			rel.Dwarf = append(rel.Dwarf, le)
+			if le.File == nil {
+				continue
+			}
+			_, err = os.Stat(le.File.Name)
+			if err == nil {
+				rel.Dwarf = append(rel.Dwarf, Dwarf{
+					Address: le.Address,
+					Hash:    hashobject(le.File.Name),
+					Line:    le.Line,
+				})
+			}
 		}
 	}
 }
 
-func (rel *Release) git() error {
-	// Associate a release with the top-level directory of the Git repo.
-	gtl := exec.Command("git", "rev-parse", "--show-toplevel")
-	out, err := gtl.CombinedOutput()
+func hashobject(path string) string {
+	c := exec.Command("git", "hash-object", path)
+	out, err := c.CombinedOutput()
 	if err != nil {
-		// Not a git repo or don't have git
-		log.Println(string(out))
-		panic(err)
+		// don't have git, or bad path
+		log.Panic(err)
 	}
-
-	rel.GitTopLevel = string(out[:len(out)-1])
-
-	// Associate the release with the current commit hash.
-	rph := exec.Command("git", "rev-parse", "HEAD")
-	out, err = rph.Output()
-	if err != nil {
-		log.Println(string(out))
-		panic(err)
-	}
-
-	rel.CommitHash = string(out[:len(out)-1])
-	return nil
+	return string(out[:len(out)-1])
 }
 
 func hash(s *elf.Section) []byte {
@@ -141,13 +159,13 @@ func sectionsMatch(deployName, debugName string) bool {
 
 		debugsect := debugfile.Section(deploysect.Name)
 		if debugsect == nil {
-			log.Printf("releaser: debug file %v lacks section %v from deploy file %v\n",
+			log.Printf("debug file %v lacks section %v from deploy file %v\n",
 				debugName, deploysect.Name, deployName)
 			continue
 		}
 
 		if bytes.Compare(hash(deploysect), hash(debugsect)) != 0 {
-			log.Printf("releaser: section %-15v %-18v differs\n",
+			log.Printf("section %-15v %-18v differs\n",
 				deploysect.Name, deploysect.Type)
 			return false
 		}
@@ -168,32 +186,52 @@ func (rel *Release) release(deployName string) {
 	}
 	deployhash := dh.Sum(nil)
 	rel.DeployHash = fmt.Sprintf("%x", deployhash)
+	log.Println("release():", deployName, rel.DeployHash)
+}
+
+var envar = map[string]string{
+	"BASE_URL": "https://api.auklet.io/v1",
+	"API_KEY":  "",
+	"APP_ID":   "",
+}
+
+func env() {
+	prefix := "AUKLET_"
+	ok := true
+	for k := range envar {
+		v := os.Getenv(prefix + k)
+		if v == "" && envar[k] == "" {
+			ok = false
+			log.Printf("empty envar %v\n", prefix+k)
+		} else {
+			envar[k] = v
+		}
+	}
+	if !ok {
+		log.Fatal("incomplete configuration")
+	}
 }
 
 func main() {
-	var deployName, debugName, appID, apiKey string
-	flag.StringVar(&deployName, "deploy", "", "ELF binary to be deployed")
-	flag.StringVar(&debugName, "debug", "", "ELF binary containing debug symbols")
-	flag.StringVar(&appID, "appid", "", "App ID under which to create a release")
-	flag.StringVar(&apiKey, "apikey", "", "API key")
-	flag.Parse()
-
-	if flag.NFlag() != 4 {
+	log.Printf("Auklet Releaser version %s (%s)\n", Version, BuildDate)
+	if len(os.Args) < 2 {
 		usage()
 	}
+	deployName := os.Args[1]
+	debugName := deployName + "-dbg"
+
+	env()
+	url := envar["BASE_URL"] + "/releases/"
 
 	rel := new(Release)
-	rel.AppID = appID
-
-	// get debug info and symbols
+	rel.AppID = envar["APP_ID"]
+	apikey := envar["API_KEY"]
 	rel.symbolize(debugName)
 
 	// reject ELF pairs with disparate sections
 	if !sectionsMatch(deployName, debugName) {
 		os.Exit(1)
 	}
-
-	rel.git()
 
 	// create a release
 	rel.release(deployName)
@@ -203,46 +241,32 @@ func main() {
 	if err != nil {
 		panic(err)
 	}
-	fmt.Println(string(b))
-
-	body := bytes.NewReader(b)
-
-	urls := map[string]string{
-		"production": "https://api.auklet.io/v1/releases/",
-		"qa":         "https://api-qa.auklet.io/v1/releases/",
-		"staging":    "https://api-staging.auklet.io/v1/releases/",
-	}
-
-	endpoint := os.Getenv("AUKLET_RELEASE_ENDPOINT")
-	if endpoint == "" {
-		endpoint = "production"
-	}
-	url, in := urls[endpoint]
-	if !in {
-		panic("releaser: unknown endpoint: " + endpoint)
-	}
+	//fmt.Println(string(b))
 
 	// Create a client to control request headers.
-	client := &http.Client{}
-	req, err := http.NewRequest("POST", url, body)
+	req, err := http.NewRequest("POST", url, bytes.NewReader(b))
 	if err != nil {
 		panic(err)
 	}
 	req.Header = map[string][]string{
 		"content-type": {"application/json"},
-		"apikey":       {apiKey},
+		"apikey":       {apikey},
 	}
 
+	client := &http.Client{}
 	resp, err := client.Do(req)
 	if err != nil {
 		panic(err)
 	}
-	log.Println("releaser:", resp.Status)
-	log.Printf("releaser:\n" +
-	           "    appid: %v\n" +
-	           "    commithash: %v\n" +
-	           "    checksum: %v\n",
-	           rel.AppID,
-	           rel.CommitHash,
-	           rel.DeployHash)
+	log.Print(resp.Status)
+	switch resp.StatusCode {
+	case 200:
+		log.Println("not created")
+	case 201: // created
+		log.Printf("appid: %v\n", rel.AppID)
+		log.Printf("checksum: %v\n", rel.DeployHash)
+	case 502: // bad gateway
+		log.Fatal(url)
+	default:
+	}
 }
