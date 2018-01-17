@@ -200,10 +200,10 @@ func run(obj chan Object, evt chan Event, cmd *exec.Cmd) (func(), error) {
 	signal.Notify(sig, syscall.SIGINT)
 
 	go func() {
+		cmd.Wait()
 		timeout := 20 * time.Second
 		t := time.NewTimer(timeout)
 
-		cmd.Wait()
 		select {
 		case obj <- event(evt, cmd.ProcessState):
 			t.Stop()
