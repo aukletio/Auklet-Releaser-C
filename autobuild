@@ -1,3 +1,11 @@
 #!/bin/sh
 # http://www.entrproject.org/
-find -name "*.go" -o -name "*.c" | entr make
+(cat <<EOF
+Makefile
+lib.c
+lib_test.c
+rt.c
+release/release.go
+wrap/wrap.go
+EOF
+) | entr -c -s 'make && ./lib_test'
