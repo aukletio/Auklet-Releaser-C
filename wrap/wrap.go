@@ -42,25 +42,21 @@ var Version = "local-build"
 // topic and implement a brand() method that fills UUID and checksum fields.
 type Object interface {
 	topic() string
-	brand()
+	brand(string)
 }
 
-func checksum(path string) string {
+func checksum(path string) (sum string, err error) {
 	f, err := os.Open(path)
 	if err != nil {
-		log.Panic(err)
+		return
 	}
 	defer f.Close()
-
 	h := sha512.New512_224()
-	if _, err := io.Copy(h, f); err != nil {
-		log.Panic(err)
+	if _, err = io.Copy(h, f); err != nil {
+		return
 	}
-
-	hash := h.Sum(nil)
-	sum := fmt.Sprintf("%x", hash)
-	//log.Println("checksum():", path, sum)
-	return sum
+	sum = fmt.Sprintf("%x", h.Sum(nil))
+	return
 }
 
 type sig syscall.Signal
@@ -78,7 +74,7 @@ func (s sig) MarshalText() ([]byte, error) {
 
 var inboundRate, outboundRate uint64
 
-func networkStat() {
+func networkStat() { // inboundRate outBoundRate
 	// Total network I/O bytes recieved and sent per second from the system
 	// since the start of the system.
 
@@ -105,13 +101,17 @@ type System struct {
 	Outbound   uint64  `json:"outbound_traffic"`
 }
 
+type Common struct {
+	CheckSum string `json:"checksum"`
+	IP       string `json:"public_ip"`
+	UUID     string `json:"uuid"`
+}
+
 // Event contains data pertaining to the termination of a child process.
 type Event struct {
-	CheckSum      string      `json:"checksum"`
-	UUID          string      `json:"uuid"`
+	Common
 	Time          time.Time   `json:"timestamp"`
 	Zone          string      `json:"timezone"`
-	IP            string      `json:"public_ip"`
 	Status        int         `json:"exit_status"`
 	Signal        sig         `json:"signal,omitempty"`
 	Trace         interface{} `json:"stack_trace,omitempty"`
@@ -123,13 +123,13 @@ func (e Event) topic() string {
 	return envar["EVENT_TOPIC"]
 }
 
-func (e *Event) brand() {
+func (e *Event) brand(cksum string) {
 	e.UUID = uuid.NewV4().String()
 	e.CheckSum = cksum
 	e.IP = device.IP
 }
 
-func metrics() System {
+func metrics() System { // inboundRate outboundRate
 	var s System
 
 	// System-wide cpu usage since the start of the child process
@@ -148,7 +148,7 @@ func metrics() System {
 	return s
 }
 
-func event(evt chan Event, state *os.ProcessState) *Event {
+func event(evt <-chan Event, state *os.ProcessState) *Event {
 	ws, ok := state.Sys().(syscall.WaitStatus)
 	if !ok {
 		log.Print("expected type syscall.WaitStatus; non-POSIX system?")
@@ -157,7 +157,6 @@ func event(evt chan Event, state *os.ProcessState) *Event {
 
 	e := Event{
 		Device:        device.Mac,
-		IP:            device.IP,
 		Status:        ws.ExitStatus(),
 		SystemMetrics: metrics(),
 		Time:          time.Now(),
@@ -186,6 +185,15 @@ func usage() {
 	log.Fatalf("usage: %v command [args ...]\n", os.Args[0])
 }
 
+func relaysigs(cmd *exec.Cmd) {
+	sig := make(chan os.Signal)
+	signal.Notify(sig, syscall.SIGINT)
+	for s := range sig {
+		log.Print("relaying signal: ", s)
+		cmd.Process.Signal(s)
+	}
+}
+
 func run(wg *sync.WaitGroup, obj chan<- Object, evt chan Event, cmd *exec.Cmd) error {
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
@@ -195,16 +203,9 @@ func run(wg *sync.WaitGroup, obj chan<- Object, evt chan Event, cmd *exec.Cmd) e
 	if err != nil {
 		return err
 	}
-	go func() {
-		sig := make(chan os.Signal)
-		signal.Notify(sig, syscall.SIGINT)
-		for s := range sig {
-			log.Print("relaying signal: ", s)
-			cmd.Process.Signal(s)
-		}
-	}()
+	go relaysigs(cmd)
 	cpu.Percent(0, false)
-	go func() {
+	go func() { // wg obj cmd
 		wg.Add(1)
 		var err error
 		defer func() {
@@ -231,18 +232,16 @@ func run(wg *sync.WaitGroup, obj chan<- Object, evt chan Event, cmd *exec.Cmd) e
 // Profile represents arbitrary JSON data from the instrument that can be sent
 // to the backend.
 type Profile struct {
-	CheckSum string      `json:"checksum"`
-	IP       string      `json:"public_ip"`
-	UUID     string      `json:"uuid"`
-	Time     int64       `json:"timestamp"`
-	Tree     interface{} `json:"tree"`
+	Common
+	Time int64       `json:"timestamp"`
+	Tree interface{} `json:"tree"`
 }
 
 func (p Profile) topic() string {
 	return envar["PROF_TOPIC"]
 }
 
-func (p *Profile) brand() {
+func (p *Profile) brand(cksum string) {
 	p.UUID = uuid.NewV4().String()
 	p.CheckSum = cksum
 	p.IP = device.IP
@@ -255,7 +254,7 @@ func logs(wg *sync.WaitGroup, logger io.Writer) error {
 		return err
 	}
 	log.Print("logs socket opened")
-	go func() {
+	go func() { // wg l logger
 		wg.Add(1)
 		var err error
 		defer func() {
@@ -276,13 +275,13 @@ func logs(wg *sync.WaitGroup, logger io.Writer) error {
 	return nil
 }
 
-func stacktrace(wg *sync.WaitGroup, evt chan Event) error {
+func stacktrace(wg *sync.WaitGroup, evt chan<- Event) error {
 	s, err := net.Listen("unix", "stacktrace-"+strconv.Itoa(os.Getpid()))
 	if err != nil {
 		return err
 	}
 	log.Print("stacktrace socket opened")
-	go func() {
+	go func() { // wg s evt
 		wg.Add(1)
 		var err error
 		defer func() {
@@ -319,7 +318,7 @@ func relay(wg *sync.WaitGroup, obj chan<- Object) error {
 		return err
 	}
 	log.Print("data socket opened")
-	go func() {
+	go func() { // wg s obj
 		wg.Add(1)
 		var err error
 		defer func() {
@@ -356,21 +355,23 @@ func relay(wg *sync.WaitGroup, obj chan<- Object) error {
 	return nil
 }
 
-func getcerts() map[string][]byte {
+func getcerts() (m map[string][]byte, err error) {
 	url := envar["BASE_URL"] + "/certificates/"
 	req, err := http.NewRequest("GET", url, nil)
 	if err != nil {
-		log.Fatal(err)
+		return
 	}
 	req.Header.Add("apikey", envar["API_KEY"])
 	c := &http.Client{}
 	resp, err := c.Do(req)
 	if err != nil {
-		log.Fatal(err)
+		return
 	}
 
 	if resp.StatusCode != 200 {
-		log.Fatal("wrapper: getcerts: got unexpected status ", resp.Status)
+		format := "getcerts: got unexpected status %v"
+		err = errors.New(fmt.Sprintf(format, resp.Status))
+		return
 	}
 
 	log.Print("getcerts:", resp.Status)
@@ -383,28 +384,30 @@ func getcerts() map[string][]byte {
 
 	b, err := ioutil.ReadAll(resp.Body)
 	if err != nil {
-		log.Panic(err)
+		return
 	}
 	z, err := zip.NewReader(bytes.NewReader(b), int64(len(b)))
 	if err != nil {
-		log.Panic(err)
+		return
 	}
-	m := make(map[string][]byte)
+	m = make(map[string][]byte)
 	for _, f := range z.File {
 		rc, err := f.Open()
 		if err != nil {
-			log.Panic(err)
+			return nil, err
 		}
 		cert, err := ioutil.ReadAll(rc)
 		if err != nil {
-			log.Panic(err)
+			return nil, err
 		}
 		m[f.Name] = cert
 	}
 
 	filenames := []string{"ck_ca", "ck_cert", "ck_private_key"}
 	if len(m) != len(filenames) {
-		log.Printf("got zip archive with %v files, expected %v", len(m), len(filenames))
+		format := "got zip archive with %v files, expected %v"
+		err = errors.New(fmt.Sprintf(format, len(m), len(filenames)))
+		return nil, err
 	}
 
 	good := true
@@ -416,18 +419,24 @@ func getcerts() map[string][]byte {
 	}
 
 	if !good {
-		log.Fatal("incorrect certs")
+		err = errors.New("incorrect certs")
+		return nil, err
 	}
-	return m
+	return
 }
 
-func connect() (sarama.SyncProducer, error) {
-	certs := getcerts()
+func connect() (p sarama.SyncProducer, err error) {
+	certs, err := getcerts()
+	if err != nil {
+		return
+	}
 
 	certpool := x509.NewCertPool()
 	certpool.AppendCertsFromPEM(certs["ck_ca"])
 	c, err := tls.X509KeyPair(certs["ck_cert"], certs["ck_private_key"])
-	check(err)
+	if err != nil {
+		return
+	}
 
 	tc := tls.Config{
 		RootCAs:            certpool,
@@ -447,13 +456,13 @@ func connect() (sarama.SyncProducer, error) {
 	return sarama.NewSyncProducer(brokers, config)
 }
 
-func produce(wg *sync.WaitGroup, obj <-chan Object, path string) error {
+func produce(wg *sync.WaitGroup, obj <-chan Object, path string) (err error) {
 	// Create a Kafka producer with the desired config
 	p, err := connect()
 	if err != nil {
-		return err
+		return
 	} // bad config or closed client
-	go func() {
+	go func() { // wg p path device obj
 		wg.Add(1)
 		var err error
 		defer func() {
@@ -463,19 +472,26 @@ func produce(wg *sync.WaitGroup, obj <-chan Object, path string) error {
 			p.Close()
 			wg.Done()
 		}()
-		cksum = checksum(path)
-		if !valid(cksum) {
-			err = errors.New(fmt.Sprint("invalid checksum: ", cksum))
-			//return
+		cksum, err := checksum(path)
+		if err != nil {
+			return
 		}
-		if !device.get() {
-			err = device.post()
-			//if err != nil { return }
+		ok, err := valid(cksum)
+		if !ok || err != nil {
+			return
+		}
+		ok, err = device.get()
+		if err != nil {
+			return
+		}
+		err = device.post()
+		if err != nil {
+			return
 		}
 		log.Println("kafka producer connected")
 		// receive Kafka-bound objects from clients
 		for o := range obj {
-			o.brand()
+			o.brand(cksum)
 			b, err := json.Marshal(o)
 			if err != nil {
 				return
@@ -494,27 +510,28 @@ func produce(wg *sync.WaitGroup, obj <-chan Object, path string) error {
 	return nil
 }
 
-var cksum string
-
-func valid(sum string) bool {
+func valid(sum string) (ok bool, err error) {
 	ep := envar["BASE_URL"] + "/check_releases/" + sum
 	//log.Println("wrapper: release check url:", ep)
 	resp, err := http.Get(ep)
 	if err != nil {
-		log.Panic(err)
+		return
 	}
 	//log.Println("wrapper: valid: response status:", resp.Status)
 
 	switch resp.StatusCode {
 	case 200:
-		return true
+		// released
+		ok = true
 	case 404:
-		return false
+		// not released
+		ok = false
+	// 500 happens if the backend is broken teehee
 	default:
-		// 500 happens if the backend is broken teehee
-		log.Panic("wrapper: valid: got unexpected status ", resp.Status)
+		format := "valid: got unexpected status %v"
+		err = errors.New(fmt.Sprintf(format, resp.Status))
 	}
-	return false
+	return
 }
 
 // Device contains information about the device that the backend needs to know.
@@ -533,7 +550,7 @@ func NewDevice() *Device {
 		AppID: envar["APP_ID"],
 		IP:    getip(),
 	}
-	go func() {
+	go func() { // d
 		for _ = range time.Tick(5 * time.Minute) {
 			d.IP = getip()
 		}
@@ -550,21 +567,21 @@ func getip() string {
 }
 
 // Determine whether this device is already known by the backend.
-func (d *Device) get() bool {
+func (d *Device) get() (ok bool, err error) {
 	url := envar["BASE_URL"] + "/devices/?mac_address_hash=" + d.Mac
 	req, err := http.NewRequest("GET", url, nil)
 	if err != nil {
-		log.Fatal(err)
+		return
 	}
 	req.Header.Add("apikey", envar["API_KEY"])
 	c := &http.Client{}
 	resp, err := c.Do(req)
 	if err != nil {
-		log.Fatal(err)
+		return
 	}
 
 	log.Print("Device.get() length = ", resp.ContentLength)
-	return !(resp.ContentLength <= 2)
+	return !(resp.ContentLength <= 2), nil
 }
 
 func ifacehash() string {
@@ -645,25 +662,30 @@ func env() {
 var device *Device
 
 func main() {
+	defer func() {
+		if x := recover(); x != nil {
+			log.Print(x)
+		}
+	}()
 	logger := os.Stdout
 	log.SetOutput(logger)
 	log.SetFlags(log.Lmicroseconds)
 	log.Printf("Auklet Wrapper version %s (%s)\n", Version, BuildDate)
 
 	env()
+	args := os.Args[1:]
+	if len(args) == 0 {
+		usage()
+	}
 	device = NewDevice()
 	go networkStat()
 
-	args := os.Args
-	if len(args) < 2 {
-		usage()
-	}
-	cmd := exec.Command(args[1], args[2:]...)
+	cmd := exec.Command(args[0], args[1:]...)
 	obj := make(chan Object)
 	evt := make(chan Event)
 
-	var err error
 	var wg sync.WaitGroup
+	var err error
 	err = relay(&wg, obj)
 	check(err)
 
