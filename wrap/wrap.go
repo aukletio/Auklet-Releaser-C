@@ -107,6 +107,8 @@ type Common struct {
 	UUID     string `json:"uuid"`
 }
 
+type JSON map[string]interface{}
+
 // Event contains data pertaining to the termination of a child process.
 type Event struct {
 	Common
@@ -167,11 +169,13 @@ func event(evt <-chan Event, state *os.ProcessState) *Event {
 		e.Signal = sig(ws.Signal())
 	}
 
-	if x, ok := <-evt; ok {
-		log.Print("event: got stacktrace")
-		e.Signal = x.Signal
-		e.Trace = x.Trace
-	}
+	/*
+		if x, ok := <-evt; ok {
+			log.Print("event: got stacktrace")
+			e.Signal = x.Signal
+			e.Trace = x.Trace
+		}
+	*/
 	return &e
 }
 
@@ -194,7 +198,7 @@ func relaysigs(cmd *exec.Cmd) {
 	}
 }
 
-func run(wg *sync.WaitGroup, obj chan<- Object, evt chan Event, cmd *exec.Cmd) error {
+func run(wg *sync.WaitGroup, obj chan<- Object, cmd *exec.Cmd) error {
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
 	cmd.Stdin = os.Stdin
@@ -212,19 +216,11 @@ func run(wg *sync.WaitGroup, obj chan<- Object, evt chan Event, cmd *exec.Cmd) e
 			if err != nil {
 				log.Println(err)
 			}
-			close(obj)
 			wg.Done()
 		}()
 		cmd.Wait()
 		log.Print("child exited")
-		timeout := 20 * time.Second
-		t := time.NewTimer(timeout)
-		select {
-		case obj <- event(evt, cmd.ProcessState):
-			t.Stop()
-		case <-t.C:
-			err = errors.New("run: obj <- &p timed out")
-		}
+		// need to report cmd.ProcessState to Kafka somehow
 	}()
 	return nil
 }
@@ -312,12 +308,48 @@ func stacktrace(wg *sync.WaitGroup, evt chan<- Event) error {
 	return nil
 }
 
-func relay(wg *sync.WaitGroup, obj chan<- Object) error {
-	s, err := net.Listen("unix", "data-"+strconv.Itoa(os.Getpid()))
+func Objectify(b []byte) (o Object, err error) {
+	defer func() {
+		if err != nil {
+			log.Print(err)
+			log.Print(string(b))
+		}
+	}()
+	var m map[string]interface{}
+	err = json.Unmarshal(b, &m)
 	if err != nil {
-		return err
+		return
 	}
-	log.Print("data socket opened")
+loop:
+	for k, v := range m {
+		switch k {
+		case "log": // log
+			// redirect to our logger for now
+			log.Println(v)
+			return nil, nil
+		case "signal", "stack_trace":
+			var e Event
+			err = json.Unmarshal(b, &e)
+			if err != nil {
+				return nil, err
+			}
+			return &e, nil
+		default:
+			log.Printf("objectify: couldn't match %v\n", k)
+			fallthrough
+		case "callees", "nsamples", "ncalls":
+			break loop
+		}
+	}
+	var p Profile
+	err = json.Unmarshal(b, &p.Tree)
+	if err != nil {
+		return nil, err
+	}
+	return &p, nil
+}
+
+func relay(wg *sync.WaitGroup, s net.Listener, addr string, obj chan<- Object) error {
 	go func() { // wg s obj
 		wg.Add(1)
 		var err error
@@ -325,32 +357,33 @@ func relay(wg *sync.WaitGroup, obj chan<- Object) error {
 			if err != nil {
 				log.Print(err)
 			}
-			log.Print("closing data socket")
-			s.Close()
+			close(obj)
 			wg.Done()
 		}()
 		c, err := s.Accept()
 		if err != nil {
 			return
 		}
-		log.Print("data connection accepted")
+		log.Printf("%v connection accepted", addr)
 		line := bufio.NewScanner(c)
-		t := time.NewTimer(20 * time.Second)
 		for line.Scan() {
-			var p Profile
-			err = json.Unmarshal(line.Bytes(), &p.Tree)
+			o, err := Objectify(line.Bytes())
 			if err != nil {
 				return
 			}
+			if o == nil {
+				continue
+			}
+			t := time.NewTimer(20 * time.Second)
 			select {
-			case obj <- &p:
+			case obj <- o:
 				t.Stop()
 			case <-t.C:
 				err = errors.New("relay: obj <- &p timed out")
 				return
 			}
 		}
-		log.Print("data socket EOF")
+		log.Printf("%v EOF", addr)
 	}()
 	return nil
 }
@@ -374,7 +407,6 @@ func getcerts() (m map[string][]byte, err error) {
 		return
 	}
 
-	log.Print("getcerts:", resp.Status)
 	// resp.Body implements io.Reader
 	// ioutil.ReadAll : io.Reader -> []byte
 	// bytes.NewReader : []byte -> bytes.Reader (implements io.ReaderAt)
@@ -458,13 +490,27 @@ func connect() (p sarama.SyncProducer, err error) {
 
 func produce(wg *sync.WaitGroup, obj <-chan Object, path string) (err error) {
 	// Create a Kafka producer with the desired config
-	p, err := connect()
+	cksum, err := checksum(path)
 	if err != nil {
 		return
-	} // bad config or closed client
+	}
+	ok, err := valid(cksum)
+	if err != nil {
+		return
+	}
+	/*
+		if !ok {
+			// unreleased
+			err = errors.New(fmt.Sprintf("checksum %v not released", cksum))
+			return
+		}
+	*/
 	go func() { // wg p path device obj
 		wg.Add(1)
-		var err error
+		p, err := connect()
+		if err != nil {
+			return // bad config or closed client
+		}
 		defer func() {
 			if err != nil {
 				log.Print(err)
@@ -472,14 +518,6 @@ func produce(wg *sync.WaitGroup, obj <-chan Object, path string) (err error) {
 			p.Close()
 			wg.Done()
 		}()
-		cksum, err := checksum(path)
-		if err != nil {
-			return
-		}
-		ok, err := valid(cksum)
-		if !ok || err != nil {
-			return
-		}
 		ok, err = device.get()
 		if err != nil {
 			return
@@ -682,20 +720,29 @@ func main() {
 
 	cmd := exec.Command(args[0], args[1:]...)
 	obj := make(chan Object)
-	evt := make(chan Event)
 
 	var wg sync.WaitGroup
 	var err error
-	err = relay(&wg, obj)
+	addr := "/tmp/auklet-" + strconv.Itoa(os.Getpid())
+	s, err := net.Listen("unixpacket", addr)
+	check(err)
+	defer func() {
+		log.Printf("%v closing", addr)
+		s.Close()
+	}()
+
+	log.Printf("%v opened", addr)
+
+	err = relay(&wg, s, addr, obj)
 	check(err)
 
-	err = stacktrace(&wg, evt)
-	check(err)
+	//err = stacktrace(&wg, evt)
+	//check(err)
 
-	err = logs(&wg, logger)
-	check(err)
+	//err = logs(&wg, logger)
+	//check(err)
 
-	err = run(&wg, obj, evt, cmd)
+	err = run(&wg, obj, cmd)
 	check(err)
 
 	err = produce(&wg, obj, cmd.Path)
