@@ -39,7 +39,10 @@ install: libauklet.a
 uninstall:
 	sudo rm -f ${INSTALL}/libauklet.a
 
+test: lib_test
+	go test ./wrap && ./lib_test
+
 clean:
 	rm -f x x-raw x-dbg x.o rt.o lib_test libauklet.a libauklet.tgz
 
-.PHONY: all clean install uninstall
+.PHONY: all clean install uninstall test

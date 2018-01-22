@@ -7,5 +7,6 @@ lib_test.c
 rt.c
 release/release.go
 wrap/wrap.go
+wrap/wrap_test.go
 EOF
-) | entr -c -s 'make && ./lib_test'
+) | entr -c -s 'make test'
