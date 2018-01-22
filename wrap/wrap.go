@@ -551,19 +551,17 @@ func ifacehash() string {
 }
 
 // Post this device to the backend.
-func (d *Device) post() error {
+func (d *Device) post() (err error) {
 	b, err := json.Marshal(d)
 	if err != nil {
-		// couldn't marshal json
-		log.Fatal(err)
+		return
 	}
 	log.Print(string(b))
 
 	url := envar["BASE_URL"] + "/devices/"
 	req, err := http.NewRequest("POST", url, bytes.NewReader(b))
 	if err != nil {
-		// couldn't create this request
-		log.Fatal(err)
+		return
 	}
 	req.Header.Add("content-type", "application/json")
 	req.Header.Add("apikey", envar["API_KEY"])
@@ -571,7 +569,7 @@ func (d *Device) post() error {
 	c := &http.Client{}
 	resp, err := c.Do(req)
 	log.Print("Device.post() ", resp.Status)
-	return err
+	return
 }
 
 var envar = map[string]string{
