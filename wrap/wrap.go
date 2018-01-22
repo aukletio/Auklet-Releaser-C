@@ -150,35 +150,6 @@ func metrics() System { // inboundRate outboundRate
 	return s
 }
 
-func event(evt <-chan Event, state *os.ProcessState) *Event {
-	ws, ok := state.Sys().(syscall.WaitStatus)
-	if !ok {
-		log.Print("expected type syscall.WaitStatus; non-POSIX system?")
-		return nil
-	}
-
-	e := Event{
-		Device:        device.Mac,
-		Status:        ws.ExitStatus(),
-		SystemMetrics: metrics(),
-		Time:          time.Now(),
-		Zone:          device.Zone,
-	}
-
-	if ws.Signaled() {
-		e.Signal = sig(ws.Signal())
-	}
-
-	/*
-		if x, ok := <-evt; ok {
-			log.Print("event: got stacktrace")
-			e.Signal = x.Signal
-			e.Trace = x.Trace
-		}
-	*/
-	return &e
-}
-
 func check(err error) {
 	if err != nil {
 		panic(err)
@@ -242,70 +213,6 @@ func (p *Profile) brand(cksum string) {
 	p.CheckSum = cksum
 	p.IP = device.IP
 	p.Time = time.Now().UnixNano() / 1000000
-}
-
-func logs(wg *sync.WaitGroup, logger io.Writer) error {
-	l, err := net.Listen("unixpacket", "log-"+strconv.Itoa(os.Getpid()))
-	if err != nil {
-		return err
-	}
-	log.Print("logs socket opened")
-	go func() { // wg l logger
-		wg.Add(1)
-		var err error
-		defer func() {
-			if err != nil {
-				log.Println(err)
-			}
-			log.Print("closing logs socket")
-			l.Close()
-			wg.Done()
-		}()
-		c, err := l.Accept()
-		if err != nil {
-			return
-		}
-		log.Print("logs connection accepted")
-		_, err = ioutil.ReadAll(io.TeeReader(c, logger))
-	}()
-	return nil
-}
-
-func stacktrace(wg *sync.WaitGroup, evt chan<- Event) error {
-	s, err := net.Listen("unix", "stacktrace-"+strconv.Itoa(os.Getpid()))
-	if err != nil {
-		return err
-	}
-	log.Print("stacktrace socket opened")
-	go func() { // wg s evt
-		wg.Add(1)
-		var err error
-		defer func() {
-			if err != nil {
-				log.Print(err)
-			}
-			log.Print("closing stacktrace socket")
-			s.Close()
-			close(evt)
-			wg.Done()
-		}()
-		c, err := s.Accept()
-		if err != nil {
-			return
-		}
-		log.Print("stacktrace connection accepted")
-		line := bufio.NewScanner(c)
-		for line.Scan() {
-			var s Event
-			err = json.Unmarshal(line.Bytes(), &s)
-			if err != nil {
-				return
-			}
-			evt <- s
-		}
-		log.Print("stacktrace socket EOF")
-	}()
-	return nil
 }
 
 func Objectify(b []byte) (o Object, err error) {
@@ -735,12 +642,6 @@ func main() {
 
 	err = relay(&wg, s, addr, obj)
 	check(err)
-
-	//err = stacktrace(&wg, evt)
-	//check(err)
-
-	//err = logs(&wg, logger)
-	//check(err)
 
 	err = run(&wg, obj, cmd)
 	check(err)
