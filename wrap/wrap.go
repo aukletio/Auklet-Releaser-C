@@ -220,6 +220,7 @@ func run(obj chan Object, evt chan Event, cmd *exec.Cmd) {
 // Profile represents arbitrary JSON data from the instrument that can be sent
 // to the backend.
 type Profile struct {
+	AppID    string      `json:"app_id"`
 	CheckSum string      `json:"checksum"`
 	IP       string      `json:"public_ip"`
 	UUID     string      `json:"uuid"`
@@ -235,6 +236,7 @@ func (p *Profile) brand() {
 	p.UUID = uuid.NewV4().String()
 	p.CheckSum = cksum
 	p.IP = device.IP
+	p.AppID = envar["APP_ID"]
 	p.Time = time.Now().UnixNano() / 1000000
 }
 
