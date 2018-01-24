@@ -620,7 +620,7 @@ func ifacehash() string {
 		if bytes.Compare(i.HardwareAddr, nil) == 0 {
 			continue
 		}
-		log.Print(i.HardwareAddr)
+		//log.Print(i.HardwareAddr)
 		for h, k := range i.HardwareAddr {
 			sum[h] += k
 		}
@@ -704,8 +704,9 @@ func main() {
 
 	cmd := exec.Command(args[0], args[1:]...)
 
+	obj := manage(cmd)
 	p, err := NewProducer(cmd.Path)
 	check(err)
-	err = p.produce(manage(cmd))
+	err = p.produce(obj)
 	check(err)
 }
