@@ -342,8 +342,9 @@ marshals(B *b, N *sp, int sig)
 {
 	append(b,
 	"{"
+		"\"exit_status\":%d,"
 		"\"signal\":%d,"
-		"\"stack_trace\":[", sig);
+		"\"stack_trace\":[", EXIT_FAILURE, sig);
 	for (N *n = sp; n; n = n->parent) {
 		append(b,
 		"{"

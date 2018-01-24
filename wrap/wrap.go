@@ -107,8 +107,6 @@ type Common struct {
 	UUID     string `json:"uuid"`
 }
 
-type JSON map[string]interface{}
-
 // Event contains data pertaining to the termination of a child process.
 type Event struct {
 	Common
@@ -129,6 +127,12 @@ func (e *Event) brand(cksum string) {
 	e.UUID = uuid.NewV4().String()
 	e.CheckSum = cksum
 	e.IP = device.IP
+
+	e.Device = device.Mac
+
+	e.SystemMetrics = metrics()
+	e.Time = time.Now()
+	e.Zone = device.Zone
 }
 
 func metrics() System { // inboundRate outboundRate
@@ -169,31 +173,51 @@ func relaysigs(cmd *exec.Cmd) {
 	}
 }
 
-func run(wg *sync.WaitGroup, obj chan<- Object, cmd *exec.Cmd) error {
+type SendFn func(Object) error
+
+func run(send SendFn, cmd *exec.Cmd) (err error) {
+	defer log.Print("run exited")
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
 	cmd.Stdin = os.Stdin
-	log.Print("starting child")
-	err := cmd.Start()
+	err = cmd.Start()
 	if err != nil {
-		return err
+		return
 	}
+	log.Print("child started")
 	go relaysigs(cmd)
 	cpu.Percent(0, false)
-	go func() { // wg obj cmd
-		wg.Add(1)
-		var err error
-		defer func() {
-			if err != nil {
-				log.Println(err)
-			}
-			wg.Done()
-		}()
-		cmd.Wait()
-		log.Print("child exited")
-		// need to report cmd.ProcessState to Kafka somehow
-	}()
-	return nil
+	cmd.Wait()
+	log.Print("child exited")
+	// need to report cmd.ProcessState to Kafka somehow
+	ps := cmd.ProcessState
+	ws, ok := ps.Sys().(syscall.WaitStatus)
+	if !ok {
+		err = errors.New("expected type syscall.WaitStatus; non-POSIX system?")
+		return
+	}
+	e := &Event{
+		Status: ws.ExitStatus(),
+	}
+	if ws.Signaled() {
+		if _, in := errsigs[ws.Signal()]; !in {
+			// the child exited with a non-error signal.
+			e.Signal = sig(ws.Signal())
+		} else {
+			// the child exited with an error signal, in
+			// which case we need not send anything here.
+			// Objectify will fill all the relevant fields.
+			return
+		}
+	}
+	err = send(e)
+	return
+}
+
+var errsigs = map[syscall.Signal]struct{}{
+	syscall.SIGSEGV: struct{}{},
+	syscall.SIGILL:  struct{}{},
+	syscall.SIGFPE:  struct{}{},
 }
 
 // Profile represents arbitrary JSON data from the instrument that can be sent
@@ -234,65 +258,106 @@ loop:
 			// redirect to our logger for now
 			log.Println(v)
 			return nil, nil
-		case "signal", "stack_trace":
+		case "exit_status", "signal", "stack_trace":
 			var e Event
 			err = json.Unmarshal(b, &e)
 			if err != nil {
 				return nil, err
 			}
 			return &e, nil
-		default:
-			log.Printf("objectify: couldn't match %v\n", k)
-			fallthrough
 		case "callees", "nsamples", "ncalls":
+			var p Profile
+			err = json.Unmarshal(b, &p.Tree)
+			if err != nil {
+				return nil, err
+			}
+			return &p, nil
+		default:
+			err = errors.New(fmt.Sprintf("objectify: couldn't match %v\n", k))
 			break loop
 		}
 	}
-	var p Profile
-	err = json.Unmarshal(b, &p.Tree)
-	if err != nil {
-		return nil, err
-	}
-	return &p, nil
+	return
 }
 
-func relay(wg *sync.WaitGroup, s net.Listener, addr string, obj chan<- Object) error {
-	go func() { // wg s obj
-		wg.Add(1)
+func relay(s net.Listener, send SendFn) (err error) {
+	defer log.Print("relay exited")
+	c, err := s.Accept()
+	if err != nil {
+		return
+	}
+	log.Printf("socket connection accepted")
+	line := bufio.NewScanner(c)
+	for line.Scan() {
+		o, err := Objectify(line.Bytes())
+		if err != nil {
+			return err
+		}
+		if o == nil {
+			continue
+		}
+		err = send(o)
+		if err != nil {
+			return err
+		}
+	}
+	log.Printf("socket EOF")
+	return
+}
+
+type JobFn func(SendFn) error
+
+func serve(s net.Listener, obj chan<- Object, cmd *exec.Cmd) {
+	send := func(o Object) (err error) {
+		t := time.NewTimer(20 * time.Second)
+		select {
+		case obj <- o:
+			t.Stop()
+		case <-t.C:
+			err = errors.New("obj <- o timed out")
+		}
+		return
+	}
+	var wg sync.WaitGroup
+	wg.Add(2)
+	go func() {
 		var err error
 		defer func() {
 			if err != nil {
-				log.Print(err)
+				log.Println(err)
 			}
-			close(obj)
 			wg.Done()
 		}()
-		c, err := s.Accept()
-		if err != nil {
-			return
-		}
-		log.Printf("%v connection accepted", addr)
-		line := bufio.NewScanner(c)
-		for line.Scan() {
-			o, err := Objectify(line.Bytes())
-			if err != nil {
-				return
-			}
-			if o == nil {
-				continue
-			}
-			t := time.NewTimer(20 * time.Second)
-			select {
-			case obj <- o:
-				t.Stop()
-			case <-t.C:
-				err = errors.New("relay: obj <- &p timed out")
-				return
-			}
-		}
-		log.Printf("%v EOF", addr)
+		err = relay(s, send)
 	}()
-	return nil
+	go func() {
+		var err error
+		defer func() {
+			if err != nil {
+				log.Println(err)
+			}
+			wg.Done()
+		}()
+		err = run(send, cmd)
+	}()
+	wg.Wait()
+}
+
+func manage(cmd *exec.Cmd) (obj chan Object) {
+	obj = make(chan Object, 10)
+	addr := "/tmp/auklet-" + strconv.Itoa(os.Getpid())
+	s, err := net.Listen("unixpacket", addr)
+	check(err)
+	log.Printf("%v opened", addr)
+	go func() {
+		defer func() {
+			log.Printf("%v closing", addr)
+			s.Close()
+			close(obj)
+		}()
+		serve(s, obj, cmd)
+	}()
+	return
 }
 
 func getcerts() (m map[string][]byte, err error) {
@@ -395,8 +460,13 @@ func connect() (p sarama.SyncProducer, err error) {
 	return sarama.NewSyncProducer(brokers, config)
 }
 
-func produce(wg *sync.WaitGroup, obj <-chan Object, path string) (err error) {
-	// Create a Kafka producer with the desired config
+type Producer struct {
+	CheckSum string
+	Dev      *Device
+	P        sarama.SyncProducer
+}
+
+func NewProducer(path string) (p *Producer, err error) {
 	cksum, err := checksum(path)
 	if err != nil {
 		return
@@ -405,54 +475,63 @@ func produce(wg *sync.WaitGroup, obj <-chan Object, path string) (err error) {
 	if err != nil {
 		return
 	}
-	/*
-		if !ok {
-			// unreleased
-			err = errors.New(fmt.Sprintf("checksum %v not released", cksum))
-			return
-		}
-	*/
-	go func() { // wg p path device obj
-		wg.Add(1)
-		p, err := connect()
-		if err != nil {
-			return // bad config or closed client
-		}
-		defer func() {
-			if err != nil {
-				log.Print(err)
-			}
-			p.Close()
-			wg.Done()
-		}()
-		ok, err = device.get()
-		if err != nil {
-			return
-		}
+	if !ok {
+		err = errors.New(fmt.Sprintf("checksum %v... not released", cksum[:10]))
+		return
+	}
+	ok, err = device.get()
+	if err != nil {
+		return
+	}
+	if !ok {
 		err = device.post()
 		if err != nil {
 			return
 		}
-		log.Println("kafka producer connected")
-		// receive Kafka-bound objects from clients
-		for o := range obj {
-			o.brand(cksum)
-			b, err := json.Marshal(o)
-			if err != nil {
-				return
-			}
-			log.Printf("producer got %v bytes: %v", len(b), string(b))
-			//log.Printf("producer got %v bytes", len(b))
-			_, _, err = p.SendMessage(&sarama.ProducerMessage{
-				Topic: o.topic(),
-				Value: sarama.ByteEncoder(b),
-			})
-			if err != nil {
-				return
-			}
+	}
+	sp, err := connect()
+	if err != nil {
+		return // bad config or closed client
+	}
+	p = &Producer{
+		P:        sp,
+		CheckSum: cksum,
+		Dev:      device,
+	}
+	return
+}
+
+func (p *Producer) Close() {
+	p.P.Close()
+}
+
+func (p *Producer) produce(obj <-chan Object) (err error) {
+	// Create a Kafka producer with the desired config
+	defer func() {
+		if err != nil {
+			log.Print(err)
 		}
+		p.Close()
 	}()
-	return nil
+	log.Println("kafka producer connected")
+	// receive Kafka-bound objects from clients
+	for o := range obj {
+		o.brand(p.CheckSum)
+		b, err := json.Marshal(o)
+		if err != nil {
+			return err
+		}
+		log.Printf("producer got %v bytes: %v", len(b), string(b))
+		//log.Printf("producer got %v bytes", len(b))
+		_, _, err = p.P.SendMessage(&sarama.ProducerMessage{
+			Topic: o.topic(),
+			Value: sarama.ByteEncoder(b),
+		})
+		if err != nil {
+			return err
+		}
+	}
+	return
 }
 
 func valid(sum string) (ok bool, err error) {
@@ -624,28 +703,9 @@ func main() {
 	go networkStat()
 
 	cmd := exec.Command(args[0], args[1:]...)
-	obj := make(chan Object)
 
-	var wg sync.WaitGroup
-	var err error
-	addr := "/tmp/auklet-" + strconv.Itoa(os.Getpid())
-	s, err := net.Listen("unixpacket", addr)
+	p, err := NewProducer(cmd.Path)
 	check(err)
-	defer func() {
-		log.Printf("%v closing", addr)
-		s.Close()
-	}()
-
-	log.Printf("%v opened", addr)
-
-	err = relay(&wg, s, addr, obj)
+	err = p.produce(manage(cmd))
 	check(err)
-
-	err = run(&wg, obj, cmd)
-	check(err)
-
-	err = produce(&wg, obj, cmd.Path)
-	check(err)
-
-	wg.Wait()
 }

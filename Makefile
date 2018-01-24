@@ -1,6 +1,6 @@
 include config.mk
 
-all: go x lib_test
+all: go x lib_test test
 
 go:
 	go install ./wrap ./release
