@@ -224,8 +224,9 @@ var errsigs = map[syscall.Signal]struct{}{
 // to the backend.
 type Profile struct {
 	Common
-	Time int64       `json:"timestamp"`
-	Tree interface{} `json:"tree"`
+	Time  int64       `json:"timestamp"`
+	Tree  interface{} `json:"tree"`
+	AppID string      `json:"app_id"`
 }
 
 func (p Profile) topic() string {
@@ -236,6 +237,7 @@ func (p *Profile) brand(cksum string) {
 	p.UUID = uuid.NewV4().String()
 	p.CheckSum = cksum
 	p.IP = device.IP
+	p.AppID = envar["APP_ID"]
 	p.Time = time.Now().UnixNano() / 1000000
 }
 
