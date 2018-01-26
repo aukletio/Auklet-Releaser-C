@@ -88,8 +88,9 @@ emit(void)
 {
 	B b = {0, 0, 0};
 	//dumpN(&root, 0);
+	append(&b, "{\"type\":\"profile\",\"data\":{\"tree\":");
 	marshal(&b, &root);
-	append(&b, "\n");
+	append(&b, "}}\n");
 	if (write(log, b.buf, b.len) == -1) {
 		logprint("emit: write: %s", strerror(errno));
 	}
@@ -101,8 +102,9 @@ static void
 stacktrace(int sig)
 {
 	B b = {0, 0, 0};
+	append(&b, "{\"type\":\"event\",\"data\":");
 	marshals(&b, sp, sig);
-	append(&b, "\n");
+	append(&b, "}\n");
 	if (write(log, b.buf, b.len) == -1) {
 		logprint("stacktrace: write: %s", strerror(errno));
 	}

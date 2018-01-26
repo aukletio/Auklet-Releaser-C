@@ -224,9 +224,9 @@ var errsigs = map[syscall.Signal]struct{}{
 // to the backend.
 type Profile struct {
 	Common
-	Time  int64       `json:"timestamp"`
-	Tree  interface{} `json:"tree"`
-	AppID string      `json:"app_id"`
+	Time  int64           `json:"timestamp"`
+	Tree  json.RawMessage `json:"tree"`
+	AppID string          `json:"app_id"`
 }
 
 func (p Profile) topic() string {
@@ -241,44 +241,36 @@ func (p *Profile) brand(cksum string) {
 	p.Time = time.Now().UnixNano() / 1000000
 }
 
+type InstMsg struct {
+	Type string
+	Data json.RawMessage
+}
+
 func Objectify(b []byte) (o Object, err error) {
-	defer func() {
-		if err != nil {
-			log.Print(err)
-			log.Print(string(b))
-		}
-	}()
-	var m map[string]interface{}
-	err = json.Unmarshal(b, &m)
+	j := InstMsg{}
+	err = json.Unmarshal(b, &j)
 	if err != nil {
 		return
 	}
-loop:
-	for k, v := range m {
-		switch k {
-		case "log": // log
-			// redirect to our logger for now
-			log.Println(v)
-			return nil, nil
-		case "exit_status", "signal", "stack_trace":
-			var e Event
-			err = json.Unmarshal(b, &e)
-			if err != nil {
-				return nil, err
-			}
-			return &e, nil
-		case "callees", "nsamples", "ncalls":
-			var p Profile
-			err = json.Unmarshal(b, &p.Tree)
-			if err != nil {
-				return nil, err
-			}
-			return &p, nil
-		default:
-			err = errors.New(fmt.Sprintf("objectify: couldn't match %v\n", k))
-			break loop
+	switch j.Type {
+	case "log":
+		s := ""
+		err = json.Unmarshal(j.Data, &s)
+		if err != nil {
+			return
 		}
+		// redirect to our logger for now
+		log.Println(s)
+		return
+	case "event":
+		o = &Event{}
+	case "profile":
+		o = &Profile{}
+	default:
+		err = errors.New(fmt.Sprintf("objectify: couldn't match %v\n", j.Type))
+		return
 	}
+	err = json.Unmarshal(j.Data, o)
 	return
 }
 

@@ -363,7 +363,7 @@ logprint(char *fmt, ...)
 	B b = {0, 0, 0};
 	int ret;
 	va_list ap;
-	append(&b, "{\"log\":\"%s\"}\n", fmt);
+	append(&b, "{\"type\":\"log\",\"data\":\"%s\"}\n", fmt);
 	va_start(ap, fmt);
 	ret = vdprintf(log, b.buf, ap);
 	va_end(ap);

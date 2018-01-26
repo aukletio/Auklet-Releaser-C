@@ -11,13 +11,13 @@ func TestObjectify(t *testing.T) {
 		assert func(Object)
 	}{
 		{
-			b:      []byte(`{"signal":11,"stack_trace":[{"fn":42,"cs":56},{"fn":-1987,"cs":32}]}`),
+			b:      []byte(`{"type":"event","data":{"signal":11,"stack_trace":[{"fn":42,"cs":56},{"fn":-1987,"cs":32}]}}`),
 			assert: func(o Object) { _ = o.(*Event) },
 		}, {
-			b:      []byte(`{"nsamples":11,"callees":[{"fn":42,"cs":56,"ncalls":1,"nsamples":10},{"fn":1987,"cs":32,"ncalls":10,"nsamples":1}]}`),
+			b:      []byte(`{"type":"profile","data":{"tree":{"nsamples":11,"callees":[{"fn":42,"cs":56,"ncalls":1,"nsamples":10},{"fn":1987,"cs":32,"ncalls":10,"nsamples":1}]}}}`),
 			assert: func(o Object) { _ = o.(*Profile) },
 		}, {
-			b: []byte(`{"log":"hi mom"}`),
+			b: []byte(`{"type":"log","data":"hi mom"}`),
 			assert: func(o Object) {
 				if o != nil {
 					t.Fail()
