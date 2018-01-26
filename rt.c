@@ -10,7 +10,6 @@
 #include <sys/socket.h>
 #include <sys/time.h>
 #include <sys/un.h>
-#include <unistd.h>
 
 /* macros */
 #define SIGRT(n) (SIGRTMIN + (n))
@@ -67,7 +66,6 @@ static N root = {
 	.empty = 1,
 };
 static __thread N *sp = &root;
-static int sock, stack;
 static sem_t sem;
 static struct {
 	clockid_t clk;
@@ -83,7 +81,7 @@ static struct {
 static void
 setinststate(int s)
 {
-	dprintf(log, "instrument state: %s\n", s ? "on" : "off");
+	logprint("instrument state: %s", s ? "on" : "off");
 	switch (s) {
 	case ON:
 		instenter = push;
@@ -109,7 +107,7 @@ sigprof(int n)
 static void
 sigemit(int n)
 {
-	dprintf(log, "sigemit(%d)\n", n);
+	logprint("sigemit(%d)", n);
 	settimers();
 	sem_post(&sem);
 }
@@ -126,11 +124,12 @@ emit(void)
 		setinststate(OFF);
 		return;
 	}
+	append(&b, "{\"type\":\"profile\",\"data\":{\"tree\":");
 	marshal(&b, &root);
-	append(&b, "\n");
-	//dprintf(log, "emit: %s", b.buf);
-	if (write(sock, b.buf, b.len) == -1)
-		dprintf(log, "emit: write: %s\n", strerror(errno));
+	append(&b, "}}\n");
+	if (write(log, b.buf, b.len) == -1) {
+		logprint("emit: write: %s", strerror(errno));
+	}
 	free(b.buf);
 }
 
@@ -145,11 +144,12 @@ stacktrace(int sig)
 		setinststate(OFF);
 		return;
 	}
+	append(&b, "{\"type\":\"event\",\"data\":");
 	marshals(&b, sp, sig);
-	append(&b, "\n");
-	//dprintf(log, "stacktrace: %s", b.buf);
-	if (write(stack, b.buf, b.len) == -1)
-		dprintf(log, "stacktrace: write: %s\n", strerror(errno));
+	append(&b, "}\n");
+	if (write(log, b.buf, b.len) == -1) {
+		logprint("stacktrace: write: %s", strerror(errno));
+	}
 	free(b.buf);
 }
 
@@ -251,14 +251,14 @@ comm(int type, char *prefix)
 	struct sockaddr_un remote;
 	int l, fd;
 	if ((fd = socket(AF_UNIX, type, 0)) == -1) {
-		dprintf(log, "comm: socket: %s\n", strerror(errno));
+		logprint("comm: socket: %s", strerror(errno));
 		return 0;
 	}
 	remote.sun_family = AF_UNIX;
 	sprintf(remote.sun_path, "%s-%d", prefix, getppid());
 	l = strlen(remote.sun_path) + sizeof(remote.sun_family);
 	if (connect(fd, (struct sockaddr *)&remote, l) == -1) {
-		dprintf(log, "comm: connect: %s\n", strerror(errno));
+		logprint("comm: connect: %s", strerror(errno));
 		return 0;
 	}
 
@@ -273,10 +273,10 @@ setup(void)
 #if defined(FAULT_RATE)
 	srand(FAULT_RATE);
 #endif
-	log = comm(SOCK_SEQPACKET, "log");
-	dprintf(log, "Auklet Instrument version %s (%s)\n", AUKLET_VERSION, AUKLET_TIMESTAMP);
-	sock = comm(SOCK_STREAM, "data");
-	stack = comm(SOCK_STREAM, "stacktrace");
+	log = comm(SOCK_SEQPACKET, "/tmp/auklet");
+	if (!log)
+		;//return;
+	logprint("Auklet Instrument version %s (%s)", AUKLET_VERSION, AUKLET_TIMESTAMP);
 	signals();
 	timers();
 	setinststate(ON);

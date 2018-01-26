@@ -103,7 +103,7 @@ marshals_test(void)
 {
 	int err;
 	B b = {0, 0, 0};
-	char *e = "{\"signal\":11,\"stack_trace\":[{"
+	char *e = "{\"exit_status\":1,\"signal\":11,\"stack_trace\":[{"
 		"\"fn\":44269,"
 		"\"cs\":64222"
 	"},{"

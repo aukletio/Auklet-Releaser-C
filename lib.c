@@ -11,6 +11,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <unistd.h>
 
 /* macros */
 #define len(x) (sizeof(x)/sizeof(x[0]))
@@ -70,6 +71,7 @@ static int append(B *b, char *fmt, ...);
 
 static void marshal(B *b, N *n);
 static void marshals(B *b, N *sp, int sig);
+static int logprint(char *fmt, ...);
 
 static jmp_buf nomem;
 static int log = 0; // stdout, initially
@@ -104,7 +106,7 @@ push(N **sp, F f)
 		c = addcallee(*sp, f);
 		if (!c) {
 			pthread_mutex_unlock(&(*sp)->llist);
-			dprintf(log, "push: couldn't add callee\n");
+			logprint("push: couldn't add callee");
 			return 0;
 		}
 	}
@@ -122,7 +124,7 @@ static int
 pop(N **sp)
 {
 	if (!(*sp)->parent) {
-		dprintf(log, "pop: called with NULL parent\n");
+		logprint("pop: called with NULL parent");
 		return 0;
 	}
 	*sp = (*sp)->parent;
@@ -140,7 +142,7 @@ static N *
 newN(F f)
 {
 	N *n = (N *)malloc(sizeof(N));
-	//dprintf(log, "%p = malloc(%d)\n", n, sizeof(N));
+	//logprint("%p = malloc(%d)", n, sizeof(N));
 	if (!n)
 		return NULL;
 
@@ -161,13 +163,13 @@ dumpN(N *n, unsigned ind)
 {
 	char tab[] = "\t\t\t\t\t\t\t\t\t\t";
 	tab[ind] = '\0';
-	dprintf(log, "%s%p:\n", tab, (void *)n);
-	dprintf(log, "%s    f.fn = %p\n", tab, (void *)n->f.fn);
-	dprintf(log, "%s    f.cs = %p\n", tab, (void *)n->f.cs);
-	dprintf(log, "%s    nsamp = %u\n", tab, n->nsamp);
-	dprintf(log, "%s    ncall = %u\n", tab, n->ncall);
-	dprintf(log, "%s    len/cap = %u/%u\n", tab, n->len, n->cap);
-	dprintf(log, "%s    callee = %p\n", tab, (void *)n->callee);
+	logprint("%s%p:", tab, (void *)n);
+	logprint("%s    f.fn = %p", tab, (void *)n->f.fn);
+	logprint("%s    f.cs = %p", tab, (void *)n->f.cs);
+	logprint("%s    nsamp = %u", tab, n->nsamp);
+	logprint("%s    ncall = %u", tab, n->ncall);
+	logprint("%s    len/cap = %u/%u", tab, n->len, n->cap);
+	logprint("%s    callee = %p", tab, (void *)n->callee);
 	for (int i = 0; i < n->len; ++i)
 		dumpN(n->callee[i], ind + 1);
 }
@@ -181,11 +183,11 @@ killN(N *n, int root)
 {
 	for (int i = 0; i < n->len; ++i)
 		killN(n->callee[i], 0);
-	//dprintf(log, "free(%p)\n", n->callee);
+	//logprint("free(%p)", n->callee);
 	free(n->callee);
 
 	if (!root) {
-		//dprintf(log, "free(%p)\n", n);
+		//logprint("free(%p)", n);
 		free(n);
 	}
 }
@@ -209,7 +211,7 @@ addcallee(N *n, F f)
 	if (n->cap == n->len) {
 		unsigned newcap = n->cap ? 2 * n->cap : 2;
 		N **c = (N **)realloc(n->callee, newcap * sizeof(N *));
-		//dprintf(log, "%p = realloc(%p, %d)\n", c, n->callee, newcap*sizeof(N *));
+		//logprint("%p = realloc(%p, %d)", c, n->callee, newcap*sizeof(N *));
 		if (!c)
 			return NULL;
 		n->callee = c;
@@ -242,7 +244,7 @@ growB(B *b)
 	unsigned newcap = b->cap ? b->cap * 2 : 32;
 	char *c = (char *)realloc(b->buf, newcap * sizeof(char));
 	if (!c) {
-		dprintf(log, "growB: realloc: %s\n", strerror(errno));
+		logprint("growB: realloc: %s", strerror(errno));
 		longjmp(nomem, 1);
 	}
 	b->buf = c;
@@ -346,7 +348,7 @@ sane(N *n)
 	}
 
 	if (n->nsamp < sum) {
-		dprintf(log, "sane: %p->nsamp = %u, sum = %u\n", (void *)n, n->nsamp, sum);
+		logprint("sane: %p->nsamp = %u, sum = %u", (void *)n, n->nsamp, sum);
 		dumpN(n, 0);
 		ok = 0;
 	}
@@ -361,8 +363,9 @@ marshals(B *b, N *sp, int sig)
 {
 	append(b,
 	"{"
+		"\"exit_status\":%d,"
 		"\"signal\":%d,"
-		"\"stack_trace\":[", sig);
+		"\"stack_trace\":[", EXIT_FAILURE, sig);
 	for (N *n = sp; n; n = n->parent) {
 		append(b,
 		"{"
@@ -373,4 +376,18 @@ marshals(B *b, N *sp, int sig)
 	if (',' == b->buf[b->len - 1])
 		--b->len; /* overwrite trailing comma */
 	append(b, "]}");
+}
+
+static int
+logprint(char *fmt, ...)
+{
+	B b = {0, 0, 0};
+	int ret;
+	va_list ap;
+	append(&b, "{\"type\":\"log\",\"data\":\"%s\"}\n", fmt);
+	va_start(ap, fmt);
+	ret = vdprintf(log, b.buf, ap);
+	va_end(ap);
+	free(b.buf);
+	return ret;
 }
