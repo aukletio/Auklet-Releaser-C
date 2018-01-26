@@ -20,11 +20,18 @@ enum {
 	VIRT,
 };
 
+enum {
+	OFF,
+	ON,
+};
+
 /* function declarations */
+static void setinststate(int s);
 static void sigprof(int n);
 static void signals(void);
 static void siginstall(int sig, void (*handler)(int));
 static void emit(void);
+static void stacktrace(int sig);
 static void *timer(void *);
 static void timers(void);
 static void mktimers(void);
@@ -32,15 +39,19 @@ static void settimers(void);
 static void setup(void);
 static void cleanup(void);
 
-static void enternop(N **sp, F f) {}
-static F exitnop(N **sp) {}
+static int enternop(N **sp, F f) {}
+static int exitnop(N **sp) {}
+static void emitnop(void) {}
+static void stacknop(int n) {}
 
 void __cyg_profile_func_enter(void *fn, void *cs);
 void __cyg_profile_func_exit(void *fn, void *cs);
 
 /* global variables */
-static void (*instenter)(N **sp, F f) = enternop;
-static F (*instexit)(N **sp) = exitnop;
+static int (*instenter)(N **sp, F f) = enternop;
+static int (*instexit)(N **sp) = exitnop;
+static void (*instemit)(void) = emitnop;
+static void (*inststack)(int) = stacknop;
 static N root = {
 	.f = {0, 0},
 	.parent = NULL,
@@ -52,6 +63,7 @@ static N root = {
 	.cap = 0,
 	.len = 0,
 	.ncall = 0,
+	.empty = 1,
 };
 static __thread N *sp = &root;
 static sem_t sem;
@@ -65,8 +77,26 @@ static struct {
 	[VIRT] = {CLOCK_PROCESS_CPUTIME_ID, {.tv_sec =  1, .tv_nsec = 0}},
 };
 
-
 /* function definitions */
+static void
+setinststate(int s)
+{
+	logprint("instrument state: %s", s ? "on" : "off");
+	switch (s) {
+	case ON:
+		instenter = push;
+		instexit = pop;
+		instemit = emit;
+		inststack = stacktrace;
+		break;
+	case OFF:
+		instenter = enternop;
+		instexit = exitnop;
+		instemit = emitnop;
+		inststack = stacknop;
+	}
+}
+
 /* Increment sample counters in the stack of the current thread. */
 static void
 sigprof(int n)
@@ -86,8 +116,14 @@ sigemit(int n)
 static void
 emit(void)
 {
+	int err;
 	B b = {0, 0, 0};
 	//dumpN(&root, 0);
+	err = setjmp(nomem);
+	if (err) {
+		setinststate(OFF);
+		return;
+	}
 	append(&b, "{\"type\":\"profile\",\"data\":{\"tree\":");
 	marshal(&b, &root);
 	append(&b, "}}\n");
@@ -101,7 +137,13 @@ emit(void)
 static void
 stacktrace(int sig)
 {
+	int err;
 	B b = {0, 0, 0};
+	err = setjmp(nomem);
+	if (err) {
+		setinststate(OFF);
+		return;
+	}
 	append(&b, "{\"type\":\"event\",\"data\":");
 	marshals(&b, sp, sig);
 	append(&b, "}\n");
@@ -115,7 +157,7 @@ stacktrace(int sig)
 static void
 sigerr(int n)
 {
-	stacktrace(n);
+	inststack(n);
 	_exit(EXIT_FAILURE);
 }
 
@@ -163,7 +205,7 @@ timer(void *p)
 	pthread_sigmask(SIG_BLOCK, &s, NULL);
 	while (1) {
 		sem_wait(&sem);
-		emit();
+		instemit();
 	}
 }
 
@@ -228,14 +270,16 @@ __attribute__ ((constructor (101)))
 static void
 setup(void)
 {
+#if defined(FAULT_RATE)
+	srand(FAULT_RATE);
+#endif
 	log = comm(SOCK_SEQPACKET, "/tmp/auklet");
 	if (!log)
 		;//return;
 	logprint("Auklet Instrument version %s (%s)", AUKLET_VERSION, AUKLET_TIMESTAMP);
 	signals();
 	timers();
-	instenter = push;
-	instexit = pop;
+	setinststate(ON);
 }
 
 /* Clean up the profiler runtime. */
@@ -243,8 +287,7 @@ __attribute__ ((destructor (101)))
 static void
 cleanup(void)
 {
-	instenter = enternop;
-	instexit = exitnop;
+	setinststate(OFF);
 	killN(&root, 1);
 }
 
@@ -256,11 +299,13 @@ __cyg_profile_func_enter(void *fn, void *cs)
 		.fn = (uintptr_t)fn,
 		.cs = (uintptr_t)cs,
 	};
-	instenter(&sp, f);
+	if (!instenter(&sp, f))
+		setinststate(OFF);
 }
 
 void
 __cyg_profile_func_exit(void *fn, void *cs)
 {
-	instexit(&sp);
+	if (!instexit(&sp))
+		setinststate(OFF);
 }
