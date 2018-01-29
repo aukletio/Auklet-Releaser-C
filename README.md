@@ -1,5 +1,22 @@
 # Change Log
 
+## [Upcoming Changes](https://github.com/ESG-USA/Auklet-Profiler-C/tree/master)
+
+[Full Changelog](https://github.com/ESG-USA/Auklet-Profiler-C/compare/0.1.0...master)
+
+**Implemented enhancements:**
+
+- wrap.go: Add app\_id to profile struct [\#49](https://github.com/ESG-USA/Auklet-Profiler-C/pull/49) ([kdsch](https://github.com/kdsch))
+- APM-947 Allow child to run while Kafka producer initializes [\#42](https://github.com/ESG-USA/Auklet-Profiler-C/pull/42) ([kdsch](https://github.com/kdsch))
+
+**Fixed bugs:**
+
+- APM-950 instrument: Remove all calls to exit\(\) [\#45](https://github.com/ESG-USA/Auklet-Profiler-C/pull/45) ([kdsch](https://github.com/kdsch))
+
+**Merged pull requests:**
+
+- Streamline Customer-Facing Documentation [\#23](https://github.com/ESG-USA/Auklet-Profiler-C/pull/23) ([kdsch](https://github.com/kdsch))
+
 ## [0.1.0](https://github.com/ESG-USA/Auklet-Profiler-C/tree/0.1.0) (Tue Jan 16 21:31:32 2018 UTC)
 **Implemented enhancements:**
 
