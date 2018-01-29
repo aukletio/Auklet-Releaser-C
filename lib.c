@@ -5,11 +5,13 @@
 /* headers */
 #include <errno.h>
 #include <pthread.h>
+#include <setjmp.h>
 #include <stdarg.h>
 #include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <unistd.h>
 
 /* macros */
 #define len(x) (sizeof(x)/sizeof(x[0]))
@@ -22,27 +24,27 @@ typedef struct {
 
 /* Type N represents a node in a stacktree. A stacktree is an aggregation of
  * stacktraces. Stack pointers (type (N *)) should be declared thread-specific
- * (__thread). */
+ * (__thread). Mutex locks prefixed with l are used to avoid races between
+ * instrumented threads. */
 typedef struct n { 
 	F f; 
 	struct n *parent;
 
-	/* If two sigprof calls run at the same time (in different threads),
-	 * there is a possible data race on nsamp. */
+	/* lsamp guards nsamp in sample, marshal, and sane. */
 	pthread_mutex_t lsamp;
 	unsigned nsamp;
 
-	/* push locks l to prevent races in the callee list. Contention, but not
-	 * deadlock, is possible if two threads push at the same stack pointer. */
+	/* llist guards callee, cap, and len in push. */
 	pthread_mutex_t llist;
 	struct n **callee;
 	unsigned cap, len;
 
-	/* push modifies ncall only when it has acquired l, to avoid races
-	 * between threads. */
+	/* lcall guards ncall in push. */
 	pthread_mutex_t lcall;
 	unsigned ncall;
 
+	/* A node is empty if nsamp == ncall == 0 for itself and all of its
+	 * children. */
 	int empty;
 } N;
 
@@ -53,69 +55,80 @@ typedef struct {
 } B;
 
 /* function declarations */
-static void push(N **sp, F f);
-static F pop(N **sp);
+static int push(N **sp, F f);
+static int pop(N **sp);
 static int eqF(F a, F b);
 static N *newN(F f);
+static void dumpN(N *n, unsigned ind);
 static void killN(N *n, int root);
 static N *hascallee(N *n, F f);
 static N *addcallee(N *n, F f);
 static void sample(N *sp);
 static void setnotempty(N *n);
 
-static int growB(B *b);
+static void growB(B *b);
 static int append(B *b, char *fmt, ...);
 
-static int marshaln(B *b, N *n);
-static int marshalc(B *b, N *n);
-static int marshal(B *b, N *n);
+static void marshal(B *b, N *n);
+static void marshals(B *b, N *sp, int sig);
+static int logprint(char *fmt, ...);
 
+static jmp_buf nomem;
 static int log = 0; // stdout, initially
 
 /* function definitions */
-void
-mcheck(int (*op)(pthread_mutex_t *), pthread_mutex_t *m)
+#if defined(FAULT_RATE)
+static void *
+fault_inject(void *p)
 {
-	int ret = op(m);
-	if (ret) {
-		char *msg = strerror(ret);
-		dprintf(log, "mcheck: ret = %d, msg = %s\n", ret, msg);
-		exit(1);
+	if (!p)
+		return NULL;
+	if (rand() < RAND_MAX/FAULT_RATE) {
+		dprintf(log, "fault injected\n");
+		free(p);
+		errno = ENOMEM;
+		return NULL;
 	}
+	return p;
 }
+#define malloc(size)       fault_inject(malloc(size))
+#define realloc(ptr, size) fault_inject(realloc((ptr), (size)))
+#endif
 
-/* Push a frame f onto a stack defined by sp. */
-static void
+/* Push a frame f onto a stack defined by sp. Return 0 if the push failed,
+ * otherwise 1. */
+static int
 push(N **sp, F f)
 {
-	mcheck(pthread_mutex_lock, &(*sp)->llist);
+	pthread_mutex_lock(&(*sp)->llist);
 	N *c = hascallee(*sp, f);
 	if (!c) {
 		c = addcallee(*sp, f);
 		if (!c) {
-			dprintf(log, "push: couldn't add callee\n");
-			exit(1);
+			pthread_mutex_unlock(&(*sp)->llist);
+			logprint("push: couldn't add callee");
+			return 0;
 		}
 	}
-	mcheck(pthread_mutex_unlock, &(*sp)->llist);
-	mcheck(pthread_mutex_lock, &c->lcall);
+	pthread_mutex_unlock(&(*sp)->llist);
+	pthread_mutex_lock(&c->lcall);
 	++c->ncall;
-	mcheck(pthread_mutex_unlock, &c->lcall);
+	pthread_mutex_unlock(&c->lcall);
 	*sp = c;
 	setnotempty(*sp);
+	return 1;
 }
 
 /* Pop a frame off a stack sp. */
-static F
+static int
 pop(N **sp)
 {
-	F f = (*sp)->f;
 	if (!(*sp)->parent) {
-		dprintf(log, "pop: called with NULL parent\n");
-		exit(1);
+		logprint("pop: called with NULL parent");
+		return 0;
 	}
 	*sp = (*sp)->parent;
-	return f;
+	return 1;
 }
 
 static int
@@ -129,7 +142,7 @@ static N *
 newN(F f)
 {
 	N *n = (N *)malloc(sizeof(N));
-	//dprintf(log, "%p = malloc(%d)\n", n, sizeof(N));
+	//logprint("%p = malloc(%d)", n, sizeof(N));
 	if (!n)
 		return NULL;
 
@@ -140,6 +153,7 @@ newN(F f)
 	n->llist = (pthread_mutex_t)PTHREAD_MUTEX_INITIALIZER;
 	n->lsamp = (pthread_mutex_t)PTHREAD_MUTEX_INITIALIZER;
 	n->lcall = (pthread_mutex_t)PTHREAD_MUTEX_INITIALIZER;
+	n->empty = 1;
 	return n;
 }
 
@@ -149,30 +163,31 @@ dumpN(N *n, unsigned ind)
 {
 	char tab[] = "\t\t\t\t\t\t\t\t\t\t";
 	tab[ind] = '\0';
-	dprintf(log, "%s%p:\n", tab, (void *)n);
-	dprintf(log, "%s    f.fn = %p\n", tab, (void *)n->f.fn);
-	dprintf(log, "%s    f.cs = %p\n", tab, (void *)n->f.cs);
-	dprintf(log, "%s    nsamp = %u\n", tab, n->nsamp);
-	dprintf(log, "%s    ncall = %u\n", tab, n->ncall);
-	dprintf(log, "%s    len/cap = %u/%u\n", tab, n->len, n->cap);
-	dprintf(log, "%s    callee = %p\n", tab, (void *)n->callee);
+	logprint("%s%p:", tab, (void *)n);
+	logprint("%s    f.fn = %p", tab, (void *)n->f.fn);
+	logprint("%s    f.cs = %p", tab, (void *)n->f.cs);
+	logprint("%s    nsamp = %u", tab, n->nsamp);
+	logprint("%s    ncall = %u", tab, n->ncall);
+	logprint("%s    len/cap = %u/%u", tab, n->len, n->cap);
+	logprint("%s    callee = %p", tab, (void *)n->callee);
 	for (int i = 0; i < n->len; ++i)
 		dumpN(n->callee[i], ind + 1);
 }
 
-/* Delete a node n and its callees. */
+/* Delete a node n and its callees. If root is 0, free the children of the given
+ * node, but not the node itself. This allows us to avoid freeing the
+ * statically-allocated root node that is required for thread-local storage
+ * initialization. */
 static void
 killN(N *n, int root)
 {
 	for (int i = 0; i < n->len; ++i)
 		killN(n->callee[i], 0);
-	//dprintf(log, "free(%p)\n", n->callee);
+	//logprint("free(%p)", n->callee);
 	free(n->callee);
 
-	/* allows us to avoid freeing the statically-allocated root
- 	* (necessary for TLS initialization) */
 	if (!root) {
-		//dprintf(log, "free(%p)\n", n);
+		//logprint("free(%p)", n);
 		free(n);
 	}
 }
@@ -187,7 +202,8 @@ hascallee(N *n, F f)
 	return NULL;
 }
 
-/* Add to node n a callee with frame f. */
+/* Add to node n a callee with frame f. If there is a memory allocation error,
+ * return NULL, otherwise, a pointer to the created node. */
 static N *
 addcallee(N *n, F f)
 {
@@ -195,7 +211,7 @@ addcallee(N *n, F f)
 	if (n->cap == n->len) {
 		unsigned newcap = n->cap ? 2 * n->cap : 2;
 		N **c = (N **)realloc(n->callee, newcap * sizeof(N *));
-		//dprintf(log, "%p = realloc(%p, %d)\n", c, n->callee, newcap*sizeof(N *));
+		//logprint("%p = realloc(%p, %d)", c, n->callee, newcap*sizeof(N *));
 		if (!c)
 			return NULL;
 		n->callee = c;
@@ -210,33 +226,34 @@ addcallee(N *n, F f)
 	return new;
 }
 
-/* Increments nsamp in the stack defined by sp. */
+/* Increment nsamp in the stack defined by sp. */
 static void
 sample(N *sp)
 {
 	for (N *n = sp; n; n = n->parent) {
-		mcheck(pthread_mutex_lock, &n->lsamp);
+		pthread_mutex_lock(&n->lsamp);
 		++n->nsamp;
-		mcheck(pthread_mutex_unlock, &n->lsamp);
+		pthread_mutex_unlock(&n->lsamp);
 	}
 }
 
-/* Grow a buffer. */
-static int
+/* Grow a buffer. If there is a memory allocation error, jump to nomem. */
+static void
 growB(B *b)
 {
 	unsigned newcap = b->cap ? b->cap * 2 : 32;
 	char *c = (char *)realloc(b->buf, newcap * sizeof(char));
 	if (!c) {
-		dprintf(log, "growB: realloc: %s\n", strerror(errno));
-		return 0;
+		logprint("growB: realloc: %s", strerror(errno));
+		longjmp(nomem, 1);
 	}
 	b->buf = c;
 	b->cap = newcap;
-	return 1;
 }
 
-/* Append a formatted string to buffer b. */
+/* Append a formatted string to buffer b. Return the number of characters
+ * written. It is assumed that the arguments would result
+ * in writing at least one character. */
 static int
 append(B *b, char *fmt, ...)
 {
@@ -246,8 +263,7 @@ retry:
 	va_start(ap, fmt);
 	wc = vsnprintf(b->buf + b->len, b->cap - b->len, fmt, ap);
 	if (wc >= b->cap - b->len) {
-		if (!growB(b))
-			return 0;
+		growB(b);
 		goto retry;
 	}
 	va_end(ap);
@@ -263,7 +279,9 @@ setnotempty(N *n)
 		setnotempty(n->parent);
 }
 
-static int
+/* Marshal the given tree n to JSON. The caller is required to first
+ * call setjmp(nomem) to catch memory allocation errors. */
+static void
 marshal(B *b, N *n)
 {
 	append(b, "{");
@@ -274,15 +292,15 @@ marshal(B *b, N *n)
 	if (n->f.cs)
 		append(b, "\"cs\":%ld,", (unsigned long)n->f.cs);
 
-	mcheck(pthread_mutex_lock, &n->lcall);
+	pthread_mutex_lock(&n->lcall);
 	if (n->ncall)
 		append(b, "\"ncalls\":%u,", n->ncall);
-	mcheck(pthread_mutex_unlock, &n->lcall);
+	pthread_mutex_unlock(&n->lcall);
 
-	mcheck(pthread_mutex_lock, &n->lsamp);
+	pthread_mutex_lock(&n->lsamp);
 	if (n->nsamp)
 		append(b, "\"nsamples\":%u,", n->nsamp);
-	mcheck(pthread_mutex_unlock, &n->lsamp);
+	pthread_mutex_unlock(&n->lsamp);
 
 	/* It's convenient, but hacky, to clear the counters here while we're
 	 * walking the tree. All counters are cleared after a tree is emitted,
@@ -292,7 +310,7 @@ marshal(B *b, N *n)
 	n->nsamp = 0;
 	n->empty = 1;
 
-	mcheck(pthread_mutex_lock, &n->llist);
+	pthread_mutex_lock(&n->llist);
 	if (n->len) {
 		append(b, "\"callees\":[");
 		for (int i = 0; i < n->len; ++i) {
@@ -308,18 +326,21 @@ marshal(B *b, N *n)
 		if (',' == b->buf[b->len - 1])
 			b->len -= 1;
 	}
-	mcheck(pthread_mutex_unlock, &n->llist);
+	pthread_mutex_unlock(&n->llist);
 
 	append(b, "}");
 }
 
+/* Return whether the given tree satisfies the property that each parent node's
+ * nsamp counter is greater than or equal to the sum of the nsamp counters of
+ * its children. */
 static int
 sane(N *n)
 {
 	int ok = 1;
 	unsigned sum = 0;
 
-	mcheck(pthread_mutex_lock, &n->lsamp);
+	pthread_mutex_lock(&n->lsamp);
 	for (int i = 0; i < n->len; ++i) {
 		if (!sane(n->callee[i]))
 			ok = 0;
@@ -327,21 +348,24 @@ sane(N *n)
 	}
 
 	if (n->nsamp < sum) {
-		dprintf(log, "sane: %p->nsamp = %u, sum = %u\n", (void *)n, n->nsamp, sum);
+		logprint("sane: %p->nsamp = %u, sum = %u", (void *)n, n->nsamp, sum);
 		dumpN(n, 0);
 		ok = 0;
 	}
-	mcheck(pthread_mutex_unlock, &n->lsamp);
+	pthread_mutex_unlock(&n->lsamp);
 	return ok;
 }
 
-static int
+/* Marshal a stacktrace to JSON. The caller is required to first call 
+ * setjmp(nomem) to handle memory allocation errors. */
+static void
 marshals(B *b, N *sp, int sig)
 {
 	append(b,
 	"{"
+		"\"exit_status\":%d,"
 		"\"signal\":%d,"
-		"\"stack_trace\":[", sig);
+		"\"stack_trace\":[", EXIT_FAILURE, sig);
 	for (N *n = sp; n; n = n->parent) {
 		append(b,
 		"{"
@@ -352,4 +376,18 @@ marshals(B *b, N *sp, int sig)
 	if (',' == b->buf[b->len - 1])
 		--b->len; /* overwrite trailing comma */
 	append(b, "]}");
+}
+
+static int
+logprint(char *fmt, ...)
+{
+	B b = {0, 0, 0};
+	int ret;
+	va_list ap;
+	append(&b, "{\"type\":\"log\",\"data\":\"%s\"}\n", fmt);
+	va_start(ap, fmt);
+	ret = vdprintf(log, b.buf, ap);
+	va_end(ap);
+	free(b.buf);
+	return ret;
 }
