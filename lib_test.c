@@ -17,8 +17,9 @@ callee_test(void)
 	//dumpN(root, 0);
 	N *g = hascallee(root, f);
 	int ret = 1;
+
 	if (c != g) {
-		printf("callee_test: expected %p, got %p\n", (void *)c, (void *)g);
+		printf("%s: expected %p, got %p\n", __func__, (void *)c, (void *)g);
 		ret = 0;
 	}
 	killN(root, 0);
@@ -28,18 +29,23 @@ callee_test(void)
 int
 marshal_test(void)
 {
-	N *root = newN(z);
+	int err;
 	B b = {0, 0, 0};
 	char *e = "{}";
 	int ret = 1;
-	if (!marshal(&b, root)) {
-		printf("marshal_test: marshal failed\n");
+	err = setjmp(nomem);
+	if (err) {
+		printf("%s: marshal failed\n", __func__);
 		ret = 0;
+		goto end;
 	}
+	N *root = newN(z);
+	marshal(&b, root);
 	if (strcmp(b.buf, e)) {
-		printf("marshal_test: expected \"%s\", got \"%s\"\n", e, b.buf);
+		printf("%s: expected \"%s\", got \"%s\"\n", __func__, e, b.buf);
 		ret = 0;
 	}
+end:
 	killN(root, 0);
 	free(b.buf);
 	return ret;
@@ -48,33 +54,42 @@ marshal_test(void)
 int
 marshal_test2(void)
 {
-	N *root = newN(z);
+	int err;
 	B b = {0, 0, 0};
 	char *e = "{\"callees\":[{"
 		"\"fn\":44269,"
-		"\"cs\":64222"
+		"\"cs\":64222,"
+		"\"ncalls\":1"
 	"}]}";
 	int ret = 1;
-	addcallee(root, f);
-	if (!marshal(&b, root)) {
-		printf("marshal_test2: marshal failed\n");
+
+	err = setjmp(nomem);
+	if (err) {
+		printf("%s: marshal failed\n", __func__);
 		ret = 0;
+		goto end;
 	}
+	N *root = newN(z);
+	N *sp = root;
+	push(&sp, f);
+	//addcallee(root, f);
+	marshal(&b, root);
 	if (strcmp(b.buf, e)) {
-		printf("marshal_test2: expected \"%s\"\n"
-		       "               got      \"%s\"\n", e, b.buf);
+		printf("%s:\n"
+		       "expected \"%s\"\n"
+		       "got      \"%s\"\n", __func__, e, b.buf);
 		ret = 0;
 	}
+end:
 	killN(root, 0);
 	free(b.buf);
 	return ret;
 }
 
-static int
+int
 sample_test(void)
 {
 	N *root = newN(z);
-	root->parent = NULL; /* This can be taken out after #22 is merged. */
 	int ret = 1;
 	N *sp = addcallee(addcallee(root, f), f);
 	sample(sp);
@@ -86,9 +101,9 @@ sample_test(void)
 int
 marshals_test(void)
 {
-	N *root = newN(z);
+	int err;
 	B b = {0, 0, 0};
-	char *e = "{\"signal\":11,\"stack_trace\":[{"
+	char *e = "{\"exit_status\":1,\"signal\":11,\"stack_trace\":[{"
 		"\"fn\":44269,"
 		"\"cs\":64222"
 	"},{"
@@ -99,17 +114,23 @@ marshals_test(void)
 		"\"cs\":0"
 	"}]}";
 	int ret = 1;
-	N *sp = addcallee(addcallee(root, f), f);
-	if (!marshals(&b, sp, 11)) {
+
+	err = setjmp(nomem);
+	if (err) {
 		printf("%s: marshals failed\n", __func__);
 		ret = 0;
+		goto end;
 	}
+	N *root = newN(z);
+	N *sp = addcallee(addcallee(root, f), f);
+	marshals(&b, sp, 11);
 	if (strcmp(b.buf, e)) {
 		printf("%s:\n"
 		       "    expected \"%s\"\n"
 		       "    got      \"%s\"\n", __func__, e, b.buf);
 		ret = 0;
 	}
+end:
 	killN(root, 0);
 	free(b.buf);
 	return ret;
