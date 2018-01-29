@@ -63,9 +63,6 @@ file, `.auklet`, and sourced from within `.env`. For example:
 	export AUKLET_BROKERS=broker1,broker2,broker3
 	export AUKLET_PROF_TOPIC=z8u1-profiler
 	export AUKLET_EVENT_TOPIC=z8u1-events
-	export AUKLET_CA=LS0tLS1CRUdJTiBDRVJUSUZJQ0FURS...
-	export AUKLET_CERT=LS0tLS1CRUdJTiBDRVJUSUZJQ0FU...
-	export AUKLET_PRIVATE_KEY=LS0tLS1CRUdJTiBQUklW...
 
 ## `AUKLET_BROKERS`
 
@@ -76,13 +73,6 @@ A comma-delimited list of broker addresses. For example:
 ## `AUKLET_EVENT_TOPIC`, `AUKLET_PROF_TOPIC`
 
 Topics to which `wrap` should send event and profile data, respectively.
-
-## `AUKLET_CA`, `AUKLET_CERT`, `AUKLET_PRIVATE_KEY`
-
-Base64-encoded [PEM][pem]-format certs that `wrap` uses to authenticate its
-connection.
-
-[pem]: https://en.wikipedia.org/wiki/Privacy-enhanced_Electronic_Mail
 
 # Assign a Configuration
 
