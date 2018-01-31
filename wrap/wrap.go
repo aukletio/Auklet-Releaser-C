@@ -199,25 +199,26 @@ func run(send SendFn, cmd *exec.Cmd) (err error) {
 	e := &Event{
 		Status: ws.ExitStatus(),
 	}
-	if ws.Signaled() {
-		if _, in := errsigs[ws.Signal()]; !in {
-			// the child exited with a non-error signal.
-			e.Signal = sig(ws.Signal())
-		} else {
-			// the child exited with an error signal, in
-			// which case we need not send anything here.
-			// Objectify will fill all the relevant fields.
-			return
-		}
-	}
-	err = send(e)
-	return
-}
 
-var errsigs = map[syscall.Signal]struct{}{
-	syscall.SIGSEGV: struct{}{},
-	syscall.SIGILL:  struct{}{},
-	syscall.SIGFPE:  struct{}{},
+	// "Signaled" means that the process was killed by not handling a signal
+	// whose default action is termination. When the instrument calls _exit
+	// inside a signal handler, the OS does not consider the process to be
+	// "Signaled".
+	if ws.Signaled() {
+		e.Signal = sig(ws.Signal())
+		// The child exited with a terminating signal that is not one of
+		// the signals we handle. This is not expected to be a typical
+		// case.
+		err = send(e)
+	} else {
+		// "Normal" exit according to the OS, but could be signaled or
+		// not. We have no way of telling if any signal was delivered,
+		// so the best we can do at the moment is not send an event.  If
+		// the instrument caught a signal, then Objectify will generate
+		// the corresponding event. This scheme avoids sending two exit
+		// events to the backend.
+	}
+	return
 }
 
 // Profile represents arbitrary JSON data from the instrument that can be sent
