@@ -217,7 +217,6 @@ func Objectify(b []byte, wait WaitFn, send SendFn) (done bool, err error) {
 		log.Println(s)
 	case "event":
 		ws := wait()
-		log.Print("child exited")
 		done = true
 		e := &Event{}
 		err = json.Unmarshal(j.Data, e)
@@ -242,16 +241,16 @@ func Objectify(b []byte, wait WaitFn, send SendFn) (done bool, err error) {
 type WaitFn func() syscall.WaitStatus
 
 func relay(s net.Listener, send SendFn, cmd *exec.Cmd) (err error) {
-	defer log.Print("relay exited")
 	err = cmd.Start()
 	if err != nil {
 		return
 	}
+	log.Print("child started")
 	wait := func() syscall.WaitStatus {
 		cmd.Wait()
+		log.Print("child exited")
 		return cmd.ProcessState.Sys().(syscall.WaitStatus)
 	}
-	log.Print("child started")
 	go relaysigs(cmd)
 	cpu.Percent(0, false)
 	c, err := s.Accept()
@@ -273,7 +272,6 @@ func relay(s net.Listener, send SendFn, cmd *exec.Cmd) (err error) {
 	}
 	log.Printf("socket EOF")
 	ws := wait()
-	log.Print("child exited")
 	e := &Event{
 		Status: ws.ExitStatus(),
 	}
