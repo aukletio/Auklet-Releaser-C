@@ -20,7 +20,6 @@ import (
 	"os/signal"
 	"strconv"
 	"strings"
-	"sync"
 	"syscall"
 	"time"
 
@@ -112,9 +111,9 @@ type Event struct {
 	Common
 	Time          time.Time   `json:"timestamp"`
 	Zone          string      `json:"timezone"`
-	Status        int         `json:"exit_status"`
-	Signal        sig         `json:"signal,omitempty"`
-	Trace         interface{} `json:"stack_trace,omitempty"`
+	Status        int         `json:"exit_status"`           // waitstatus
+	Signal        sig         `json:"signal,omitempty"`      // waitstatus | json
+	Trace         interface{} `json:"stack_trace,omitempty"` // json
 	Device        string      `json:"mac_address_hash,omitempty"`
 	SystemMetrics System      `json:"system_metrics"`
 }
@@ -175,51 +174,6 @@ func relaysigs(cmd *exec.Cmd) {
 
 type SendFn func(Object) error
 
-func run(send SendFn, cmd *exec.Cmd) (err error) {
-	defer log.Print("run exited")
-	cmd.Stdout = os.Stdout
-	cmd.Stderr = os.Stderr
-	cmd.Stdin = os.Stdin
-	err = cmd.Start()
-	if err != nil {
-		return
-	}
-	log.Print("child started")
-	go relaysigs(cmd)
-	cpu.Percent(0, false)
-	cmd.Wait()
-	log.Print("child exited")
-	// need to report cmd.ProcessState to Kafka somehow
-	ps := cmd.ProcessState
-	ws, ok := ps.Sys().(syscall.WaitStatus)
-	if !ok {
-		err = errors.New("expected type syscall.WaitStatus; non-POSIX system?")
-		return
-	}
-	e := &Event{
-		Status: ws.ExitStatus(),
-	}
-	if ws.Signaled() {
-		if _, in := errsigs[ws.Signal()]; !in {
-			// the child exited with a non-error signal.
-			e.Signal = sig(ws.Signal())
-		} else {
-			// the child exited with an error signal, in
-			// which case we need not send anything here.
-			// Objectify will fill all the relevant fields.
-			return
-		}
-	}
-	err = send(e)
-	return
-}
-
-var errsigs = map[syscall.Signal]struct{}{
-	syscall.SIGSEGV: struct{}{},
-	syscall.SIGILL:  struct{}{},
-	syscall.SIGFPE:  struct{}{},
-}
-
 // Profile represents arbitrary JSON data from the instrument that can be sent
 // to the backend.
 type Profile struct {
@@ -246,7 +200,7 @@ type InstMsg struct {
 	Data json.RawMessage
 }
 
-func Objectify(b []byte) (o Object, err error) {
+func Objectify(b []byte, wait WaitFn, send SendFn) (done bool, err error) {
 	j := InstMsg{}
 	err = json.Unmarshal(b, &j)
 	if err != nil {
@@ -261,21 +215,44 @@ func Objectify(b []byte) (o Object, err error) {
 		}
 		// redirect to our logger for now
 		log.Println(s)
-		return
 	case "event":
-		o = &Event{}
+		ws := wait()
+		done = true
+		e := &Event{}
+		err = json.Unmarshal(j.Data, e)
+		if err != nil {
+			return
+		}
+		e.Status = ws.ExitStatus()
+		send(e)
 	case "profile":
-		o = &Profile{}
+		p := &Profile{}
+		err = json.Unmarshal(j.Data, p)
+		if err != nil {
+			return
+		}
+		send(p)
 	default:
 		err = errors.New(fmt.Sprintf("objectify: couldn't match %v\n", j.Type))
-		return
 	}
-	err = json.Unmarshal(j.Data, o)
 	return
 }
 
-func relay(s net.Listener, send SendFn) (err error) {
-	defer log.Print("relay exited")
+type WaitFn func() syscall.WaitStatus
+
+func relay(s net.Listener, send SendFn, cmd *exec.Cmd) (err error) {
+	err = cmd.Start()
+	if err != nil {
+		return
+	}
+	log.Print("child started")
+	wait := func() syscall.WaitStatus {
+		cmd.Wait()
+		log.Print("child exited")
+		return cmd.ProcessState.Sys().(syscall.WaitStatus)
+	}
+	go relaysigs(cmd)
+	cpu.Percent(0, false)
 	c, err := s.Accept()
 	if err != nil {
 		return
@@ -283,25 +260,31 @@ func relay(s net.Listener, send SendFn) (err error) {
 	log.Printf("socket connection accepted")
 	line := bufio.NewScanner(c)
 	for line.Scan() {
-		o, err := Objectify(line.Bytes())
+		done, err := Objectify(line.Bytes(), wait, send)
 		if err != nil {
 			return err
 		}
-		if o == nil {
-			continue
-		}
-		err = send(o)
-		if err != nil {
-			return err
+		if done {
+			// The instrument sent a stacktrace, so we don't need to
+			// wait for EOF; return immediately.
+			return nil
 		}
 	}
 	log.Printf("socket EOF")
+	ws := wait()
+	e := &Event{
+		Status: ws.ExitStatus(),
+	}
+	if ws.Signaled() {
+		e.Signal = sig(ws.Signal())
+	}
+	err = send(e)
 	return
 }
 
 type JobFn func(SendFn) error
 
-func serve(s net.Listener, obj chan<- Object, cmd *exec.Cmd) {
+func serve(s net.Listener, obj chan<- Object, cmd *exec.Cmd) error {
 	send := func(o Object) (err error) {
 		t := time.NewTimer(20 * time.Second)
 		select {
@@ -312,29 +295,7 @@ func serve(s net.Listener, obj chan<- Object, cmd *exec.Cmd) {
 		}
 		return
 	}
-	var wg sync.WaitGroup
-	wg.Add(2)
-	go func() {
-		var err error
-		defer func() {
-			if err != nil {
-				log.Println(err)
-			}
-			wg.Done()
-		}()
-		err = relay(s, send)
-	}()
-	go func() {
-		var err error
-		defer func() {
-			if err != nil {
-				log.Println(err)
-			}
-			wg.Done()
-		}()
-		err = run(send, cmd)
-	}()
-	wg.Wait()
+	return relay(s, send, cmd)
 }
 
 func manage(cmd *exec.Cmd) (obj chan Object) {
@@ -344,12 +305,16 @@ func manage(cmd *exec.Cmd) (obj chan Object) {
 	check(err)
 	log.Printf("%v opened", addr)
 	go func() {
+		var err error
 		defer func() {
+			if err != nil {
+				log.Println(err)
+			}
 			log.Printf("%v closing", addr)
 			s.Close()
 			close(obj)
 		}()
-		serve(s, obj, cmd)
+		err = serve(s, obj, cmd)
 	}()
 	return
 }
@@ -694,6 +659,9 @@ func main() {
 	go networkStat()
 
 	cmd := exec.Command(args[0], args[1:]...)
+	cmd.Stdout = os.Stdout
+	cmd.Stderr = os.Stderr
+	cmd.Stdin = os.Stdin
 
 	obj := manage(cmd)
 	p, err := NewProducer(cmd.Path)
