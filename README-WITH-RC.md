@@ -1,6 +1,12 @@
 # Change Log
 
 ## Upcoming Changes
+### [0.2.0-rc.2](https://github.com/ESG-USA/Auklet-Profiler-C/tree/0.2.0-rc.2) (Thu Feb  1 16:13:32 2018 UTC)
+**Fixed bugs:**
+
+- wrap.go: Emit only one event [\#53](https://github.com/ESG-USA/Auklet-Profiler-C/pull/53) ([kdsch](https://github.com/kdsch))
+- wrap.go: Do not check for envars we don't use [\#52](https://github.com/ESG-USA/Auklet-Profiler-C/pull/52) ([kdsch](https://github.com/kdsch))
+
 ### [0.2.0-rc.1](https://github.com/ESG-USA/Auklet-Profiler-C/tree/0.2.0-rc.1) (Mon Jan 29 20:25:19 2018 UTC)
 **Implemented enhancements:**
 

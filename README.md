@@ -11,6 +11,8 @@
 
 **Fixed bugs:**
 
+- wrap.go: Emit only one event [\#53](https://github.com/ESG-USA/Auklet-Profiler-C/pull/53) ([kdsch](https://github.com/kdsch))
+- wrap.go: Do not check for envars we don't use [\#52](https://github.com/ESG-USA/Auklet-Profiler-C/pull/52) ([kdsch](https://github.com/kdsch))
 - APM-950 instrument: Remove all calls to exit\(\) [\#45](https://github.com/ESG-USA/Auklet-Profiler-C/pull/45) ([kdsch](https://github.com/kdsch))
 
 **Merged pull requests:**
