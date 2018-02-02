@@ -200,6 +200,18 @@ type InstMsg struct {
 	Data json.RawMessage
 }
 
+type Log struct {
+	Level string
+	Message string
+}
+
+func (l *Log) topic() string {
+	return envar["LOG_TOPIC"]
+}
+
+func (l *Log) brand(_ string) {
+}
+
 func Objectify(b []byte, wait WaitFn, send SendFn) (done bool, err error) {
 	j := InstMsg{}
 	err = json.Unmarshal(b, &j)
@@ -208,13 +220,13 @@ func Objectify(b []byte, wait WaitFn, send SendFn) (done bool, err error) {
 	}
 	switch j.Type {
 	case "log":
-		s := ""
-		err = json.Unmarshal(j.Data, &s)
+		l := &Log{}
+		err = json.Unmarshal(j.Data, l)
 		if err != nil {
 			return
 		}
 		// redirect to our logger for now
-		log.Println(s)
+		send(l)
 	case "event":
 		ws := wait()
 		done = true

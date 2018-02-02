@@ -81,7 +81,7 @@ static struct {
 static void
 setinststate(int s)
 {
-	logprint("instrument state: %s", s ? "on" : "off");
+	logprint(INFO, "instrument state: %s", s ? "on" : "off");
 	switch (s) {
 	case ON:
 		instenter = push;
@@ -107,7 +107,7 @@ sigprof(int n)
 static void
 sigemit(int n)
 {
-	logprint("sigemit(%d)", n);
+	logprint(DEBUG, "sigemit(%d)", n);
 	settimers();
 	sem_post(&sem);
 }
@@ -128,7 +128,9 @@ emit(void)
 	marshal(&b, &root);
 	append(&b, "}}\n");
 	if (write(log, b.buf, b.len) == -1) {
-		logprint("emit: write: %s", strerror(errno));
+		//logprint("emit: write: %s", strerror(errno));
+		setinststate(OFF);
+		return;
 	}
 	free(b.buf);
 }
@@ -148,7 +150,9 @@ stacktrace(int sig)
 	marshals(&b, sp, sig);
 	append(&b, "}\n");
 	if (write(log, b.buf, b.len) == -1) {
-		logprint("stacktrace: write: %s", strerror(errno));
+		//logprint("stacktrace: write: %s", strerror(errno));
+		setinststate(OFF);
+		return;
 	}
 	free(b.buf);
 }
@@ -251,14 +255,14 @@ comm(int type, char *prefix)
 	struct sockaddr_un remote;
 	int l, fd;
 	if ((fd = socket(AF_UNIX, type, 0)) == -1) {
-		logprint("comm: socket: %s", strerror(errno));
+		//logprint(DEBUG, "comm: socket: %s", strerror(errno));
 		return 0;
 	}
 	remote.sun_family = AF_UNIX;
 	sprintf(remote.sun_path, "%s-%d", prefix, getppid());
 	l = strlen(remote.sun_path) + sizeof(remote.sun_family);
 	if (connect(fd, (struct sockaddr *)&remote, l) == -1) {
-		logprint("comm: connect: %s", strerror(errno));
+		//logprint(DEBUG, "comm: connect: %s", strerror(errno));
 		return 0;
 	}
 
@@ -276,7 +280,7 @@ setup(void)
 	log = comm(SOCK_SEQPACKET, "/tmp/auklet");
 	if (!log)
 		;//return;
-	logprint("Auklet Instrument version %s (%s)", AUKLET_VERSION, AUKLET_TIMESTAMP);
+	logprint(INFO, "Auklet Instrument version %s (%s)", AUKLET_VERSION, AUKLET_TIMESTAMP);
 	signals();
 	timers();
 	setinststate(ON);
