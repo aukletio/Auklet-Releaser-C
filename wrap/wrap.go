@@ -37,6 +37,26 @@ var BuildDate = "no timestamp"
 // Version is provided at compile-time; DO NOT MODIFY.
 var Version = "local-build"
 
+type LogLevel string
+
+const (
+	DEBUG LogLevel = "debug"
+	INFO           = "info"
+	FATAL          = "fatal"
+)
+
+type LogWriter struct {
+	level LogLevel
+	send  SendFn
+}
+
+func (lw *LogWriter) Write(p []byte) (n int, err error) {
+	return len(p), lw.send(&Log{
+		Level:   lw.level,
+		Message: string(p),
+	})
+}
+
 // Object represents something that can be sent to the backend. It must have a
 // topic and implement a brand() method that fills UUID and checksum fields.
 type Object interface {
@@ -167,7 +187,7 @@ func relaysigs(cmd *exec.Cmd) {
 	sig := make(chan os.Signal)
 	signal.Notify(sig, syscall.SIGINT)
 	for s := range sig {
-		log.Print("relaying signal: ", s)
+		debug.Print("relaying signal: ", s)
 		cmd.Process.Signal(s)
 	}
 }
@@ -201,8 +221,8 @@ type InstMsg struct {
 }
 
 type Log struct {
-	Level   string
-	Message string
+	Level   LogLevel `json:"level"`
+	Message string   `json:"message"`
 }
 
 func (l *Log) topic() string {
@@ -257,10 +277,10 @@ func relay(s net.Listener, send SendFn, cmd *exec.Cmd) (err error) {
 	if err != nil {
 		return
 	}
-	log.Print("child started")
+	info.Print("child started")
 	wait := func() syscall.WaitStatus {
 		cmd.Wait()
-		log.Print("child exited")
+		info.Print("child exited")
 		return cmd.ProcessState.Sys().(syscall.WaitStatus)
 	}
 	go relaysigs(cmd)
@@ -269,7 +289,7 @@ func relay(s net.Listener, send SendFn, cmd *exec.Cmd) (err error) {
 	if err != nil {
 		return
 	}
-	log.Printf("socket connection accepted")
+	info.Printf("socket connection accepted")
 	line := bufio.NewScanner(c)
 	for line.Scan() {
 		done, err := Objectify(line.Bytes(), wait, send)
@@ -282,7 +302,7 @@ func relay(s net.Listener, send SendFn, cmd *exec.Cmd) (err error) {
 			return nil
 		}
 	}
-	log.Printf("socket EOF")
+	info.Printf("socket EOF")
 	ws := wait()
 	e := &Event{
 		Status: ws.ExitStatus(),
@@ -296,7 +316,25 @@ func relay(s net.Listener, send SendFn, cmd *exec.Cmd) (err error) {
 
 type JobFn func(SendFn) error
 
-func serve(s net.Listener, obj chan<- Object, cmd *exec.Cmd) error {
+var info, debug, fatal *log.Logger
+
+func loginit(send SendFn) {
+	info = log.New(&LogWriter{
+		level: INFO,
+		send:  send,
+	}, "", log.Lmicroseconds)
+	debug = log.New(&LogWriter{
+		level: DEBUG,
+		send:  send,
+	}, "", log.Lmicroseconds)
+	fatal = log.New(&LogWriter{
+		level: FATAL,
+		send:  send,
+	}, "", log.Lmicroseconds)
+}
+
+func manage(cmd *exec.Cmd) (obj chan Object) {
+	obj = make(chan Object, 10)
 	send := func(o Object) (err error) {
 		t := time.NewTimer(20 * time.Second)
 		select {
@@ -307,26 +345,22 @@ func serve(s net.Listener, obj chan<- Object, cmd *exec.Cmd) error {
 		}
 		return
 	}
-	return relay(s, send, cmd)
-}
-
-func manage(cmd *exec.Cmd) (obj chan Object) {
-	obj = make(chan Object, 10)
+	loginit(send)
 	addr := "/tmp/auklet-" + strconv.Itoa(os.Getpid())
 	s, err := net.Listen("unixpacket", addr)
 	check(err)
-	log.Printf("%v opened", addr)
+	info.Printf("%v opened", addr)
 	go func() {
 		var err error
 		defer func() {
 			if err != nil {
-				log.Println(err)
+				info.Println(err)
 			}
-			log.Printf("%v closing", addr)
+			info.Printf("%v closing", addr)
 			s.Close()
 			close(obj)
 		}()
-		err = serve(s, obj, cmd)
+		err = relay(s, send, cmd)
 	}()
 	return
 }
@@ -388,7 +422,7 @@ func getcerts() (m map[string][]byte, err error) {
 	good := true
 	for _, name := range filenames {
 		if _, ok := m[name]; !ok {
-			log.Printf("could not find cert file named %v", name)
+			fatal.Printf("could not find cert file named %v", name)
 			good = false
 		}
 	}
@@ -484,7 +518,7 @@ func (p *Producer) produce(obj <-chan Object) (err error) {
 		}
 		p.Close()
 	}()
-	log.Println("kafka producer connected")
+	info.Println("kafka producer connected")
 	// receive Kafka-bound objects from clients
 	for o := range obj {
 		o.brand(p.CheckSum)
@@ -492,8 +526,13 @@ func (p *Producer) produce(obj <-chan Object) (err error) {
 		if err != nil {
 			return err
 		}
-		log.Printf("producer got %v bytes: %v", len(b), string(b))
+		fmt.Println(string(b))
 		//log.Printf("producer got %v bytes", len(b))
+		if _, is := o.(*Log); is {
+			// skip producing Logs to Kafka for now since there is
+			// no topic for them.
+			continue
+		}
 		_, _, err = p.P.SendMessage(&sarama.ProducerMessage{
 			Topic: o.topic(),
 			Value: sarama.ByteEncoder(b),
@@ -556,7 +595,7 @@ func NewDevice() *Device {
 func getip() string {
 	ip, err := ipify.GetIp()
 	if err != nil {
-		log.Print(err)
+		debug.Print(err)
 	}
 	return ip
 }
@@ -575,7 +614,7 @@ func (d *Device) get() (ok bool, err error) {
 		return
 	}
 
-	log.Print("Device.get() length = ", resp.ContentLength)
+	debug.Print("Device.get() length = ", resp.ContentLength)
 	return !(resp.ContentLength <= 2), nil
 }
 
@@ -606,7 +645,7 @@ func (d *Device) post() (err error) {
 	if err != nil {
 		return
 	}
-	log.Print(string(b))
+	debug.Print(string(b))
 
 	url := envar["BASE_URL"] + "/devices/"
 	req, err := http.NewRequest("POST", url, bytes.NewReader(b))
@@ -618,7 +657,7 @@ func (d *Device) post() (err error) {
 
 	c := &http.Client{}
 	resp, err := c.Do(req)
-	log.Print("Device.post() ", resp.Status)
+	debug.Print("Device.post() ", resp.Status)
 	return
 }
 
