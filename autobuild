@@ -1,3 +1,5 @@
 #!/bin/sh
 # http://www.entrproject.org/
-find -name "*.go" -o -name "*.c" | entr make
+while true; do
+	ls Makefile *.c release/*.go wrap/*.go | entr -dcs 'make all';
+done

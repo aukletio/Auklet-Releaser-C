@@ -23,9 +23,9 @@ sends live profile data to the backend.
 
 # Go Setup
 
-`wrap` and `release` need at least Go 1.8 and [dep][godep] 0.3.2. See the [getting started page][gs] to
-download Go. Then see [How to Write Go Code - Organization][org] to set up your
-system.
+`wrap` and `release` need at least Go 1.8 and [dep][godep] 0.3.2. See the
+[getting started page][gs] to download Go. Then see [How to Write Go Code -
+Organization][org] to set up your system.
 
 [godep]: https://github.com/golang/dep
 [gs]: https://golang.org/doc/install
@@ -41,12 +41,12 @@ that the shell will know about executables built with `go install`.
 
 After setting up Go on your system, install `dep` by running:
 
-```
-curl -L -s https://github.com/golang/dep/releases/download/v0.3.2/dep-linux-amd64 -o $GOPATH/bin/dep
-chmod +x $GOPATH/bin/dep
-```
+	curl -L -s https://github.com/golang/dep/releases/download/v0.3.2/dep-linux-amd64 -o $GOPATH/bin/dep
+	chmod +x $GOPATH/bin/dep
 
-If you want to build `wrap` and `release` on Mac OS X, you can install `dep` via Homebrew by running `brew install dep`, or by changing the above `curl` command to download `dep-darwin-amd64`.
+If you want to build `wrap` and `release` on Mac OS X, you can install `dep` via
+Homebrew by running `brew install dep`, or by changing the above `curl` command
+to download `dep-darwin-amd64`.
 
 # Development Tools
 
@@ -67,9 +67,11 @@ To build and install all components, run
 	make
 
 In particular, this installs the commands `wrap` and `release` to `$GOPATH/bin`,
-and the static library `libauklet.a` to `/usr/local/lib/`.
+and build test executables `x` and `x-dbg`.
 
-It also builds test executables `x` and `x-dbg`.
+To install the static library `libauklet.a` to `/usr/local/lib/`, run
+
+	make install
 
 # Run Unit Tests
 
@@ -115,8 +117,7 @@ A comma-delimited list of Kafka broker addresses. For example:
 
 ## `AUKLET_EVENT_TOPIC`, `AUKLET_PROF_TOPIC`
 
-Kafka topics to which `wrap` should send event and profile data,
-respectively.
+Kafka topics to which `wrap` should send event and profile data, respectively.
 
 ## `AUKLET_BASE_URL`
 
@@ -143,3 +144,13 @@ debug info.) Then run
 
 	wrap ./x
 
+# Docker Setup
+
+The local environment has separate containers for the wrapper and release. All
+containers are indirectly based on Debian Jessie.
+
+1. Install Docker for Mac Beta.
+2. Build your environment with `docker-compose build`.
+3. To run the release locally, run `docker-compose run auklet /makeRelease`.
+4. To run the wrapper locally, run `docker-compose run auklet /runWrapper`.
+5. To run auklet inside a shell, run `docker-compose run auklet /bin/bash`.
