@@ -1,8 +1,7 @@
 # Change Log
 
-## [Upcoming Changes](https://github.com/ESG-USA/Auklet-Profiler-C/tree/master)
-
-[Full Changelog](https://github.com/ESG-USA/Auklet-Profiler-C/compare/0.1.0...master)
+## [0.2.0](https://github.com/ESG-USA/Auklet-Profiler-C/tree/0.2.0) (Mon Feb  5 17:25:11 2018 UTC)
+[Full Changelog](https://github.com/ESG-USA/Auklet-Profiler-C/compare/0.1.0...0.2.0)
 
 **Implemented enhancements:**
 
