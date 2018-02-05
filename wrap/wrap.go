@@ -201,7 +201,7 @@ type InstMsg struct {
 }
 
 type Log struct {
-	Level string
+	Level   string
 	Message string
 }
 
