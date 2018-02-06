@@ -10,7 +10,7 @@ func wait() syscall.WaitStatus {
 	return syscall.WaitStatus(0)
 }
 
-func Testobjectify(t *testing.T) {
+func TestObjectify(t *testing.T) {
 	send := func(o Object) error {
 		b, err := json.Marshal(o)
 		if err != nil {
