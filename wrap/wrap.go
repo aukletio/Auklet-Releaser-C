@@ -12,7 +12,7 @@ import (
 	"fmt"
 	"io"
 	"io/ioutil"
-	"log"
+	stdlog "log"
 	"net"
 	"net/http"
 	"os"
@@ -37,21 +37,15 @@ var BuildDate = "no timestamp"
 // Version is provided at compile-time; DO NOT MODIFY.
 var Version = "local-build"
 
-type LogLevel string
+type logLevel string
 
-const (
-	DEBUG LogLevel = "debug"
-	INFO           = "info"
-	FATAL          = "fatal"
-)
-
-type LogWriter struct {
-	level LogLevel
+type logWriter struct {
+	level logLevel
 	send  SendFn
 }
 
-func (lw *LogWriter) Write(p []byte) (n int, err error) {
-	return len(p), lw.send(&Log{
+func (lw *logWriter) Write(p []byte) (n int, err error) {
+	return len(p), lw.send(&log{
 		Level:   lw.level,
 		Message: string(p),
 	})
@@ -180,7 +174,7 @@ func check(err error) {
 }
 
 func usage() {
-	log.Fatalf("usage: %v command [args ...]\n", os.Args[0])
+	stdlog.Fatalf("usage: %v command [args ...]\n", os.Args[0])
 }
 
 func relaysigs(cmd *exec.Cmd) {
@@ -220,16 +214,16 @@ type InstMsg struct {
 	Data json.RawMessage
 }
 
-type Log struct {
-	Level   LogLevel `json:"level"`
+type log struct {
+	Level   logLevel `json:"level"`
 	Message string   `json:"message"`
 }
 
-func (l *Log) topic() string {
+func (l *log) topic() string {
 	return envar["LOG_TOPIC"]
 }
 
-func (l *Log) brand(_ string) {
+func (l *log) brand(_ string) {
 }
 
 func Objectify(b []byte, wait WaitFn, send SendFn) (done bool, err error) {
@@ -240,7 +234,7 @@ func Objectify(b []byte, wait WaitFn, send SendFn) (done bool, err error) {
 	}
 	switch j.Type {
 	case "log":
-		l := &Log{}
+		l := &log{}
 		err = json.Unmarshal(j.Data, l)
 		if err != nil {
 			return
@@ -314,23 +308,22 @@ func relay(s net.Listener, send SendFn, cmd *exec.Cmd) (err error) {
 	return
 }
 
-type JobFn func(SendFn) error
-
-var info, debug, fatal *log.Logger
+var info, debug, fatal *stdlog.Logger
 
 func loginit(send SendFn) {
-	info = log.New(&LogWriter{
-		level: INFO,
-		send:  send,
-	}, "", log.Lmicroseconds)
-	debug = log.New(&LogWriter{
-		level: DEBUG,
-		send:  send,
-	}, "", log.Lmicroseconds)
-	fatal = log.New(&LogWriter{
-		level: FATAL,
-		send:  send,
-	}, "", log.Lmicroseconds)
+	for _, l := range []struct {
+		lg    **stdlog.Logger
+		level logLevel
+	}{
+		{&info, "info"},
+		{&debug, "debug"},
+		{&fatal, "fatal"},
+	} {
+		*l.lg = stdlog.New(&logWriter{
+			level: l.level,
+			send:  send,
+		}, "", stdlog.Lmicroseconds)
+	}
 }
 
 func manage(cmd *exec.Cmd) (obj chan Object) {
@@ -514,7 +507,7 @@ func (p *Producer) produce(obj <-chan Object) (err error) {
 	// Create a Kafka producer with the desired config
 	defer func() {
 		if err != nil {
-			log.Print(err)
+			stdlog.Print(err)
 		}
 		p.Close()
 	}()
@@ -527,9 +520,9 @@ func (p *Producer) produce(obj <-chan Object) (err error) {
 			return err
 		}
 		fmt.Println(string(b))
-		//log.Printf("producer got %v bytes", len(b))
-		if _, is := o.(*Log); is {
-			// skip producing Logs to Kafka for now since there is
+		//stdlog.Printf("producer got %v bytes", len(b))
+		if _, is := o.(*log); is {
+			// skip producing logs to Kafka for now since there is
 			// no topic for them.
 			continue
 		}
@@ -546,12 +539,12 @@ func (p *Producer) produce(obj <-chan Object) (err error) {
 
 func valid(sum string) (ok bool, err error) {
 	ep := envar["BASE_URL"] + "/check_releases/" + sum
-	//log.Println("wrapper: release check url:", ep)
+	//stdlog.Println("wrapper: release check url:", ep)
 	resp, err := http.Get(ep)
 	if err != nil {
 		return
 	}
-	//log.Println("wrapper: valid: response status:", resp.Status)
+	//stdlog.Println("wrapper: valid: response status:", resp.Status)
 
 	switch resp.StatusCode {
 	case 200:
@@ -623,14 +616,14 @@ func ifacehash() string {
 	sum := make([]byte, 6)
 	interfaces, err := net.Interfaces()
 	if err != nil {
-		log.Fatal(err)
+		stdlog.Fatal(err)
 	}
 
 	for _, i := range interfaces {
 		if bytes.Compare(i.HardwareAddr, nil) == 0 {
 			continue
 		}
-		//log.Print(i.HardwareAddr)
+		//stdlog.Print(i.HardwareAddr)
 		for h, k := range i.HardwareAddr {
 			sum[h] += k
 		}
@@ -677,29 +670,24 @@ func env() {
 		v := os.Getenv(prefix + k)
 		if v == "" && envar[k] == "" {
 			ok = false
-			log.Printf("empty envar %v\n", prefix+k)
+			stdlog.Printf("empty envar %v\n", prefix+k)
 		} else {
-			//log.Print(k, v)
+			//stdlog.Print(k, v)
 			envar[k] = v
 		}
 	}
 	if !ok {
-		log.Fatal("incomplete configuration")
+		stdlog.Fatal("incomplete configuration")
 	}
 }
 
 var device *Device
 
 func main() {
-	defer func() {
-		if x := recover(); x != nil {
-			log.Print(x)
-		}
-	}()
 	logger := os.Stdout
-	log.SetOutput(logger)
-	log.SetFlags(log.Lmicroseconds)
-	log.Printf("Auklet Wrapper version %s (%s)\n", Version, BuildDate)
+	stdlog.SetOutput(logger)
+	stdlog.SetFlags(stdlog.Lmicroseconds)
+	stdlog.Printf("Auklet Wrapper version %s (%s)\n", Version, BuildDate)
 
 	env()
 	args := os.Args[1:]
