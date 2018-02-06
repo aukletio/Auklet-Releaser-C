@@ -56,6 +56,9 @@ compile-time errors immediately without needing an IDE.
 
 `autobuild` requires [entr](http://www.entrproject.org/).
 
+Developers can set the environment variable `AUKLET_DUMP=true` to see logs on
+stdout.
+
 # Build
 
 To ensure you have all the correct dependencies, run

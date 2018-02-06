@@ -45,6 +45,9 @@ type logWriter struct {
 }
 
 func (lw *logWriter) Write(p []byte) (n int, err error) {
+	if envar["DUMP"] == "true" {
+		fmt.Print(string(p))
+	}
 	return len(p), lw.send(&log{
 		Level:   lw.level,
 		Message: string(p),
@@ -519,8 +522,6 @@ func (p *Producer) produce(obj <-chan Object) (err error) {
 		if err != nil {
 			return err
 		}
-		fmt.Println(string(b))
-		//stdlog.Printf("producer got %v bytes", len(b))
 		if _, is := o.(*log); is {
 			// skip producing logs to Kafka for now since there is
 			// no topic for them.
@@ -655,6 +656,7 @@ func (d *Device) post() (err error) {
 }
 
 var envar = map[string]string{
+	"DUMP":        "false",
 	"APP_ID":      "",
 	"API_KEY":     "",
 	"BASE_URL":    "https://api.auklet.io/v1",
