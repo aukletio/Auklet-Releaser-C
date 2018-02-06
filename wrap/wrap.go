@@ -191,8 +191,7 @@ func relaysigs(cmd *exec.Cmd) {
 
 type SendFn func(Object) error
 
-// Profile represents arbitrary JSON data from the instrument that can be sent
-// to the backend.
+// Profile represents a profile tree to be sent to Kafka.
 type Profile struct {
 	Common
 	Time  int64           `json:"timestamp"`
@@ -494,7 +493,6 @@ func (p *Producer) Close() {
 }
 
 func (p *Producer) produce(obj <-chan Object) (err error) {
-	// Create a Kafka producer with the desired config
 	defer func() {
 		if err != nil {
 			stdlog.Print(err)
