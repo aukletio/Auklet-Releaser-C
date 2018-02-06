@@ -507,12 +507,9 @@ func (p *Producer) produce(obj <-chan Object) (err error) {
 		if err != nil {
 			return err
 		}
-		if _, is := o.(*log); is {
-			// skip producing logs to Kafka for now since there is
-			// no topic for them.
-			continue
+		if envar["DUMP"] == "true" {
+			fmt.Printf("producer got %v bytes: %v\n", len(b), string(b))
 		}
-		fmt.Printf("producer got %v bytes: %v\n", len(b), string(b))
 		_, _, err = p.P.SendMessage(&sarama.ProducerMessage{
 			Topic: o.topic(),
 			Value: sarama.ByteEncoder(b),
