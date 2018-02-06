@@ -41,7 +41,9 @@ busy(void *p)
 void *
 idle(void *p)
 {
-	sleep(24);
+	int rem = 24;
+	while (rem)
+		rem = sleep(rem);
 	int *n;
 	*n = 42;
 }
