@@ -212,11 +212,6 @@ func (p *Profile) brand(cksum string) {
 	p.Time = time.Now().UnixNano() / 1000000
 }
 
-type InstMsg struct {
-	Type string
-	Data json.RawMessage
-}
-
 type log struct {
 	Level   logLevel `json:"level"`
 	Message string   `json:"message"`
@@ -226,44 +221,36 @@ func (l *log) topic() string {
 	return envar["LOG_TOPIC"]
 }
 
-func (l *log) brand(_ string) {
-}
+func (l *log) brand(_ string) {}
 
-func Objectify(b []byte, wait WaitFn, send SendFn) (done bool, err error) {
-	j := InstMsg{}
+func objectify(b []byte, wait WaitFn, send SendFn) (done bool, err error) {
+	j := struct {
+		Type string
+		Data json.RawMessage
+	}{}
 	err = json.Unmarshal(b, &j)
 	if err != nil {
 		return
 	}
+	var o Object
 	switch j.Type {
 	case "log":
-		l := &log{}
-		err = json.Unmarshal(j.Data, l)
-		if err != nil {
-			return
-		}
-		// redirect to our logger for now
-		send(l)
+		o = &log{}
 	case "event":
 		ws := wait()
 		done = true
-		e := &Event{}
-		err = json.Unmarshal(j.Data, e)
-		if err != nil {
-			return
-		}
-		e.Status = ws.ExitStatus()
-		send(e)
+		o = &Event{Status: ws.ExitStatus()}
 	case "profile":
-		p := &Profile{}
-		err = json.Unmarshal(j.Data, p)
-		if err != nil {
-			return
-		}
-		send(p)
+		o = &Profile{}
 	default:
 		err = errors.New(fmt.Sprintf("objectify: couldn't match %v\n", j.Type))
+		return
 	}
+	err = json.Unmarshal(j.Data, o)
+	if err != nil {
+		return
+	}
+	send(o)
 	return
 }
 
@@ -289,7 +276,7 @@ func relay(s net.Listener, send SendFn, cmd *exec.Cmd) (err error) {
 	info.Printf("socket connection accepted")
 	line := bufio.NewScanner(c)
 	for line.Scan() {
-		done, err := Objectify(line.Bytes(), wait, send)
+		done, err := objectify(line.Bytes(), wait, send)
 		if err != nil {
 			return err
 		}
@@ -527,6 +514,7 @@ func (p *Producer) produce(obj <-chan Object) (err error) {
 			// no topic for them.
 			continue
 		}
+		fmt.Printf("producer got %v bytes: %v\n", len(b), string(b))
 		_, _, err = p.P.SendMessage(&sarama.ProducerMessage{
 			Topic: o.topic(),
 			Value: sarama.ByteEncoder(b),
