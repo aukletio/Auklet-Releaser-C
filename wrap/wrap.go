@@ -12,7 +12,7 @@ import (
 	"fmt"
 	"io"
 	"io/ioutil"
-	"log"
+	stdlog "log"
 	"net"
 	"net/http"
 	"os"
@@ -36,6 +36,23 @@ var BuildDate = "no timestamp"
 
 // Version is provided at compile-time; DO NOT MODIFY.
 var Version = "local-build"
+
+type logLevel string
+
+type logWriter struct {
+	level logLevel
+	send  SendFn
+}
+
+func (lw *logWriter) Write(p []byte) (n int, err error) {
+	if envar["DUMP"] == "true" {
+		fmt.Print(string(p))
+	}
+	return len(p), lw.send(&log{
+		Level:   lw.level,
+		Message: string(p),
+	})
+}
 
 // Object represents something that can be sent to the backend. It must have a
 // topic and implement a brand() method that fills UUID and checksum fields.
@@ -160,22 +177,21 @@ func check(err error) {
 }
 
 func usage() {
-	log.Fatalf("usage: %v command [args ...]\n", os.Args[0])
+	stdlog.Fatalf("usage: %v command [args ...]\n", os.Args[0])
 }
 
 func relaysigs(cmd *exec.Cmd) {
 	sig := make(chan os.Signal)
 	signal.Notify(sig, syscall.SIGINT)
 	for s := range sig {
-		log.Print("relaying signal: ", s)
+		debug.Print("relaying signal: ", s)
 		cmd.Process.Signal(s)
 	}
 }
 
 type SendFn func(Object) error
 
-// Profile represents arbitrary JSON data from the instrument that can be sent
-// to the backend.
+// Profile represents a profile tree to be sent to Kafka.
 type Profile struct {
 	Common
 	Time  int64           `json:"timestamp"`
@@ -195,46 +211,45 @@ func (p *Profile) brand(cksum string) {
 	p.Time = time.Now().UnixNano() / 1000000
 }
 
-type InstMsg struct {
-	Type string
-	Data json.RawMessage
+type log struct {
+	Level   logLevel `json:"level"`
+	Message string   `json:"message"`
 }
 
-func Objectify(b []byte, wait WaitFn, send SendFn) (done bool, err error) {
-	j := InstMsg{}
+func (l *log) topic() string {
+	return envar["LOG_TOPIC"]
+}
+
+func (l *log) brand(_ string) {}
+
+func objectify(b []byte, wait WaitFn, send SendFn) (done bool, err error) {
+	j := struct {
+		Type string
+		Data json.RawMessage
+	}{}
 	err = json.Unmarshal(b, &j)
 	if err != nil {
 		return
 	}
+	var o Object
 	switch j.Type {
 	case "log":
-		s := ""
-		err = json.Unmarshal(j.Data, &s)
-		if err != nil {
-			return
-		}
-		// redirect to our logger for now
-		log.Println(s)
+		o = &log{}
 	case "event":
 		ws := wait()
 		done = true
-		e := &Event{}
-		err = json.Unmarshal(j.Data, e)
-		if err != nil {
-			return
-		}
-		e.Status = ws.ExitStatus()
-		send(e)
+		o = &Event{Status: ws.ExitStatus()}
 	case "profile":
-		p := &Profile{}
-		err = json.Unmarshal(j.Data, p)
-		if err != nil {
-			return
-		}
-		send(p)
+		o = &Profile{}
 	default:
 		err = errors.New(fmt.Sprintf("objectify: couldn't match %v\n", j.Type))
+		return
 	}
+	err = json.Unmarshal(j.Data, o)
+	if err != nil {
+		return
+	}
+	send(o)
 	return
 }
 
@@ -245,10 +260,10 @@ func relay(s net.Listener, send SendFn, cmd *exec.Cmd) (err error) {
 	if err != nil {
 		return
 	}
-	log.Print("child started")
+	info.Print("child started")
 	wait := func() syscall.WaitStatus {
 		cmd.Wait()
-		log.Print("child exited")
+		info.Print("child exited")
 		return cmd.ProcessState.Sys().(syscall.WaitStatus)
 	}
 	go relaysigs(cmd)
@@ -257,10 +272,10 @@ func relay(s net.Listener, send SendFn, cmd *exec.Cmd) (err error) {
 	if err != nil {
 		return
 	}
-	log.Printf("socket connection accepted")
+	info.Printf("socket connection accepted")
 	line := bufio.NewScanner(c)
 	for line.Scan() {
-		done, err := Objectify(line.Bytes(), wait, send)
+		done, err := objectify(line.Bytes(), wait, send)
 		if err != nil {
 			return err
 		}
@@ -270,7 +285,7 @@ func relay(s net.Listener, send SendFn, cmd *exec.Cmd) (err error) {
 			return nil
 		}
 	}
-	log.Printf("socket EOF")
+	info.Printf("socket EOF")
 	ws := wait()
 	e := &Event{
 		Status: ws.ExitStatus(),
@@ -282,9 +297,26 @@ func relay(s net.Listener, send SendFn, cmd *exec.Cmd) (err error) {
 	return
 }
 
-type JobFn func(SendFn) error
+var info, debug, fatal *stdlog.Logger
 
-func serve(s net.Listener, obj chan<- Object, cmd *exec.Cmd) error {
+func loginit(send SendFn) {
+	for _, l := range []struct {
+		lg    **stdlog.Logger
+		level logLevel
+	}{
+		{&info, "info"},
+		{&debug, "debug"},
+		{&fatal, "fatal"},
+	} {
+		*l.lg = stdlog.New(&logWriter{
+			level: l.level,
+			send:  send,
+		}, "", stdlog.Lmicroseconds)
+	}
+}
+
+func manage(cmd *exec.Cmd) (obj chan Object) {
+	obj = make(chan Object, 10)
 	send := func(o Object) (err error) {
 		t := time.NewTimer(20 * time.Second)
 		select {
@@ -295,26 +327,22 @@ func serve(s net.Listener, obj chan<- Object, cmd *exec.Cmd) error {
 		}
 		return
 	}
-	return relay(s, send, cmd)
-}
-
-func manage(cmd *exec.Cmd) (obj chan Object) {
-	obj = make(chan Object, 10)
+	loginit(send)
 	addr := "/tmp/auklet-" + strconv.Itoa(os.Getpid())
 	s, err := net.Listen("unixpacket", addr)
 	check(err)
-	log.Printf("%v opened", addr)
+	info.Printf("%v opened", addr)
 	go func() {
 		var err error
 		defer func() {
 			if err != nil {
-				log.Println(err)
+				info.Println(err)
 			}
-			log.Printf("%v closing", addr)
+			info.Printf("%v closing", addr)
 			s.Close()
 			close(obj)
 		}()
-		err = serve(s, obj, cmd)
+		err = relay(s, send, cmd)
 	}()
 	return
 }
@@ -376,7 +404,7 @@ func getcerts() (m map[string][]byte, err error) {
 	good := true
 	for _, name := range filenames {
 		if _, ok := m[name]; !ok {
-			log.Printf("could not find cert file named %v", name)
+			fatal.Printf("could not find cert file named %v", name)
 			good = false
 		}
 	}
@@ -465,14 +493,13 @@ func (p *Producer) Close() {
 }
 
 func (p *Producer) produce(obj <-chan Object) (err error) {
-	// Create a Kafka producer with the desired config
 	defer func() {
 		if err != nil {
-			log.Print(err)
+			stdlog.Print(err)
 		}
 		p.Close()
 	}()
-	log.Println("kafka producer connected")
+	info.Println("kafka producer connected")
 	// receive Kafka-bound objects from clients
 	for o := range obj {
 		o.brand(p.CheckSum)
@@ -480,8 +507,9 @@ func (p *Producer) produce(obj <-chan Object) (err error) {
 		if err != nil {
 			return err
 		}
-		log.Printf("producer got %v bytes: %v", len(b), string(b))
-		//log.Printf("producer got %v bytes", len(b))
+		if envar["DUMP"] == "true" {
+			fmt.Printf("producer got %v bytes: %v\n", len(b), string(b))
+		}
 		_, _, err = p.P.SendMessage(&sarama.ProducerMessage{
 			Topic: o.topic(),
 			Value: sarama.ByteEncoder(b),
@@ -495,12 +523,12 @@ func (p *Producer) produce(obj <-chan Object) (err error) {
 
 func valid(sum string) (ok bool, err error) {
 	ep := envar["BASE_URL"] + "/check_releases/" + sum
-	//log.Println("wrapper: release check url:", ep)
+	//stdlog.Println("wrapper: release check url:", ep)
 	resp, err := http.Get(ep)
 	if err != nil {
 		return
 	}
-	//log.Println("wrapper: valid: response status:", resp.Status)
+	//stdlog.Println("wrapper: valid: response status:", resp.Status)
 
 	switch resp.StatusCode {
 	case 200:
@@ -544,7 +572,7 @@ func NewDevice() *Device {
 func getip() string {
 	ip, err := ipify.GetIp()
 	if err != nil {
-		log.Print(err)
+		debug.Print(err)
 	}
 	return ip
 }
@@ -563,7 +591,7 @@ func (d *Device) get() (ok bool, err error) {
 		return
 	}
 
-	log.Print("Device.get() length = ", resp.ContentLength)
+	debug.Print("Device.get() length = ", resp.ContentLength)
 	return !(resp.ContentLength <= 2), nil
 }
 
@@ -572,14 +600,14 @@ func ifacehash() string {
 	sum := make([]byte, 6)
 	interfaces, err := net.Interfaces()
 	if err != nil {
-		log.Fatal(err)
+		stdlog.Fatal(err)
 	}
 
 	for _, i := range interfaces {
 		if bytes.Compare(i.HardwareAddr, nil) == 0 {
 			continue
 		}
-		//log.Print(i.HardwareAddr)
+		//stdlog.Print(i.HardwareAddr)
 		for h, k := range i.HardwareAddr {
 			sum[h] += k
 		}
@@ -594,7 +622,7 @@ func (d *Device) post() (err error) {
 	if err != nil {
 		return
 	}
-	log.Print(string(b))
+	debug.Print(string(b))
 
 	url := envar["BASE_URL"] + "/devices/"
 	req, err := http.NewRequest("POST", url, bytes.NewReader(b))
@@ -606,17 +634,19 @@ func (d *Device) post() (err error) {
 
 	c := &http.Client{}
 	resp, err := c.Do(req)
-	log.Print("Device.post() ", resp.Status)
+	debug.Print("Device.post() ", resp.Status)
 	return
 }
 
 var envar = map[string]string{
+	"DUMP":        "false",
 	"APP_ID":      "",
 	"API_KEY":     "",
 	"BASE_URL":    "https://api.auklet.io/v1",
 	"BROKERS":     "",
 	"PROF_TOPIC":  "",
 	"EVENT_TOPIC": "",
+	"LOG_TOPIC":   "",
 }
 
 func env() {
@@ -626,29 +656,24 @@ func env() {
 		v := os.Getenv(prefix + k)
 		if v == "" && envar[k] == "" {
 			ok = false
-			log.Printf("empty envar %v\n", prefix+k)
+			stdlog.Printf("empty envar %v\n", prefix+k)
 		} else {
-			//log.Print(k, v)
+			//stdlog.Print(k, v)
 			envar[k] = v
 		}
 	}
 	if !ok {
-		log.Fatal("incomplete configuration")
+		stdlog.Fatal("incomplete configuration")
 	}
 }
 
 var device *Device
 
 func main() {
-	defer func() {
-		if x := recover(); x != nil {
-			log.Print(x)
-		}
-	}()
 	logger := os.Stdout
-	log.SetOutput(logger)
-	log.SetFlags(log.Lmicroseconds)
-	log.Printf("Auklet Wrapper version %s (%s)\n", Version, BuildDate)
+	stdlog.SetOutput(logger)
+	stdlog.SetFlags(stdlog.Lmicroseconds)
+	stdlog.Printf("Auklet Wrapper version %s (%s)\n", Version, BuildDate)
 
 	env()
 	args := os.Args[1:]

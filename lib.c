@@ -54,12 +54,18 @@ typedef struct {
 	unsigned cap, len;
 } B;
 
+enum {
+	DEBUG,
+	INFO,
+	FATAL,
+};
+
 /* function declarations */
 static int push(N **sp, F f);
 static int pop(N **sp);
 static int eqF(F a, F b);
 static N *newN(F f);
-static void dumpN(N *n, unsigned ind);
+static void dumpN(int level, N *n, unsigned ind);
 static void killN(N *n, int root);
 static N *hascallee(N *n, F f);
 static N *addcallee(N *n, F f);
@@ -71,10 +77,16 @@ static int append(B *b, char *fmt, ...);
 
 static void marshal(B *b, N *n);
 static void marshals(B *b, N *sp, int sig);
-static int logprint(char *fmt, ...);
+static int logprint(int level, char *fmt, ...);
 
 static jmp_buf nomem;
 static int log = 0; // stdout, initially
+static char *loglevel[] = {
+	[DEBUG] = "debug", // memory alloc
+	[INFO] = "info",   // init message
+	[FATAL] = "fatal", // unrecoverable error
+};
+
 
 /* function definitions */
 #if defined(FAULT_RATE)
@@ -106,7 +118,7 @@ push(N **sp, F f)
 		c = addcallee(*sp, f);
 		if (!c) {
 			pthread_mutex_unlock(&(*sp)->llist);
-			logprint("push: couldn't add callee");
+			logprint(FATAL, "push: couldn't add callee");
 			return 0;
 		}
 	}
@@ -124,7 +136,7 @@ static int
 pop(N **sp)
 {
 	if (!(*sp)->parent) {
-		logprint("pop: called with NULL parent");
+		logprint(FATAL, "pop: called with NULL parent");
 		return 0;
 	}
 	*sp = (*sp)->parent;
@@ -159,19 +171,19 @@ newN(F f)
 
 /* Print a node n and its callees. For debugging purposes. */
 static void
-dumpN(N *n, unsigned ind)
+dumpN(int level, N *n, unsigned ind)
 {
 	char tab[] = "\t\t\t\t\t\t\t\t\t\t";
 	tab[ind] = '\0';
-	logprint("%s%p:", tab, (void *)n);
-	logprint("%s    f.fn = %p", tab, (void *)n->f.fn);
-	logprint("%s    f.cs = %p", tab, (void *)n->f.cs);
-	logprint("%s    nsamp = %u", tab, n->nsamp);
-	logprint("%s    ncall = %u", tab, n->ncall);
-	logprint("%s    len/cap = %u/%u", tab, n->len, n->cap);
-	logprint("%s    callee = %p", tab, (void *)n->callee);
+	logprint(level, "%s%p:", tab, (void *)n);
+	logprint(level, "%s    f.fn = %p", tab, (void *)n->f.fn);
+	logprint(level, "%s    f.cs = %p", tab, (void *)n->f.cs);
+	logprint(level, "%s    nsamp = %u", tab, n->nsamp);
+	logprint(level, "%s    ncall = %u", tab, n->ncall);
+	logprint(level, "%s    len/cap = %u/%u", tab, n->len, n->cap);
+	logprint(level, "%s    callee = %p", tab, (void *)n->callee);
 	for (int i = 0; i < n->len; ++i)
-		dumpN(n->callee[i], ind + 1);
+		dumpN(level, n->callee[i], ind + 1);
 }
 
 /* Delete a node n and its callees. If root is 0, free the children of the given
@@ -244,7 +256,7 @@ growB(B *b)
 	unsigned newcap = b->cap ? b->cap * 2 : 32;
 	char *c = (char *)realloc(b->buf, newcap * sizeof(char));
 	if (!c) {
-		logprint("growB: realloc: %s", strerror(errno));
+		logprint(FATAL, "growB: realloc: %s", strerror(errno));
 		longjmp(nomem, 1);
 	}
 	b->buf = c;
@@ -348,8 +360,8 @@ sane(N *n)
 	}
 
 	if (n->nsamp < sum) {
-		logprint("sane: %p->nsamp = %u, sum = %u", (void *)n, n->nsamp, sum);
-		dumpN(n, 0);
+		logprint(FATAL, "sane: %p->nsamp = %u, sum = %u", (void *)n, n->nsamp, sum);
+		dumpN(FATAL, n, 0);
 		ok = 0;
 	}
 	pthread_mutex_unlock(&n->lsamp);
@@ -378,12 +390,17 @@ marshals(B *b, N *sp, int sig)
 }
 
 static int
-logprint(char *fmt, ...)
+logprint(int level, char *fmt, ...)
 {
 	B b = {0, 0, 0};
 	int ret;
 	va_list ap;
-	append(&b, "{\"type\":\"log\",\"data\":\"%s\"}\n", fmt);
+	append(&b, "{"
+		"\"type\":\"log\","
+		"\"data\":{"
+			"\"level\":\"%s\","
+			"\"message\":\"%s\""
+		"}}\n", loglevel[level], fmt);
 	va_start(ap, fmt);
 	ret = vdprintf(log, b.buf, ap);
 	va_end(ap);
