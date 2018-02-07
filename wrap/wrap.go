@@ -54,9 +54,9 @@ func (lw *logWriter) Write(p []byte) (n int, err error) {
 	})
 }
 
-// Object represents something that can be sent to the backend. It must have a
+// object represents something that can be sent to the backend. It must have a
 // topic and implement a brand() method that fills UUID and checksum fields.
-type Object interface {
+type object interface {
 	topic() string
 	brand(string)
 }
@@ -189,7 +189,7 @@ func relaysigs(cmd *exec.Cmd) {
 	}
 }
 
-type SendFn func(Object) error
+type SendFn func(object) error
 
 // Profile represents a profile tree to be sent to Kafka.
 type Profile struct {
@@ -231,7 +231,7 @@ func objectify(b []byte, wait WaitFn, send SendFn) (done bool, err error) {
 	if err != nil {
 		return
 	}
-	var o Object
+	var o object
 	switch j.Type {
 	case "log":
 		o = &log{}
@@ -315,9 +315,9 @@ func loginit(send SendFn) {
 	}
 }
 
-func manage(cmd *exec.Cmd) (obj chan Object) {
-	obj = make(chan Object, 10)
-	send := func(o Object) (err error) {
+func manage(cmd *exec.Cmd) (obj chan object) {
+	obj = make(chan object, 10)
+	send := func(o object) (err error) {
 		t := time.NewTimer(20 * time.Second)
 		select {
 		case obj <- o:
@@ -492,7 +492,7 @@ func (p *Producer) Close() {
 	p.P.Close()
 }
 
-func (p *Producer) produce(obj <-chan Object) (err error) {
+func (p *Producer) produce(obj <-chan object) (err error) {
 	defer func() {
 		if err != nil {
 			stdlog.Print(err)
