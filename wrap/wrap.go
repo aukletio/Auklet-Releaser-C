@@ -41,7 +41,7 @@ type logLevel string
 
 type logWriter struct {
 	level logLevel
-	send  SendFn
+	send  sendFn
 }
 
 func (lw *logWriter) Write(p []byte) (n int, err error) {
@@ -187,7 +187,7 @@ func relaysigs(cmd *exec.Cmd) {
 	}
 }
 
-type SendFn func(object) error
+type sendFn func(object) error
 
 // Profile represents a profile tree to be sent to Kafka.
 type Profile struct {
@@ -220,7 +220,9 @@ func (l *log) topic() string {
 
 func (l *log) brand(_ string) {}
 
-func objectify(b []byte, wait WaitFn, send SendFn) (done bool, err error) {
+type waitFn func() syscall.WaitStatus
+
+func objectify(b []byte, wait waitFn, send sendFn) (done bool, err error) {
 	j := struct {
 		Type string
 		Data json.RawMessage
@@ -251,9 +253,7 @@ func objectify(b []byte, wait WaitFn, send SendFn) (done bool, err error) {
 	return
 }
 
-type WaitFn func() syscall.WaitStatus
-
-func relay(s net.Listener, send SendFn, cmd *exec.Cmd) (err error) {
+func relay(s net.Listener, send sendFn, cmd *exec.Cmd) (err error) {
 	err = cmd.Start()
 	if err != nil {
 		return
@@ -297,7 +297,7 @@ func relay(s net.Listener, send SendFn, cmd *exec.Cmd) (err error) {
 
 var info, debug, fatal *stdlog.Logger
 
-func loginit(send SendFn) {
+func loginit(send sendFn) {
 	for _, l := range []struct {
 		lg    **stdlog.Logger
 		level logLevel
