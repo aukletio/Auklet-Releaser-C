@@ -242,7 +242,7 @@ func objectify(b []byte, wait waitFn, send sendFn) (done bool, err error) {
 	case "profile":
 		o = &profile{}
 	default:
-		err = fmt.Errorf("objectify: couldn't match %v\n", j.Type)
+		err = fmt.Errorf("objectify: couldn't match %v", j.Type)
 		return
 	}
 	err = json.Unmarshal(j.Data, o)
@@ -321,7 +321,7 @@ func manage(cmd *exec.Cmd) (obj chan object) {
 		case obj <- o:
 			t.Stop()
 		case <-t.C:
-			err = errors.New("obj <- o timed out")
+			err = errors.New("send(object) timed out")
 		}
 		return
 	}
