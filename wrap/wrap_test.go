@@ -74,7 +74,7 @@ func TestObjectify(t *testing.T) {
 						}]
 					}
 				}`),
-			assert: func(o object) { _ = o.(*Event) },
+			assert: func(o object) { _ = o.(*event) },
 		},
 	}
 	var done bool

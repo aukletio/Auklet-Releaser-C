@@ -123,8 +123,8 @@ type common struct {
 	UUID     string `json:"uuid"`
 }
 
-// Event contains data pertaining to the termination of a child process.
-type Event struct {
+// event contains data pertaining to the termination of a child process.
+type event struct {
 	common
 	Time    time.Time   `json:"timestamp"`
 	Zone    string      `json:"timezone"`
@@ -135,11 +135,11 @@ type Event struct {
 	Metrics metrics     `json:"system_metrics"`
 }
 
-func (e Event) topic() string {
+func (e event) topic() string {
 	return envar["EVENT_TOPIC"]
 }
 
-func (e *Event) brand(cksum string) {
+func (e *event) brand(cksum string) {
 	e.UUID = uuid.NewV4().String()
 	e.CheckSum = cksum
 	e.IP = device.IP
@@ -236,7 +236,7 @@ func objectify(b []byte, wait WaitFn, send SendFn) (done bool, err error) {
 	case "event":
 		ws := wait()
 		done = true
-		o = &Event{Status: ws.ExitStatus()}
+		o = &event{Status: ws.ExitStatus()}
 	case "profile":
 		o = &Profile{}
 	default:
@@ -285,7 +285,7 @@ func relay(s net.Listener, send SendFn, cmd *exec.Cmd) (err error) {
 	}
 	info.Printf("socket EOF")
 	ws := wait()
-	e := &Event{
+	e := &event{
 		Status: ws.ExitStatus(),
 	}
 	if ws.Signaled() {
