@@ -472,12 +472,7 @@ func newproducer(path string) (p *producer, err error) {
 }
 
 func (p *producer) produce(obj <-chan object) (err error) {
-	defer func() {
-		if err != nil {
-			stdlog.Print(err)
-		}
-		p.sp.Close()
-	}()
+	defer p.sp.Close()
 	info.Println("kafka producer connected")
 	// receive Kafka-bound objects from clients
 	for o := range obj {
