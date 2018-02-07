@@ -61,18 +61,17 @@ type object interface {
 	brand(string)
 }
 
-func checksum(path string) (sum string, err error) {
+func checksum(path string) string {
 	f, err := os.Open(path)
 	if err != nil {
-		return
+		panic(err)
 	}
 	defer f.Close()
 	h := sha512.New512_224()
 	if _, err = io.Copy(h, f); err != nil {
-		return
+		panic(err)
 	}
-	sum = fmt.Sprintf("%x", h.Sum(nil))
-	return
+	return fmt.Sprintf("%x", h.Sum(nil))
 }
 
 type sig syscall.Signal
@@ -452,27 +451,13 @@ type producer struct {
 }
 
 func newproducer(path string) (p *producer, err error) {
-	cksum, err := checksum(path)
-	if err != nil {
-		return
-	}
-	ok, err := valid(cksum)
-	if err != nil {
-		return
-	}
-	if !ok {
+	cksum := checksum(path)
+	if !valid(cksum) {
 		err = fmt.Errorf("checksum %v... not released", cksum[:10])
 		return
 	}
-	ok, err = dev.get()
-	if err != nil {
-		return
-	}
-	if !ok {
-		err = dev.post()
-		if err != nil {
-			return
-		}
+	if !dev.get() {
+		dev.post()
 	}
 	sp, err := connect()
 	if err != nil {
@@ -515,12 +500,12 @@ func (p *producer) produce(obj <-chan object) (err error) {
 	return
 }
 
-func valid(sum string) (ok bool, err error) {
+func valid(sum string) (ok bool) {
 	ep := envar["BASE_URL"] + "/check_releases/" + sum
 	//stdlog.Println("wrapper: release check url:", ep)
 	resp, err := http.Get(ep)
 	if err != nil {
-		return
+		panic(err)
 	}
 	//stdlog.Println("wrapper: valid: response status:", resp.Status)
 
@@ -534,7 +519,7 @@ func valid(sum string) (ok bool, err error) {
 	// 500 happens if the backend is broken teehee
 	default:
 		format := "valid: got unexpected status %v"
-		err = fmt.Errorf(format, resp.Status)
+		panic(fmt.Errorf(format, resp.Status))
 	}
 	return
 }
@@ -572,21 +557,21 @@ func getip() string {
 }
 
 // Determine whether this device is already known by the backend.
-func (d *device) get() (ok bool, err error) {
+func (d *device) get() (ok bool) {
 	url := envar["BASE_URL"] + "/devices/?mac_address_hash=" + d.Mac
 	req, err := http.NewRequest("GET", url, nil)
 	if err != nil {
-		return
+		panic(err)
 	}
 	req.Header.Add("apikey", envar["API_KEY"])
 	c := &http.Client{}
 	resp, err := c.Do(req)
 	if err != nil {
-		return
+		panic(err)
 	}
 
 	debug.Print("device.get() length = ", resp.ContentLength)
-	return !(resp.ContentLength <= 2), nil
+	return !(resp.ContentLength <= 2)
 }
 
 func ifacehash() string {
@@ -611,25 +596,24 @@ func ifacehash() string {
 }
 
 // Post this device to the backend.
-func (d *device) post() (err error) {
-	b, err := json.Marshal(d)
-	if err != nil {
-		return
-	}
+func (d *device) post() {
+	b, _ := json.Marshal(d)
 	debug.Print(string(b))
 
 	url := envar["BASE_URL"] + "/devices/"
 	req, err := http.NewRequest("POST", url, bytes.NewReader(b))
 	if err != nil {
-		return
+		panic(err)
 	}
 	req.Header.Add("content-type", "application/json")
 	req.Header.Add("apikey", envar["API_KEY"])
 
 	c := &http.Client{}
 	resp, err := c.Do(req)
+	if err != nil {
+		panic(err)
+	}
 	debug.Print("device.post() ", resp.Status)
-	return
 }
 
 var envar = map[string]string{
