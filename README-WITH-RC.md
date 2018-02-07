@@ -1,5 +1,15 @@
 # Change Log
 
+## Upcoming Changes
+### [0.3.0-rc.1](https://github.com/ESG-USA/Auklet-Profiler-C/tree/0.3.0-rc.1) (Wed Feb  7 17:38:50 2018 UTC)
+**Implemented enhancements:**
+
+- APM-1003 APM-932 Send logs to Kafka [\#55](https://github.com/ESG-USA/Auklet-Profiler-C/pull/55) ([kdsch](https://github.com/kdsch))
+
+**Fixed bugs:**
+
+- x.c: Fix short runs [\#56](https://github.com/ESG-USA/Auklet-Profiler-C/pull/56) ([kdsch](https://github.com/kdsch))
+
 ## [0.2.0](https://github.com/ESG-USA/Auklet-Profiler-C/tree/0.2.0) (Mon Feb  5 17:25:11 2018 UTC)
 ### [0.2.0-rc.2](https://github.com/ESG-USA/Auklet-Profiler-C/tree/0.2.0-rc.2) (Thu Feb  1 16:13:32 2018 UTC)
 **Fixed bugs:**
