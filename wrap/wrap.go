@@ -117,7 +117,7 @@ type metrics struct {
 	Outbound   uint64  `json:"outbound_traffic"`
 }
 
-type Common struct {
+type common struct {
 	CheckSum string `json:"checksum"`
 	IP       string `json:"public_ip"`
 	UUID     string `json:"uuid"`
@@ -125,7 +125,7 @@ type Common struct {
 
 // Event contains data pertaining to the termination of a child process.
 type Event struct {
-	Common
+	common
 	Time    time.Time   `json:"timestamp"`
 	Zone    string      `json:"timezone"`
 	Status  int         `json:"exit_status"`           // waitstatus
@@ -191,7 +191,7 @@ type SendFn func(object) error
 
 // Profile represents a profile tree to be sent to Kafka.
 type Profile struct {
-	Common
+	common
 	Time  int64           `json:"timestamp"`
 	Tree  json.RawMessage `json:"tree"`
 	AppID string          `json:"app_id"`
