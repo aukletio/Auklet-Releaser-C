@@ -142,13 +142,13 @@ func (e event) topic() string {
 func (e *event) brand(cksum string) {
 	e.UUID = uuid.NewV4().String()
 	e.CheckSum = cksum
-	e.IP = device.IP
+	e.IP = dev.IP
 
-	e.Device = device.Mac
+	e.Device = dev.Mac
 
 	e.Metrics = calcmetrics()
 	e.Time = time.Now()
-	e.Zone = device.Zone
+	e.Zone = dev.Zone
 }
 
 func calcmetrics() (m metrics) { // inboundRate outboundRate
@@ -204,7 +204,7 @@ func (p profile) topic() string {
 func (p *profile) brand(cksum string) {
 	p.UUID = uuid.NewV4().String()
 	p.CheckSum = cksum
-	p.IP = device.IP
+	p.IP = dev.IP
 	p.AppID = envar["APP_ID"]
 	p.Time = time.Now().UnixNano() / 1000000
 }
@@ -447,7 +447,7 @@ func connect() (p sarama.SyncProducer, err error) {
 
 type producer struct {
 	CheckSum string
-	Dev      *Device
+	Dev      *device
 	P        sarama.SyncProducer
 }
 
@@ -464,12 +464,12 @@ func newproducer(path string) (p *producer, err error) {
 		err = errors.New(fmt.Sprintf("checksum %v... not released", cksum[:10]))
 		return
 	}
-	ok, err = device.get()
+	ok, err = dev.get()
 	if err != nil {
 		return
 	}
 	if !ok {
-		err = device.post()
+		err = dev.post()
 		if err != nil {
 			return
 		}
@@ -481,7 +481,7 @@ func newproducer(path string) (p *producer, err error) {
 	p = &producer{
 		P:        sp,
 		CheckSum: cksum,
-		Dev:      device,
+		Dev:      dev,
 	}
 	return
 }
@@ -543,17 +543,17 @@ func valid(sum string) (ok bool, err error) {
 	return
 }
 
-// Device contains information about the device that the backend needs to know.
-type Device struct {
+// device contains information about the device that the backend needs to know.
+type device struct {
 	Mac   string `json:"mac_address_hash"`
 	Zone  string `json:"timezone"`
 	AppID string `json:"application"`
 	IP    string `json:"-"`
 }
 
-func NewDevice() *Device {
+func Newdevice() *device {
 	zone, _ := time.Now().Zone()
-	d := &Device{
+	d := &device{
 		Mac:   ifacehash(),
 		Zone:  zone,
 		AppID: envar["APP_ID"],
@@ -576,7 +576,7 @@ func getip() string {
 }
 
 // Determine whether this device is already known by the backend.
-func (d *Device) get() (ok bool, err error) {
+func (d *device) get() (ok bool, err error) {
 	url := envar["BASE_URL"] + "/devices/?mac_address_hash=" + d.Mac
 	req, err := http.NewRequest("GET", url, nil)
 	if err != nil {
@@ -589,7 +589,7 @@ func (d *Device) get() (ok bool, err error) {
 		return
 	}
 
-	debug.Print("Device.get() length = ", resp.ContentLength)
+	debug.Print("device.get() length = ", resp.ContentLength)
 	return !(resp.ContentLength <= 2), nil
 }
 
@@ -615,7 +615,7 @@ func ifacehash() string {
 }
 
 // Post this device to the backend.
-func (d *Device) post() (err error) {
+func (d *device) post() (err error) {
 	b, err := json.Marshal(d)
 	if err != nil {
 		return
@@ -632,7 +632,7 @@ func (d *Device) post() (err error) {
 
 	c := &http.Client{}
 	resp, err := c.Do(req)
-	debug.Print("Device.post() ", resp.Status)
+	debug.Print("device.post() ", resp.Status)
 	return
 }
 
@@ -665,7 +665,7 @@ func env() {
 	}
 }
 
-var device *Device
+var dev *device
 
 func main() {
 	logger := os.Stdout
@@ -678,7 +678,7 @@ func main() {
 	if len(args) == 0 {
 		usage()
 	}
-	device = NewDevice()
+	dev = Newdevice()
 	go networkStat()
 
 	cmd := exec.Command(args[0], args[1:]...)
