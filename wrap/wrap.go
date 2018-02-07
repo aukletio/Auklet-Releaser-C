@@ -646,6 +646,7 @@ var envar = map[string]string{
 	"BROKERS":     "",
 	"PROF_TOPIC":  "",
 	"EVENT_TOPIC": "",
+	"LOG_TOPIC":   "",
 }
 
 func env() {
