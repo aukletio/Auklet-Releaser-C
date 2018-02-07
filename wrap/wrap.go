@@ -142,7 +142,7 @@ func (e event) topic() string {
 func (e *event) brand(cksum string) {
 	e.UUID = uuid.NewV4().String()
 	e.CheckSum = cksum
-	e.IP = dev.IP
+	e.IP = dev.ip
 
 	e.Device = dev.Mac
 
@@ -204,7 +204,7 @@ func (p profile) topic() string {
 func (p *profile) brand(cksum string) {
 	p.UUID = uuid.NewV4().String()
 	p.CheckSum = cksum
-	p.IP = dev.IP
+	p.IP = dev.ip
 	p.AppID = envar["APP_ID"]
 	p.Time = time.Now().UnixNano() / 1000000
 }
@@ -446,9 +446,9 @@ func connect() (p sarama.SyncProducer, err error) {
 }
 
 type producer struct {
-	CheckSum string
-	Dev      *device
-	P        sarama.SyncProducer
+	checkSum string
+	dev      *device
+	sp       sarama.SyncProducer
 }
 
 func newproducer(path string) (p *producer, err error) {
@@ -479,15 +479,11 @@ func newproducer(path string) (p *producer, err error) {
 		return // bad config or closed client
 	}
 	p = &producer{
-		P:        sp,
-		CheckSum: cksum,
-		Dev:      dev,
+		sp:       sp,
+		checkSum: cksum,
+		dev:      dev,
 	}
 	return
-}
-
-func (p *producer) Close() {
-	p.P.Close()
 }
 
 func (p *producer) produce(obj <-chan object) (err error) {
@@ -495,12 +491,12 @@ func (p *producer) produce(obj <-chan object) (err error) {
 		if err != nil {
 			stdlog.Print(err)
 		}
-		p.Close()
+		p.sp.Close()
 	}()
 	info.Println("kafka producer connected")
 	// receive Kafka-bound objects from clients
 	for o := range obj {
-		o.brand(p.CheckSum)
+		o.brand(p.checkSum)
 		b, err := json.Marshal(o)
 		if err != nil {
 			return err
@@ -508,7 +504,7 @@ func (p *producer) produce(obj <-chan object) (err error) {
 		if envar["DUMP"] == "true" {
 			fmt.Printf("producer got %v bytes: %v\n", len(b), string(b))
 		}
-		_, _, err = p.P.SendMessage(&sarama.ProducerMessage{
+		_, _, err = p.sp.SendMessage(&sarama.ProducerMessage{
 			Topic: o.topic(),
 			Value: sarama.ByteEncoder(b),
 		})
@@ -548,20 +544,20 @@ type device struct {
 	Mac   string `json:"mac_address_hash"`
 	Zone  string `json:"timezone"`
 	AppID string `json:"application"`
-	IP    string `json:"-"`
+	ip    string
 }
 
-func Newdevice() *device {
+func newdevice() *device {
 	zone, _ := time.Now().Zone()
 	d := &device{
 		Mac:   ifacehash(),
 		Zone:  zone,
 		AppID: envar["APP_ID"],
-		IP:    getip(),
+		ip:    getip(),
 	}
 	go func() { // d
 		for _ = range time.Tick(5 * time.Minute) {
-			d.IP = getip()
+			d.ip = getip()
 		}
 	}()
 	return d
@@ -678,7 +674,7 @@ func main() {
 	if len(args) == 0 {
 		usage()
 	}
-	dev = Newdevice()
+	dev = newdevice()
 	go networkStat()
 
 	cmd := exec.Command(args[0], args[1:]...)
