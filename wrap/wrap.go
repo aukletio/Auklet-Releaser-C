@@ -189,19 +189,19 @@ func relaysigs(cmd *exec.Cmd) {
 
 type sendFn func(object) error
 
-// Profile represents a profile tree to be sent to Kafka.
-type Profile struct {
+// profile represents a profile tree to be sent to Kafka.
+type profile struct {
 	common
 	Time  int64           `json:"timestamp"`
 	Tree  json.RawMessage `json:"tree"`
 	AppID string          `json:"app_id"`
 }
 
-func (p Profile) topic() string {
+func (p profile) topic() string {
 	return envar["PROF_TOPIC"]
 }
 
-func (p *Profile) brand(cksum string) {
+func (p *profile) brand(cksum string) {
 	p.UUID = uuid.NewV4().String()
 	p.CheckSum = cksum
 	p.IP = device.IP
@@ -240,7 +240,7 @@ func objectify(b []byte, wait waitFn, send sendFn) (done bool, err error) {
 		done = true
 		o = &event{Status: ws.ExitStatus()}
 	case "profile":
-		o = &Profile{}
+		o = &profile{}
 	default:
 		err = errors.New(fmt.Sprintf("objectify: couldn't match %v\n", j.Type))
 		return

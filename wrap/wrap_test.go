@@ -44,7 +44,7 @@ func TestObjectify(t *testing.T) {
 						}
 					}
 				}`),
-			assert: func(o object) { _ = o.(*Profile) },
+			assert: func(o object) { _ = o.(*profile) },
 		},
 		{
 			b: []byte(`{
