@@ -49,7 +49,10 @@ func TestObjectify(t *testing.T) {
 		{
 			b: []byte(`{
 					"type":"log",
-					"data":"hi mom"
+					"data":{
+						"level":"info",
+						"message":"hi mom"
+					}
 				}`),
 			assert: func(o Object) {
 				if o != nil {
@@ -77,7 +80,7 @@ func TestObjectify(t *testing.T) {
 	var done bool
 	for _, u := range test {
 		var err error
-		done, err = Objectify(u.b, wait, send)
+		done, err = objectify(u.b, wait, send)
 		if err != nil {
 			t.Error(err)
 		}
