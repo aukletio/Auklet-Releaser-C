@@ -445,13 +445,13 @@ func connect() (p sarama.SyncProducer, err error) {
 	return sarama.NewSyncProducer(brokers, config)
 }
 
-type Producer struct {
+type producer struct {
 	CheckSum string
 	Dev      *Device
 	P        sarama.SyncProducer
 }
 
-func NewProducer(path string) (p *Producer, err error) {
+func newproducer(path string) (p *producer, err error) {
 	cksum, err := checksum(path)
 	if err != nil {
 		return
@@ -478,7 +478,7 @@ func NewProducer(path string) (p *Producer, err error) {
 	if err != nil {
 		return // bad config or closed client
 	}
-	p = &Producer{
+	p = &producer{
 		P:        sp,
 		CheckSum: cksum,
 		Dev:      device,
@@ -486,11 +486,11 @@ func NewProducer(path string) (p *Producer, err error) {
 	return
 }
 
-func (p *Producer) Close() {
+func (p *producer) Close() {
 	p.P.Close()
 }
 
-func (p *Producer) produce(obj <-chan object) (err error) {
+func (p *producer) produce(obj <-chan object) (err error) {
 	defer func() {
 		if err != nil {
 			stdlog.Print(err)
@@ -687,7 +687,7 @@ func main() {
 	cmd.Stdin = os.Stdin
 
 	obj := manage(cmd)
-	p, err := NewProducer(cmd.Path)
+	p, err := newproducer(cmd.Path)
 	check(err)
 	err = p.produce(obj)
 	check(err)
