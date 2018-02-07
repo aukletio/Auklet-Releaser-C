@@ -242,7 +242,7 @@ func objectify(b []byte, wait waitFn, send sendFn) (done bool, err error) {
 	case "profile":
 		o = &profile{}
 	default:
-		err = errors.New(fmt.Sprintf("objectify: couldn't match %v\n", j.Type))
+		err = fmt.Errorf("objectify: couldn't match %v\n", j.Type)
 		return
 	}
 	err = json.Unmarshal(j.Data, o)
@@ -360,7 +360,7 @@ func getcerts() (m map[string][]byte, err error) {
 
 	if resp.StatusCode != 200 {
 		format := "getcerts: got unexpected status %v"
-		err = errors.New(fmt.Sprintf(format, resp.Status))
+		err = fmt.Errorf(format, resp.Status)
 		return
 	}
 
@@ -395,7 +395,7 @@ func getcerts() (m map[string][]byte, err error) {
 	filenames := []string{"ck_ca", "ck_cert", "ck_private_key"}
 	if len(m) != len(filenames) {
 		format := "got zip archive with %v files, expected %v"
-		err = errors.New(fmt.Sprintf(format, len(m), len(filenames)))
+		err = fmt.Errorf(format, len(m), len(filenames))
 		return nil, err
 	}
 
@@ -461,7 +461,7 @@ func newproducer(path string) (p *producer, err error) {
 		return
 	}
 	if !ok {
-		err = errors.New(fmt.Sprintf("checksum %v... not released", cksum[:10]))
+		err = fmt.Errorf("checksum %v... not released", cksum[:10])
 		return
 	}
 	ok, err = dev.get()
@@ -534,7 +534,7 @@ func valid(sum string) (ok bool, err error) {
 	// 500 happens if the backend is broken teehee
 	default:
 		format := "valid: got unexpected status %v"
-		err = errors.New(fmt.Sprintf(format, resp.Status))
+		err = fmt.Errorf(format, resp.Status)
 	}
 	return
 }
