@@ -109,8 +109,8 @@ func networkStat() { // inboundRate outBoundRate
 	}
 }
 
-// System contains data pertaining to overall system metrics
-type System struct {
+// metrics contains overall system metrics
+type metrics struct {
 	CPUPercent float64 `json:"system_cpu_usage"`
 	MemPercent float64 `json:"system_mem_usage"`
 	Inbound    uint64  `json:"inbound_traffic"`
@@ -126,13 +126,13 @@ type Common struct {
 // Event contains data pertaining to the termination of a child process.
 type Event struct {
 	Common
-	Time          time.Time   `json:"timestamp"`
-	Zone          string      `json:"timezone"`
-	Status        int         `json:"exit_status"`           // waitstatus
-	Signal        sig         `json:"signal,omitempty"`      // waitstatus | json
-	Trace         interface{} `json:"stack_trace,omitempty"` // json
-	Device        string      `json:"mac_address_hash,omitempty"`
-	SystemMetrics System      `json:"system_metrics"`
+	Time    time.Time   `json:"timestamp"`
+	Zone    string      `json:"timezone"`
+	Status  int         `json:"exit_status"`           // waitstatus
+	Signal  sig         `json:"signal,omitempty"`      // waitstatus | json
+	Trace   interface{} `json:"stack_trace,omitempty"` // json
+	Device  string      `json:"mac_address_hash,omitempty"`
+	Metrics metrics     `json:"system_metrics"`
 }
 
 func (e Event) topic() string {
@@ -146,28 +146,26 @@ func (e *Event) brand(cksum string) {
 
 	e.Device = device.Mac
 
-	e.SystemMetrics = metrics()
+	e.Metrics = calcmetrics()
 	e.Time = time.Now()
 	e.Zone = device.Zone
 }
 
-func metrics() System { // inboundRate outboundRate
-	var s System
-
+func calcmetrics() (m metrics) { // inboundRate outboundRate
 	// System-wide cpu usage since the start of the child process
 	if tempCPU, err := cpu.Percent(0, false); err == nil {
-		s.CPUPercent = tempCPU[0]
+		m.CPUPercent = tempCPU[0]
 	}
 
 	// System-wide current virtual memory (ram) consumption
 	// percentage at the time of child process termination
 	if tempMem, err := mem.VirtualMemory(); err == nil {
-		s.MemPercent = tempMem.UsedPercent
+		m.MemPercent = tempMem.UsedPercent
 	}
 
-	s.Inbound = inboundRate
-	s.Outbound = outboundRate
-	return s
+	m.Inbound = inboundRate
+	m.Outbound = outboundRate
+	return
 }
 
 func check(err error) {
