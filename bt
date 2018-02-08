@@ -1,5 +1,5 @@
 #!/bin/bash
-set -euo pipefail
+set -eo pipefail
 source ./bt.cfg
 function cleanX () {
   rm -f rt.o x.o x-dbg x-raw x
