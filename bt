@@ -39,11 +39,11 @@ else
       echo 'bt: generating X test executable...'
       cleanX
       # uninstrumented test program
-      ${CC} -o x-raw x.c ${CFLAGS} -lpthread
+      ${CC} -o x-raw ${CFLAGS} -lpthread x.c
       # instrumented, debuggable test program
       rtCompile
       ${CC} -o x.o -c ${CFLAGS} ${PFLAGS} x.c
-      ${CC} -o x-dbg x.o rt.o ${PLIBS}
+      ${CC} -o x-dbg ${PLIBS} x.o rt.o
       # instrumented, stripped test program
       cp x-dbg x
       strip x
