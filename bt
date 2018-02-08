@@ -1,5 +1,5 @@
 #!/bin/bash
-set -euo pipefail
+set -eo pipefail
 source ./bt.cfg
 function cleanX () {
   rm -f rt.o x.o x-dbg x-raw x
@@ -11,7 +11,7 @@ function cleanLibauklet () {
   rm -f rt.o libauklet.a libauklet.tgz
 }
 function rtCompile () {
-  ${CC} -o rt.o -c ${CFLAGS} -DAUKLET_VERSION=\"$(cat VERSION)\" -DAUKLET_TIMESTAMP=\"${TIMESTAMP}\" rt.c lib.c
+  ${CC} -o rt.o -c ${CFLAGS} -DAUKLET_VERSION="\"$(cat VERSION)\"" -DAUKLET_TIMESTAMP="\"${TIMESTAMP}\"" rt.c
 }
 if [ "$1" == "" ]; then
   ./$0 gobin
