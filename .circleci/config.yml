@@ -62,7 +62,6 @@ jobs:
                 name: Run tests
                 command: |
                   ./bt test
-                  ./bt x
 
             ##
             # SAVE CACHES
