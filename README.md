@@ -56,6 +56,9 @@ compile-time errors immediately without needing an IDE.
 
 `autobuild` requires [entr](http://www.entrproject.org/).
 
+Developers can set the environment variable `AUKLET_DUMP=true` to see logs on
+stdout.
+
 # Build
 
 To ensure you have all the correct dependencies, run
@@ -87,6 +90,7 @@ An Auklet configuration is defined by the following environment variables.
 	AUKLET_BROKERS
 	AUKLET_PROF_TOPIC
 	AUKLET_EVENT_TOPIC
+	AUKLET_LOG_TOPIC
 
 To view your current configuration, run `env | grep AUKLET`.
 
@@ -108,6 +112,7 @@ file, `.auklet`, and sourced from within `.env.staging`. For example:
 	export AUKLET_BROKERS=broker1,broker2,broker3
 	export AUKLET_PROF_TOPIC=z8u1-profiler
 	export AUKLET_EVENT_TOPIC=z8u1-events
+	export AUKLET_LOG_TOPIC=z8u1-logs
 
 ## `AUKLET_BROKERS`
 
@@ -115,9 +120,9 @@ A comma-delimited list of Kafka broker addresses. For example:
 
 	broker1,broker2,broker3
 
-## `AUKLET_EVENT_TOPIC`, `AUKLET_PROF_TOPIC`
+## `AUKLET_EVENT_TOPIC`, `AUKLET_PROF_TOPIC` `AUKLET_LOG_TOPIC`
 
-Kafka topics to which `wrap` should send event and profile data, respectively.
+Kafka topics to which `wrap` should send event, profile, and log data, respectively.
 
 ## `AUKLET_BASE_URL`
 
