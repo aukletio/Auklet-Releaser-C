@@ -1,6 +1,14 @@
 # Change Log
 
-## Upcoming Changes
+## [0.3.0](https://github.com/ESG-USA/Auklet-Profiler-C/tree/0.3.0) (Fri Feb  9 16:44:05 2018 UTC)
+**Implemented enhancements:**
+
+- APM-1028: Replace Make with a custom shell-based build system [\#59](https://github.com/ESG-USA/Auklet-Profiler-C/pull/59) ([rjenkinsjr](https://github.com/rjenkinsjr))
+
+**Fixed bugs:**
+
+- CircleCI bug fixes [\#60](https://github.com/ESG-USA/Auklet-Profiler-C/pull/60) ([rjenkinsjr](https://github.com/rjenkinsjr))
+
 ### [0.3.0-rc.1](https://github.com/ESG-USA/Auklet-Profiler-C/tree/0.3.0-rc.1) (Wed Feb  7 17:38:50 2018 UTC)
 **Implemented enhancements:**
 
