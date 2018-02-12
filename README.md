@@ -1,5 +1,13 @@
 # Change Log
 
+## [Upcoming Changes](https://github.com/ESG-USA/Auklet-Profiler-C/tree/master)
+
+[Full Changelog](https://github.com/ESG-USA/Auklet-Profiler-C/compare/0.3.0...master)
+
+**Implemented enhancements:**
+
+- wrap.go: Use long form of timezone name [\#31](https://github.com/ESG-USA/Auklet-Profiler-C/pull/31) ([kdsch](https://github.com/kdsch))
+
 ## [0.3.0](https://github.com/ESG-USA/Auklet-Profiler-C/tree/0.3.0) (Fri Feb  9 16:44:05 2018 UTC)
 [Full Changelog](https://github.com/ESG-USA/Auklet-Profiler-C/compare/0.2.0...0.3.0)
 
