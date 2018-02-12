@@ -147,7 +147,6 @@ func (e *event) brand(cksum string) {
 
 	e.Metrics = calcmetrics()
 	e.Time = time.Now()
-	e.Zone = dev.Zone
 }
 
 func calcmetrics() (m metrics) { // inboundRate outboundRate
@@ -522,16 +521,13 @@ func valid(sum string) (ok bool) {
 // device contains information about the device that the backend needs to know.
 type device struct {
 	Mac   string `json:"mac_address_hash"`
-	Zone  string `json:"timezone"`
 	AppID string `json:"application"`
 	ip    string
 }
 
 func newdevice() *device {
-	zone, _ := time.Now().Zone()
 	d := &device{
 		Mac:   ifacehash(),
-		Zone:  zone,
 		AppID: envar["APP_ID"],
 		ip:    getip(),
 	}

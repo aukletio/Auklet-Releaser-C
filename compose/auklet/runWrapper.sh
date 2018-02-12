@@ -1,4 +1,4 @@
 #!/bin/sh
 dep ensure
-make
+./bt
 wrap ./x
