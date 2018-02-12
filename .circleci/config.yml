@@ -61,7 +61,7 @@ jobs:
             - run:
                 name: Run tests
                 command: |
-                  make lib_test && ./lib_test
+                  ./bt test
 
             ##
             # SAVE CACHES

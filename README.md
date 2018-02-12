@@ -51,7 +51,7 @@ to download `dep-darwin-amd64`.
 # Development Tools
 
 `autobuild` is an optional script that can be run in a separate terminal window.
-When source files change, it runs `make`, allowing the developer to find
+When source files change, it runs `./bt`, allowing the developer to find
 compile-time errors immediately without needing an IDE.
 
 `autobuild` requires [entr](http://www.entrproject.org/).
@@ -65,20 +65,23 @@ To ensure you have all the correct dependencies, run
 
 	dep ensure
 
-To build and install all components, run
+To build and test all components, run
 
-	make
+	./bt
 
-In particular, this installs the commands `wrap` and `release` to `$GOPATH/bin`,
-and build test executables `x` and `x-dbg`.
+In particular, this command:
 
-To install the static library `libauklet.a` to `/usr/local/lib/`, run
+- Builds the executables `wrap` and `release` and installs them to `$GOPATH/bin`
+- Runs unit tests on `wrap` and `lib.c`
+- Builds the manual testing executables `x`, `x-raw` and `x-dbg`
 
-	make install
+To compile and install the static library `libauklet.a` to `/usr/local/lib/`, run
+
+	./bt libinstall
 
 # Run Unit Tests
 
-	./lib_test
+	./bt test
 
 # Configure
 
