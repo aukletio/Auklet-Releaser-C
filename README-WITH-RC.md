@@ -1,6 +1,12 @@
 # Change Log
 
 ## Upcoming Changes
+### [0.4.0-rc.2](https://github.com/ESG-USA/Auklet-Profiler-C/tree/0.4.0-rc.2) (Tue Feb 13 21:54:39 2018 UTC)
+**Merged pull requests:**
+
+- wrap.go: Remove Event.Zone field [\#63](https://github.com/ESG-USA/Auklet-Profiler-C/pull/63) ([kdsch](https://github.com/kdsch))
+- Make Code Climate Happy  [\#58](https://github.com/ESG-USA/Auklet-Profiler-C/pull/58) ([kdsch](https://github.com/kdsch))
+
 ### [0.4.0-rc.1](https://github.com/ESG-USA/Auklet-Profiler-C/tree/0.4.0-rc.1) (Mon Feb 12 16:28:17 2018 UTC)
 **Implemented enhancements:**
 
