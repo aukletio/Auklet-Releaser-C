@@ -41,7 +41,7 @@ type logLevel string
 
 type logWriter struct {
 	level logLevel
-	send  SendFn
+	send  sendFn
 }
 
 func (lw *logWriter) Write(p []byte) (n int, err error) {
@@ -54,25 +54,24 @@ func (lw *logWriter) Write(p []byte) (n int, err error) {
 	})
 }
 
-// Object represents something that can be sent to the backend. It must have a
+// object represents something that can be sent to the backend. It must have a
 // topic and implement a brand() method that fills UUID and checksum fields.
-type Object interface {
+type object interface {
 	topic() string
 	brand(string)
 }
 
-func checksum(path string) (sum string, err error) {
+func checksum(path string) string {
 	f, err := os.Open(path)
 	if err != nil {
-		return
+		panic(err)
 	}
 	defer f.Close()
 	h := sha512.New512_224()
 	if _, err = io.Copy(h, f); err != nil {
-		return
+		panic(err)
 	}
-	sum = fmt.Sprintf("%x", h.Sum(nil))
-	return
+	return fmt.Sprintf("%x", h.Sum(nil))
 }
 
 type sig syscall.Signal
@@ -109,64 +108,61 @@ func networkStat() { // inboundRate outBoundRate
 	}
 }
 
-// System contains data pertaining to overall system metrics
-type System struct {
+// metrics contains overall system metrics
+type metrics struct {
 	CPUPercent float64 `json:"system_cpu_usage"`
 	MemPercent float64 `json:"system_mem_usage"`
 	Inbound    uint64  `json:"inbound_traffic"`
 	Outbound   uint64  `json:"outbound_traffic"`
 }
 
-type Common struct {
+type common struct {
 	CheckSum string `json:"checksum"`
 	IP       string `json:"public_ip"`
 	UUID     string `json:"uuid"`
 }
 
-// Event contains data pertaining to the termination of a child process.
-type Event struct {
-	Common
-	Time          time.Time   `json:"timestamp"`
-	Zone          string      `json:"timezone"`
-	Status        int         `json:"exit_status"`           // waitstatus
-	Signal        sig         `json:"signal,omitempty"`      // waitstatus | json
-	Trace         interface{} `json:"stack_trace,omitempty"` // json
-	Device        string      `json:"mac_address_hash,omitempty"`
-	SystemMetrics System      `json:"system_metrics"`
+// event contains data pertaining to the termination of a child process.
+type event struct {
+	common
+	Time    time.Time   `json:"timestamp"`
+	Status  int         `json:"exit_status"`           // waitstatus
+	Signal  sig         `json:"signal,omitempty"`      // waitstatus | json
+	Trace   interface{} `json:"stack_trace,omitempty"` // json
+	Device  string      `json:"mac_address_hash,omitempty"`
+	Metrics metrics     `json:"system_metrics"`
 }
 
-func (e Event) topic() string {
+func (e event) topic() string {
 	return envar["EVENT_TOPIC"]
 }
 
-func (e *Event) brand(cksum string) {
+func (e *event) brand(cksum string) {
 	e.UUID = uuid.NewV4().String()
 	e.CheckSum = cksum
-	e.IP = device.IP
+	e.IP = dev.ip
 
-	e.Device = device.Mac
+	e.Device = dev.Mac
 
-	e.SystemMetrics = metrics()
+	e.Metrics = calcmetrics()
 	e.Time = time.Now()
 }
 
-func metrics() System { // inboundRate outboundRate
-	var s System
-
+func calcmetrics() (m metrics) { // inboundRate outboundRate
 	// System-wide cpu usage since the start of the child process
 	if tempCPU, err := cpu.Percent(0, false); err == nil {
-		s.CPUPercent = tempCPU[0]
+		m.CPUPercent = tempCPU[0]
 	}
 
 	// System-wide current virtual memory (ram) consumption
 	// percentage at the time of child process termination
 	if tempMem, err := mem.VirtualMemory(); err == nil {
-		s.MemPercent = tempMem.UsedPercent
+		m.MemPercent = tempMem.UsedPercent
 	}
 
-	s.Inbound = inboundRate
-	s.Outbound = outboundRate
-	return s
+	m.Inbound = inboundRate
+	m.Outbound = outboundRate
+	return
 }
 
 func check(err error) {
@@ -188,24 +184,24 @@ func relaysigs(cmd *exec.Cmd) {
 	}
 }
 
-type SendFn func(Object) error
+type sendFn func(object) error
 
-// Profile represents a profile tree to be sent to Kafka.
-type Profile struct {
-	Common
+// profile represents a profile tree to be sent to Kafka.
+type profile struct {
+	common
 	Time  int64           `json:"timestamp"`
 	Tree  json.RawMessage `json:"tree"`
 	AppID string          `json:"app_id"`
 }
 
-func (p Profile) topic() string {
+func (p profile) topic() string {
 	return envar["PROF_TOPIC"]
 }
 
-func (p *Profile) brand(cksum string) {
+func (p *profile) brand(cksum string) {
 	p.UUID = uuid.NewV4().String()
 	p.CheckSum = cksum
-	p.IP = device.IP
+	p.IP = dev.ip
 	p.AppID = envar["APP_ID"]
 	p.Time = time.Now().UnixNano() / 1000000
 }
@@ -221,7 +217,9 @@ func (l *log) topic() string {
 
 func (l *log) brand(_ string) {}
 
-func objectify(b []byte, wait WaitFn, send SendFn) (done bool, err error) {
+type waitFn func() syscall.WaitStatus
+
+func objectify(b []byte, wait waitFn, send sendFn) (done bool, err error) {
 	j := struct {
 		Type string
 		Data json.RawMessage
@@ -230,18 +228,18 @@ func objectify(b []byte, wait WaitFn, send SendFn) (done bool, err error) {
 	if err != nil {
 		return
 	}
-	var o Object
+	var o object
 	switch j.Type {
 	case "log":
 		o = &log{}
 	case "event":
 		ws := wait()
 		done = true
-		o = &Event{Status: ws.ExitStatus()}
+		o = &event{Status: ws.ExitStatus()}
 	case "profile":
-		o = &Profile{}
+		o = &profile{}
 	default:
-		err = errors.New(fmt.Sprintf("objectify: couldn't match %v\n", j.Type))
+		err = fmt.Errorf("objectify: couldn't match %v", j.Type)
 		return
 	}
 	err = json.Unmarshal(j.Data, o)
@@ -252,9 +250,7 @@ func objectify(b []byte, wait WaitFn, send SendFn) (done bool, err error) {
 	return
 }
 
-type WaitFn func() syscall.WaitStatus
-
-func relay(s net.Listener, send SendFn, cmd *exec.Cmd) (err error) {
+func relay(s net.Listener, send sendFn, cmd *exec.Cmd) (err error) {
 	err = cmd.Start()
 	if err != nil {
 		return
@@ -286,7 +282,7 @@ func relay(s net.Listener, send SendFn, cmd *exec.Cmd) (err error) {
 	}
 	info.Printf("socket EOF")
 	ws := wait()
-	e := &Event{
+	e := &event{
 		Status: ws.ExitStatus(),
 	}
 	if ws.Signaled() {
@@ -298,7 +294,7 @@ func relay(s net.Listener, send SendFn, cmd *exec.Cmd) (err error) {
 
 var info, debug, fatal *stdlog.Logger
 
-func loginit(send SendFn) {
+func loginit(send sendFn) {
 	for _, l := range []struct {
 		lg    **stdlog.Logger
 		level logLevel
@@ -314,15 +310,15 @@ func loginit(send SendFn) {
 	}
 }
 
-func manage(cmd *exec.Cmd) (obj chan Object) {
-	obj = make(chan Object, 10)
-	send := func(o Object) (err error) {
+func manage(cmd *exec.Cmd) (obj chan object) {
+	obj = make(chan object, 10)
+	send := func(o object) (err error) {
 		t := time.NewTimer(20 * time.Second)
 		select {
 		case obj <- o:
 			t.Stop()
 		case <-t.C:
-			err = errors.New("obj <- o timed out")
+			err = errors.New("send(object) timed out")
 		}
 		return
 	}
@@ -361,7 +357,7 @@ func getcerts() (m map[string][]byte, err error) {
 
 	if resp.StatusCode != 200 {
 		format := "getcerts: got unexpected status %v"
-		err = errors.New(fmt.Sprintf(format, resp.Status))
+		err = fmt.Errorf(format, resp.Status)
 		return
 	}
 
@@ -396,7 +392,7 @@ func getcerts() (m map[string][]byte, err error) {
 	filenames := []string{"ck_ca", "ck_cert", "ck_private_key"}
 	if len(m) != len(filenames) {
 		format := "got zip archive with %v files, expected %v"
-		err = errors.New(fmt.Sprintf(format, len(m), len(filenames)))
+		err = fmt.Errorf(format, len(m), len(filenames))
 		return nil, err
 	}
 
@@ -446,62 +442,39 @@ func connect() (p sarama.SyncProducer, err error) {
 	return sarama.NewSyncProducer(brokers, config)
 }
 
-type Producer struct {
-	CheckSum string
-	Dev      *Device
-	P        sarama.SyncProducer
+type producer struct {
+	checkSum string
+	dev      *device
+	sp       sarama.SyncProducer
 }
 
-func NewProducer(path string) (p *Producer, err error) {
-	cksum, err := checksum(path)
-	if err != nil {
+func newproducer(path string) (p *producer, err error) {
+	cksum := checksum(path)
+	if !valid(cksum) {
+		err = fmt.Errorf("checksum %v... not released", cksum[:10])
 		return
 	}
-	ok, err := valid(cksum)
-	if err != nil {
-		return
-	}
-	if !ok {
-		err = errors.New(fmt.Sprintf("checksum %v... not released", cksum[:10]))
-		return
-	}
-	ok, err = device.get()
-	if err != nil {
-		return
-	}
-	if !ok {
-		err = device.post()
-		if err != nil {
-			return
-		}
+	if !dev.get() {
+		dev.post()
 	}
 	sp, err := connect()
 	if err != nil {
 		return // bad config or closed client
 	}
-	p = &Producer{
-		P:        sp,
-		CheckSum: cksum,
-		Dev:      device,
+	p = &producer{
+		sp:       sp,
+		checkSum: cksum,
+		dev:      dev,
 	}
 	return
 }
 
-func (p *Producer) Close() {
-	p.P.Close()
-}
-
-func (p *Producer) produce(obj <-chan Object) (err error) {
-	defer func() {
-		if err != nil {
-			stdlog.Print(err)
-		}
-		p.Close()
-	}()
+func (p *producer) produce(obj <-chan object) (err error) {
+	defer p.sp.Close()
 	info.Println("kafka producer connected")
 	// receive Kafka-bound objects from clients
 	for o := range obj {
-		o.brand(p.CheckSum)
+		o.brand(p.checkSum)
 		b, err := json.Marshal(o)
 		if err != nil {
 			return err
@@ -509,7 +482,7 @@ func (p *Producer) produce(obj <-chan Object) (err error) {
 		if envar["DUMP"] == "true" {
 			fmt.Printf("producer got %v bytes: %v\n", len(b), string(b))
 		}
-		_, _, err = p.P.SendMessage(&sarama.ProducerMessage{
+		_, _, err = p.sp.SendMessage(&sarama.ProducerMessage{
 			Topic: o.topic(),
 			Value: sarama.ByteEncoder(b),
 		})
@@ -520,12 +493,12 @@ func (p *Producer) produce(obj <-chan Object) (err error) {
 	return
 }
 
-func valid(sum string) (ok bool, err error) {
+func valid(sum string) (ok bool) {
 	ep := envar["BASE_URL"] + "/check_releases/" + sum
 	//stdlog.Println("wrapper: release check url:", ep)
 	resp, err := http.Get(ep)
 	if err != nil {
-		return
+		panic(err)
 	}
 	//stdlog.Println("wrapper: valid: response status:", resp.Status)
 
@@ -539,27 +512,27 @@ func valid(sum string) (ok bool, err error) {
 	// 500 happens if the backend is broken teehee
 	default:
 		format := "valid: got unexpected status %v"
-		err = errors.New(fmt.Sprintf(format, resp.Status))
+		panic(fmt.Errorf(format, resp.Status))
 	}
 	return
 }
 
-// Device contains information about the device that the backend needs to know.
-type Device struct {
+// device contains information about the device that the backend needs to know.
+type device struct {
 	Mac   string `json:"mac_address_hash"`
 	AppID string `json:"application"`
-	IP    string `json:"-"`
+	ip    string
 }
 
-func NewDevice() *Device {
-	d := &Device{
+func newdevice() *device {
+	d := &device{
 		Mac:   ifacehash(),
 		AppID: envar["APP_ID"],
-		IP:    getip(),
+		ip:    getip(),
 	}
 	go func() { // d
 		for _ = range time.Tick(5 * time.Minute) {
-			d.IP = getip()
+			d.ip = getip()
 		}
 	}()
 	return d
@@ -574,21 +547,21 @@ func getip() string {
 }
 
 // Determine whether this device is already known by the backend.
-func (d *Device) get() (ok bool, err error) {
+func (d *device) get() (ok bool) {
 	url := envar["BASE_URL"] + "/devices/?mac_address_hash=" + d.Mac
 	req, err := http.NewRequest("GET", url, nil)
 	if err != nil {
-		return
+		panic(err)
 	}
 	req.Header.Add("apikey", envar["API_KEY"])
 	c := &http.Client{}
 	resp, err := c.Do(req)
 	if err != nil {
-		return
+		panic(err)
 	}
 
-	debug.Print("Device.get() length = ", resp.ContentLength)
-	return !(resp.ContentLength <= 2), nil
+	debug.Print("device.get() length = ", resp.ContentLength)
+	return !(resp.ContentLength <= 2)
 }
 
 func ifacehash() string {
@@ -613,25 +586,24 @@ func ifacehash() string {
 }
 
 // Post this device to the backend.
-func (d *Device) post() (err error) {
-	b, err := json.Marshal(d)
-	if err != nil {
-		return
-	}
+func (d *device) post() {
+	b, _ := json.Marshal(d)
 	debug.Print(string(b))
 
 	url := envar["BASE_URL"] + "/devices/"
 	req, err := http.NewRequest("POST", url, bytes.NewReader(b))
 	if err != nil {
-		return
+		panic(err)
 	}
 	req.Header.Add("content-type", "application/json")
 	req.Header.Add("apikey", envar["API_KEY"])
 
 	c := &http.Client{}
 	resp, err := c.Do(req)
-	debug.Print("Device.post() ", resp.Status)
-	return
+	if err != nil {
+		panic(err)
+	}
+	debug.Print("device.post() ", resp.Status)
 }
 
 var envar = map[string]string{
@@ -663,7 +635,7 @@ func env() {
 	}
 }
 
-var device *Device
+var dev *device
 
 func main() {
 	logger := os.Stdout
@@ -676,7 +648,7 @@ func main() {
 	if len(args) == 0 {
 		usage()
 	}
-	device = NewDevice()
+	dev = newdevice()
 	go networkStat()
 
 	cmd := exec.Command(args[0], args[1:]...)
@@ -685,7 +657,7 @@ func main() {
 	cmd.Stdin = os.Stdin
 
 	obj := manage(cmd)
-	p, err := NewProducer(cmd.Path)
+	p, err := newproducer(cmd.Path)
 	check(err)
 	err = p.produce(obj)
 	check(err)
