@@ -126,7 +126,6 @@ type common struct {
 type event struct {
 	common
 	Time    time.Time   `json:"timestamp"`
-	Zone    string      `json:"timezone"`
 	Status  int         `json:"exit_status"`           // waitstatus
 	Signal  sig         `json:"signal,omitempty"`      // waitstatus | json
 	Trace   interface{} `json:"stack_trace,omitempty"` // json
