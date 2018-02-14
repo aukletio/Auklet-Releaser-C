@@ -64,10 +64,10 @@ function cleanseResults(tagCommits, closedPrs) {
   if (prNumber) {
     github.get({
       uri: `/repos/${org}/${repo}/pulls/${prNumber}`
-    }).then(function(pr) {
+    }).then(function(response) {
       // Only 200 is an acceptable response.
       if (response.statusCode === 200) {
-        eligiblePrs.push(pr.body);
+        eligiblePrs.push(response.body);
         parseResults(tagShas, eligiblePrs);
       } else {
         handleError(getHttpError(response));
