@@ -83,7 +83,7 @@ function parseResults(tagShas, eligiblePrs) {
     handleError(new Error('There are no impacting PRs; this is impossible!'));
   } else {
     // Sort the list of PRs by number.
-    eligiblePrs.sort(function(a, b) { return a - b; });
+    eligiblePrs.sort(function(a, b) { return a.number - b.number; });
     // Get all the commits in the base tag.
     var mode = 'none';
     console.log('PRs impacting the new codebase version:');
