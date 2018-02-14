@@ -11,8 +11,9 @@ else
   # Initialize.
   echo 'Initializing...'
   cd ~ # Prevents codebase contamination.
-  rm -rf node_modules mode.txt
   npm install --no-spin semver semver-extra > /dev/null 2>&1
+  # Get PR number from the validation step.
+  PR_NUM=$(cat prnum.txt)
   # 1. Get all tags in the remote repo. Strip duplicate results for annotated tags.
   echo 'Getting latest production version...'
   TAGS=$(eval cd $CIRCLE_WORKING_DIRECTORY ; git ls-remote -q --tags | sed -E 's/[0-9a-f]{40}\trefs\/tags\/(.+)/\1/g;s/.+\^\{\}//g' | sed ':a;N;$!ba;s/\n/ /g')
@@ -26,8 +27,8 @@ else
     echo "Current production version: $BASE_VERSION"
     # 3. Determine the highest integer that should be bumped.
     echo 'Preparing to calculate next version...'
-    npm install --no-spin request request-promise parse-link-header > /dev/null 2>&1
-    node $THIS_DIR/determineVersionChange.js $BASE_VERSION
+    npm install --no-spin parse-link-header > /dev/null 2>&1
+    node $THIS_DIR/determineVersionChange.js $BASE_VERSION $PR_NUM
     MODE=$(cat mode.txt)
     # 4. Bump the version.
     if [[ "$MODE" == "none" ]]; then
@@ -49,24 +50,14 @@ else
   elif [ "$CIRCLE_BRANCH" == 'production' ]; then
     echo 'This is a production release.'
     NEW_VERSION="${NEW_VERSION}+${GIT_SHA}"
+  elif [[ "$PR_NUM" != "" ]]; then
+    echo 'This is a PR build.'
+    NEW_VERSION="${NEW_VERSION}-a.pr.${PR_NUM}+${GIT_SHA}"
   else
-    # Assume this is a PR.
-    PR_NUM=$CIRCLE_PR_NUMBER
-    if [[ "$PR_NUM" == "" ]]; then
-      # This might be a PR from another branch in the ESG-USA repo.
-      # Use the GitHub API to extract the PR number, if an open PR exists.
-      echo 'No PR number reported by CircleCI. Checking GitHub...'
-      PR_NUM=$(curl -sS -H "User-Agent: esg-usa-bot" -H "Authorization: Token $CHANGELOG_GITHUB_TOKEN" "https://api.github.com/repos/$CIRCLE_PROJECT_USERNAME/$CIRCLE_PROJECT_REPONAME/pulls?base=edge&head=$CIRCLE_PROJECT_USERNAME:$CIRCLE_BRANCH" | jq '.[] | .number' | xargs)
-    fi
-    if [[ "$PR_NUM" == "" ]]; then
-      echo 'No open PR from this branch to edge.'
-      echo 'This is a branch build.'
-      BRANCH_NAME=$(echo $CIRCLE_BRANCH | sed -E 's/[^a-zA-Z0-9]/\-/g')
-      NEW_VERSION="${NEW_VERSION}-a.branch.${BRANCH_NAME}+${GIT_SHA}"
-    else
-      echo 'This is a PR build.'
-      NEW_VERSION="${NEW_VERSION}-a.pr.${PR_NUM}+${GIT_SHA}"
-    fi
+    echo 'No open PR from this branch to edge.'
+    echo 'This is a branch build.'
+    BRANCH_NAME=$(echo $CIRCLE_BRANCH | sed -E 's/[^a-zA-Z0-9]/\-/g')
+    NEW_VERSION="${NEW_VERSION}-a.branch.${BRANCH_NAME}+${GIT_SHA}"
   fi
 # Done.
 fi

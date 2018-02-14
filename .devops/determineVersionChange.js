@@ -15,9 +15,9 @@ const github = rp.defaults({
 // Grab inputs.
 const org = process.env.CIRCLE_PROJECT_USERNAME;
 const repo = process.env.CIRCLE_PROJECT_REPONAME;
-const prNumber = process.env.CIRCLE_PR_NUMBER;
 const branch = process.env.CIRCLE_BRANCH;
 const baseVersion = process.argv[2];
+const prNumber = process.argv[3];
 console.log('Calculating next version based on closed issues/PRs since the last production release...');
 
 // 1. Get the commit hash for the tag.
@@ -66,16 +66,6 @@ function cleanseResults(tagCommits, closedPrs) {
       uri: `/repos/${org}/${repo}/pulls/${prNumber}`
     }).then(function(pr) {
       eligiblePrs.push(pr);
-      parseResults(tagShas, eligiblePrs);
-    }).catch(handleError);
-  } else {
-    // This might be a PR from another branch in the ESG-USA repo.
-    github.get({
-      uri: `/repos/${org}/${repo}/pulls?base=edge&head=${org}:${branch}`
-    }).then(function(maybePr) {
-      if (maybePr.length > 0) {
-        eligiblePrs.push(maybePr[0]);
-      }
       parseResults(tagShas, eligiblePrs);
     }).catch(handleError);
   }

@@ -19,6 +19,9 @@ jobs:
             ##
             # SETUP
             ##
+            - run:
+                name: Validate PR
+                command: bash .devops/validate-pr.sh
             - add_ssh_keys
             - checkout
             - run:
