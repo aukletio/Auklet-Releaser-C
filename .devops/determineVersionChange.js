@@ -67,7 +67,7 @@ function cleanseResults(tagCommits, closedPrs) {
     }).then(function(response) {
       // Only 200 is an acceptable response.
       if (response.statusCode === 200) {
-        console.log('Including this PR in the list of eligible PRs...');
+        console.log('Including this PR in the list of impacting PRs...');
         eligiblePrs.push(response.body);
         parseResults(tagShas, eligiblePrs);
       } else {
@@ -80,10 +80,11 @@ function cleanseResults(tagCommits, closedPrs) {
 function parseResults(tagShas, eligiblePrs) {
   // Throw an error if there are no eligible PRs.
   if (eligiblePrs.length === 0) {
-    handleError(new Error('There are no eligible PRs; this is impossible!'));
+    handleError(new Error('There are no impacting PRs; this is impossible!'));
   } else {
     // Get all the commits in the base tag.
     var mode = 'none';
+    console.log('PRs impacting the new codebase version:');
     for (let pr of eligiblePrs) {
       if (!tagShas.includes(pr.merge_commit_sha)) {
         // This PR is newly merged since the base tag.
