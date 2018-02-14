@@ -65,8 +65,13 @@ function cleanseResults(tagCommits, closedPrs) {
     github.get({
       uri: `/repos/${org}/${repo}/pulls/${prNumber}`
     }).then(function(pr) {
-      eligiblePrs.push(pr);
-      parseResults(tagShas, eligiblePrs);
+      // Only 200 is an acceptable response.
+      if (response.statusCode === 200) {
+        eligiblePrs.push(pr.body);
+        parseResults(tagShas, eligiblePrs);
+      } else {
+        handleError(getHttpError(response));
+      }
     }).catch(handleError);
   }
 }
