@@ -98,7 +98,7 @@ function parseResults(tagShas, eligiblePrs) {
         else if (labels.includes('enhancement')) label = 'enhancement';
         else if (labels.includes('devops')) label = 'devops';
         else label = 'bug';
-        console.log(`- #${pr.number} (${pr.url}) ${pr.title} [${label}]`);
+        console.log(`- #${pr.number} (${pr.html_url}) ${pr.title} [${label}]`);
         // Update the mode accordingly.
         if (label === 'breaking') mode = 'major';
         else if (label === 'enhancement'
