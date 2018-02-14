@@ -1,5 +1,6 @@
 #!/bin/bash
 set -e
+THIS_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 # When running CircleCI locally, don't do anything and use a dummy app version.
 # This skips unnecessary behaviors in a local build that won't work.
 NEW_VERSION=
@@ -10,9 +11,9 @@ else
   # Initialize.
   echo 'Initializing...'
   cd ~ # Prevents codebase contamination.
-  rm -rf node_modules bug.txt enhancement.txt breaking.txt
-  npm install --no-spin semver semver-extra > /dev/null
-  gem install github_changelog_generator -v 1.14.3 > /dev/null
+  rm -rf node_modules mode.txt
+  npm install --no-spin semver semver-extra > /dev/null 2>&1
+  gem install github_changelog_generator -v 1.14.3 > /dev/null 2>&1
   # 1. Get all tags in the remote repo. Strip duplicate results for annotated tags.
   echo 'Getting latest production version...'
   TAGS=$(eval cd $CIRCLE_WORKING_DIRECTORY ; git ls-remote -q --tags | sed -E 's/[0-9a-f]{40}\trefs\/tags\/(.+)/\1/g;s/.+\^\{\}//g' | sed ':a;N;$!ba;s/\n/ /g')
@@ -24,28 +25,19 @@ else
     NEW_VERSION='0.1.0'
   else
     echo "Current production version: $BASE_VERSION"
-    # 3. Generate three changelogs - bugs, bugs + enhancements, bugs + enhancements + breaking changes. Calculate their checksums.
-    echo 'Calculating next version based on closed issues/PRs since the last production release...'
-    github_changelog_generator --no-verbose --cache-file /tmp/github-changelog-http-cache-$RANDOM --cache-log /tmp/github-changelog-logger-$RANDOM.log --since-tag $BASE_VERSION --include-labels bug --no-compare-link --header-label '' --simple-list --date-format '' -o bug.txt "$CIRCLE_PROJECT_USERNAME/$CIRCLE_PROJECT_REPONAME" > /dev/null
-    github_changelog_generator --no-verbose --cache-file /tmp/github-changelog-http-cache-$RANDOM --cache-log /tmp/github-changelog-logger-$RANDOM.log --since-tag $BASE_VERSION --include-labels bug,enhancement --no-compare-link --header-label '' --simple-list --date-format '' -o enhancement.txt "$CIRCLE_PROJECT_USERNAME/$CIRCLE_PROJECT_REPONAME" > /dev/null
-    github_changelog_generator --no-verbose --cache-file /tmp/github-changelog-http-cache-$RANDOM --cache-log /tmp/github-changelog-logger-$RANDOM.log --since-tag $BASE_VERSION --include-labels bug,enhancement,breaking --no-compare-link --header-label '' --simple-list --date-format '' -o breaking.txt "$CIRCLE_PROJECT_USERNAME/$CIRCLE_PROJECT_REPONAME" > /dev/null
-    SHASUM_REGEX='s/([0-9a-f]{40}).*/\1/'
-    BUG=$(sha1sum bug.txt | sed -E $SHASUM_REGEX)
-    ENHANCEMENT=$(sha1sum enhancement.txt | sed -E $SHASUM_REGEX)
-    BREAKING=$(sha1sum breaking.txt | sed -E $SHASUM_REGEX)
-    # 4. Determine which version element to bump.
-    if [ "$BUG" == "$ENHANCEMENT" ] && [ "$ENHANCEMENT" == "$BREAKING" ]; then
-      MODE=patch
-    elif [ "$ENHANCEMENT" == "$BREAKING" ]; then
-      MODE=minor
+    # 3. Determine the highest integer that should be bumped.
+    echo 'Preparing to calculate next version...'
+    npm install --no-spin request request-promise parse-link-header > /dev/null 2>&1
+    node $THIS_DIR/determineVersionChange.js $BASE_VERSION
+    MODE=$(cat mode.txt)
+    # 4. Bump the version.
+    if [[ "$MODE" == "none" ]]; then
+      NEW_VERSION=$BASE_VERSION
     else
-      MODE=major
+      NEW_VERSION=$(./node_modules/.bin/semver -i $MODE $BASE_VERSION)
     fi
-    echo "Resulting version change: $MODE"
-    # 5. Bump the version.
-    NEW_VERSION=$(./node_modules/.bin/semver -i $MODE $BASE_VERSION)
   fi
-  # 6. Add a prerelease identifier to the version if necessary.
+  # 5. Add a prerelease identifier to the version if necessary.
   GIT_SHA=$(eval cd $CIRCLE_WORKING_DIRECTORY ; git rev-parse --short HEAD | xargs)
   if [ "$CIRCLE_BRANCH" == 'edge' ]; then
     echo 'This is a staging release.'
@@ -81,4 +73,4 @@ else
 fi
 echo "New codebase version: $NEW_VERSION"
 echo $NEW_VERSION > ~/.version
-rm -rf node_modules bug.txt enhancement.txt breaking.txt
+rm -rf node_modules mode.txt
