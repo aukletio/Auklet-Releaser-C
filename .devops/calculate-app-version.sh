@@ -1,6 +1,12 @@
 #!/bin/bash
 set -e
 THIS_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
+function abortIfModeNone {
+  if [[ "$MODE" == "none" ]]; then
+    echo 'WARNING: there were no meaningful changes found for this release. This build will now abort.'
+    exit 1
+  fi
+}
 # When running CircleCI locally, don't do anything and use a dummy app version.
 # This skips unnecessary behaviors in a local build that won't work.
 NEW_VERSION=
@@ -41,14 +47,17 @@ else
   GIT_SHA=$(eval cd $CIRCLE_WORKING_DIRECTORY ; git rev-parse --short HEAD | xargs)
   if [ "$CIRCLE_BRANCH" == 'edge' ]; then
     echo 'This is a staging release.'
+    abortIfModeNone
     NEW_VERSION="${NEW_VERSION}-beta.${CIRCLE_BUILD_NUM}+${GIT_SHA}"
   elif [ "$CIRCLE_BRANCH" == 'master' ]; then
     echo 'This is a QA release.'
+    abortIfModeNone
     # Get the new RC version for this version (1 or greater).
     NEW_RC_VERSION=$(node -e "var semver = require('semver-extra'); var rcVersion = semver.maxPrerelease(process.argv.slice(1).filter(v => v.startsWith('$NEW_VERSION'))) || '.0'; rcVersion = rcVersion.substring(rcVersion.lastIndexOf('.') + 1); rcVersion = parseInt(rcVersion) + 1; console.log(rcVersion);" $TAGS)
     NEW_VERSION="${NEW_VERSION}-rc.${NEW_RC_VERSION}+${GIT_SHA}"
   elif [ "$CIRCLE_BRANCH" == 'production' ]; then
     echo 'This is a production release.'
+    abortIfModeNone
     NEW_VERSION="${NEW_VERSION}+${GIT_SHA}"
   elif [[ "$PR_NUM" != "" ]]; then
     echo 'This is a PR build.'
