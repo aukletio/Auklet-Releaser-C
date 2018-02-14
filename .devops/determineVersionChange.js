@@ -114,32 +114,32 @@ function handleError(err) {
 // Function that does paginated GET requests on the GitHub API
 // and returns all relevant results in an array.
 function getPaginated(options, resultList = []) {
-  var deferred = Promise.defer();
-  github.get(options).then(function(response) {
-    if (response.statusCode === 200) {
-      // Add these results to our list.
-      resultList = resultList.concat(response.body);
-      // Follow pagination if necessary.
-      var next = '';
-      if (response.headers.hasOwnProperty('link')) {
-        next = plh(response.headers.link).next;
-        if (next) next = next.url;
-        if (next) next = next.replace(apiPrefix, '');
-      }
-      if (next) {
-        var newOptions = Object.assign({}, options);
-        newOptions.uri = next;
-        getPaginated(newOptions, resultList).then(function() {
-          deferred.resolve(resultList);
-        });
+  return new Promise(function(resolve, reject) {
+    github.get(options).then(function(response) {
+      if (response.statusCode === 200) {
+        // Add these results to our list.
+        resultList = resultList.concat(response.body);
+        // Follow pagination if necessary.
+        var next = '';
+        if (response.headers.hasOwnProperty('link')) {
+          next = plh(response.headers.link).next;
+          if (next) next = next.url;
+          if (next) next = next.replace(apiPrefix, '');
+        }
+        if (next) {
+          var newOptions = Object.assign({}, options);
+          newOptions.uri = next;
+          getPaginated(newOptions, resultList).then(function(newResultList) {
+            resolve(newResultList);
+          });
+        } else {
+          resolve(resultList);
+        }
       } else {
-        deferred.resolve(resultList);
+        reject(getHttpError(response));
       }
-    } else {
-      deferred.reject(getHttpError(response));
-    }
-  }).catch(function(e) { deferred.reject(e); });
-  return deferred.promise;
+    }).catch(function(e) { reject(e); });
+  });
 }
 // Returns an error object from an HTTP response object.
 function getHttpError(response) {
