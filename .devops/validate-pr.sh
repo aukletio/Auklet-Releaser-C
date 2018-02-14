@@ -9,4 +9,6 @@ if [[ "$CIRCLE_BUILD_NUM" != '' && "$CIRCLE_BRANCH" != 'HEAD' ]]; then
   npm install --no-spin request request-promise > /dev/null 2>&1
   node $THIS_DIR/validatePr.js
 # Done.
+else
+  echo 'This is a local CircleCI build; no PR to validate.'
 fi
