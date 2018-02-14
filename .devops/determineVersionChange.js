@@ -15,6 +15,8 @@ const github = rp.defaults({
 // Grab inputs.
 const org = process.env.CIRCLE_PROJECT_USERNAME;
 const repo = process.env.CIRCLE_PROJECT_REPONAME;
+const prNumber = process.env.CIRCLE_PR_NUMBER;
+const branch = process.env.CIRCLE_BRANCH;
 const baseVersion = process.argv[2];
 console.log('Calculating next version based on closed issues/PRs since the last production release...');
 
@@ -39,7 +41,7 @@ github.get({
       }).then(function(closedPrs) {
         // 4. Compare the list of closed PRs to the list of tag commits
         // and figure out what kinds of unmerged changes there are.
-        parseResults(tagCommits, closedPrs);
+        cleanseResults(tagCommits, closedPrs);
       }).catch(handleError);
     }).catch(handleError);
   } else {
@@ -47,43 +49,70 @@ github.get({
   }
 }).catch(handleError);
 
-function parseResults(tagCommits, closedPrs) {
+function cleanseResults(tagCommits, closedPrs) {
   // Transform the array so we only have the commit hashes.
   console.log('Parsing list of commits in this tag...');
   var tagShas = tagCommits.map(function(commit) { return commit.sha; });
   // Not all closed PRs are merged. We only want merged PRs.
   // Also, skip all release PRs.
   console.log('Selecting all merged non-release PRs that are not included in this tag...');
-  var mergedPrs = closedPrs.filter(function(pr) {
+  var eligiblePrs = closedPrs.filter(function(pr) {
     var labels = pr.labels.map(function(label) { return label.name; });
     return pr.merged_at !== null && !labels.includes('release');
   });
-  // Get all the commits in the base tag.
-  var mode = 'none';
-  for (let pr of mergedPrs) {
-    if (!tagShas.includes(pr.merge_commit_sha)) {
-      // This PR is newly merged since the base tag.
-      // Figure out what type of PR it is.
-      // Unlabeled PRs are treated as bugs.
-      var labels = pr.labels.map(function(label) { return label.name; });
-      var label = '';
-      if (labels.includes('breaking')) label = 'breaking';
-      else if (labels.includes('enhancement')) label = 'enhancement';
-      else if (labels.includes('devops')) label = 'devops';
-      else label = 'bug';
-      console.log(`- #${pr.number} ${pr.title} [${label}]`);
-      // Update the mode accordingly.
-      if (label === 'breaking') mode = 'major';
-      else if (label === 'enhancement'
-        && mode !== 'major') mode = 'minor';
-      else if (label === 'bug'
-        && mode !== 'major'
-        && mode !== 'minor') mode = 'patch';
-    }
+  // If this is a PR, add it to the list of eligible PRs.
+  if (prNumber) {
+    github.get({
+      uri: `/repos/${org}/${repo}/pulls/${prNumber}`
+    }).then(function(pr) {
+      eligiblePrs.push(pr);
+      parseResults(tagShas, eligiblePrs);
+    }).catch(handleError);
+  } else {
+    // This might be a PR from another branch in the ESG-USA repo.
+    github.get({
+      uri: `/repos/${org}/${repo}/pulls?base=edge&head=${org}:${branch}`
+    }).then(function(maybePr) {
+      if (maybePr.length > 0) {
+        eligiblePrs.push(maybePr[0]);
+      }
+      parseResults(tagShas, eligiblePrs);
+    }).catch(handleError);
   }
-  // Done. Send the mode back to the script.
-  console.log(`Resulting version change: ${mode}`);
-  fs.writeFileSync('mode.txt', mode);
+}
+
+function parseResults(tagShas, eligiblePrs) {
+  // Throw an error if there are no eligible PRs.
+  if (eligiblePrs.length === 0) {
+    handleError(new Error('There are no eligible PRs; this is impossible!'));
+  } else {
+    // Get all the commits in the base tag.
+    var mode = 'none';
+    for (let pr of eligiblePrs) {
+      if (!tagShas.includes(pr.merge_commit_sha)) {
+        // This PR is newly merged since the base tag.
+        // Figure out what type of PR it is.
+        // Unlabeled PRs are treated as bugs.
+        var labels = pr.labels.map(function(label) { return label.name; });
+        var label = '';
+        if (labels.includes('breaking')) label = 'breaking';
+        else if (labels.includes('enhancement')) label = 'enhancement';
+        else if (labels.includes('devops')) label = 'devops';
+        else label = 'bug';
+        console.log(`- #${pr.number} ${pr.title} [${label}]`);
+        // Update the mode accordingly.
+        if (label === 'breaking') mode = 'major';
+        else if (label === 'enhancement'
+          && mode !== 'major') mode = 'minor';
+        else if (label === 'bug'
+          && mode !== 'major'
+          && mode !== 'minor') mode = 'patch';
+      }
+    }
+    // Done. Send the mode back to the script.
+    console.log(`Resulting version change: ${mode}`);
+    fs.writeFileSync('mode.txt', mode);
+  }
 }
 
 // *** Utility functions ***
