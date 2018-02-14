@@ -67,6 +67,7 @@ function cleanseResults(tagCommits, closedPrs) {
     }).then(function(response) {
       // Only 200 is an acceptable response.
       if (response.statusCode === 200) {
+        console.log('Including this PR in the list of eligible PRs...');
         eligiblePrs.push(response.body);
         parseResults(tagShas, eligiblePrs);
       } else {
