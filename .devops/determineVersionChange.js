@@ -81,7 +81,6 @@ function parseResults(tagShas, eligiblePrs) {
   if (eligiblePrs.length === 0) {
     handleError(new Error('There are no eligible PRs; this is impossible!'));
   } else {
-    console.log(JSON.stringify(eligiblePrs, null, 2));
     // Get all the commits in the base tag.
     var mode = 'none';
     for (let pr of eligiblePrs) {
