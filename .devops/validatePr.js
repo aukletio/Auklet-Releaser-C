@@ -36,6 +36,10 @@ if (prNumber) {
 }
 function validatePr(pr) {
   console.log('Validating PR...');
+  // Dump PR number to disk.
+  var num = pr.number;
+  console.log(`PR number: ${num}`);
+  fs.writeFileSync('prnum.txt', `${num}`);
   // Make sure one of the required labels is set.
   var labels = pr.labels.map(function(label) { return label.name; });
   var hasRequiredLabel = labels.includes('breaking') || labels.includes('enhancement') || labels.includes('bug') || labels.includes('devops');
@@ -43,10 +47,6 @@ function validatePr(pr) {
     console.log('ERROR: PR is missing a required label (breaking, enhancement, bug or devops).');
     process.exitCode = 1;
   }
-  // Dump PR number to disk.
-  var num = pr.number;
-  console.log(`PR number: ${num}`);
-  fs.writeFileSync('prnum.txt', `${num}`);
 }
 
 // *** Utility functions ***
