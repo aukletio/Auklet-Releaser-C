@@ -22,9 +22,6 @@ jobs:
             - add_ssh_keys
             - checkout
             - run:
-                name: Validate PR
-                command: bash .devops/validate-pr.sh
-            - run:
                 name: Prepare OS
                 command: |
                   echo 'Installing jq, NodeJS/Ruby prerequisites and other compilation requirements...'
@@ -41,6 +38,9 @@ jobs:
                   chmod +x /usr/local/go/bin/dep
                   echo 'export GOPATH=$(cd ; pwd)/go' >> $BASH_ENV
                   echo 'export PATH=$PATH:/usr/local/go/bin:$GOPATH/bin' >> $BASH_ENV
+            - run:
+                name: Validate PR
+                command: bash .devops/validate-pr.sh
             - run:
                 name: Calculate codebase version
                 command: |
