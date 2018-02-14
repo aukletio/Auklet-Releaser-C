@@ -35,7 +35,7 @@ do
   echo 'Compiling wrapper...'
   GOARCH=$arch go build -o wrap-$VERSION-$GOOS-$arch ./wrap
   echo 'Compiling library...'
-  CC=$cc AR=$ar TARNAME="libauklet-$VERSION-$GOOS-$arch.tgz" make clean libauklet.tgz
+  CC=$cc AR=$ar TARNAME="libauklet-$VERSION-$GOOS-$arch.tgz" ./bt libpkg
   echo "DONE: $GOOS/$arch"
   echo
 done < compile-combos.csv
