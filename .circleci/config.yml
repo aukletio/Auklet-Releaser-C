@@ -46,8 +46,8 @@ jobs:
             - run:
                 name: Install jq
                 command: |
-                  sudo curl -sSL -o /usr/local/bin/jq https://github.com/stedolan/jq/releases/download/jq-1.5/jq-linux64
-                  sudo chmod +x /usr/local/bin/jq
+                  curl -sSL -o /usr/local/bin/jq https://github.com/stedolan/jq/releases/download/jq-1.5/jq-linux64
+                  chmod +x /usr/local/bin/jq
 
             - run:
                 name: Calculate codebase version
