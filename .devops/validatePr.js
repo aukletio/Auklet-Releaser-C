@@ -42,9 +42,18 @@ function validatePr(pr) {
   fs.writeFileSync('prnum.txt', `${num}`);
   // Make sure one of the required labels is set.
   var labels = pr.labels.map(function(label) { return label.name; });
-  var hasRequiredLabel = labels.includes('breaking') || labels.includes('enhancement') || labels.includes('bug') || labels.includes('devops');
+  var isBreaking = labels.includes('breaking');
+  var isEnhancement = labels.includes('enhancement');
+  var isBug = labels.includes('bug');
+  var isDevops = labels.includes('devops');
+  var hasRequiredLabel = isBreaking || isEnhancement || isBug || isDevops;
   if (!hasRequiredLabel) {
-    console.log('ERROR: PR is missing a required label (breaking, enhancement, bug or devops).');
+    console.log('ERROR: PR is missing a change type label (breaking, enhancement, bug or devops).');
+    process.exitCode = 1;
+  }
+  // Make sure exactly one of the required labels is set.
+  if (isBreaking + isEnhancement + isBug + isDevops > 1) {
+    console.log('ERROR: PR has multiple change type labels (breaking, enhancement, bug or devops) but must have exactly one.');
     process.exitCode = 1;
   }
 }
