@@ -11,7 +11,7 @@ func wait() syscall.WaitStatus {
 }
 
 func TestObjectify(t *testing.T) {
-	send := func(o Object) error {
+	send := func(o object) error {
 		b, err := json.Marshal(o)
 		if err != nil {
 			t.Log(string(b))
@@ -22,7 +22,7 @@ func TestObjectify(t *testing.T) {
 
 	test := []struct {
 		b      []byte
-		assert func(Object)
+		assert func(object)
 	}{
 		{
 			b: []byte(`{
@@ -44,7 +44,7 @@ func TestObjectify(t *testing.T) {
 						}
 					}
 				}`),
-			assert: func(o Object) { _ = o.(*Profile) },
+			assert: func(o object) { _ = o.(*profile) },
 		},
 		{
 			b: []byte(`{
@@ -54,7 +54,7 @@ func TestObjectify(t *testing.T) {
 						"message":"hi mom"
 					}
 				}`),
-			assert: func(o Object) {
+			assert: func(o object) {
 				if o != nil {
 					t.Fail()
 				}
@@ -74,7 +74,7 @@ func TestObjectify(t *testing.T) {
 						}]
 					}
 				}`),
-			assert: func(o Object) { _ = o.(*Event) },
+			assert: func(o object) { _ = o.(*event) },
 		},
 	}
 	var done bool
