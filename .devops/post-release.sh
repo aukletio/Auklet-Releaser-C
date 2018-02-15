@@ -35,7 +35,7 @@ echo
 echo 'Waiting for new tag to appear in GitHub API...'
 TAG_RESULT=''
 while [ ! "$TAG_RESULT" == "$VERSION" ]; do
-  sleep 1
+  sleep 5
   TAG_RESULT=$(curl -s -H "Authorization: Token $CHANGELOG_GITHUB_TOKEN" https://api.github.com/repos/$CIRCLE_PROJECT_USERNAME/$CIRCLE_PROJECT_REPONAME/git/tags/$TAG_SHA | jq -r .tag)
 done
 # Switch to the changelog branch.
