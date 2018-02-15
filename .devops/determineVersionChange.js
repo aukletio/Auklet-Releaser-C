@@ -74,6 +74,8 @@ function cleanseResults(tagCommits, closedPrs) {
         handleError(getHttpError(response));
       }
     }).catch(handleError);
+  } else {
+    parseResults(tagShas, eligiblePrs);
   }
 }
 
