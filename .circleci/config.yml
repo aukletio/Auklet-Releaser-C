@@ -19,14 +19,20 @@ jobs:
             ##
             # SETUP
             ##
+            - run:
+                name: Flag local build
+                command: |
+                  if [[ "$CIRCLE_BUILD_NUM" == '' ]]; then
+                    touch ~/.localCircleBuild
+                  fi
             - add_ssh_keys
             - checkout
             - run:
                 name: Prepare OS
                 command: |
-                  echo 'Installing jq, NodeJS/Ruby prerequisites and other compilation requirements...'
+                  echo 'Installing NodeJS/Ruby prerequisites and other compilation requirements...'
                   apt-get update > /dev/null 2>&1
-                  apt-get -y install jq software-properties-common build-essential > /dev/null 2>&1
+                  apt-get -y install software-properties-common build-essential > /dev/null 2>&1
                   apt-add-repository -y ppa:brightbox/ruby-ng > /dev/null 2>&1
                   curl -sL https://deb.nodesource.com/setup_8.x | bash - > /dev/null
                   echo 'Installing Ruby and NodeJS...'
@@ -38,6 +44,17 @@ jobs:
                   chmod +x /usr/local/go/bin/dep
                   echo 'export GOPATH=$(cd ; pwd)/go' >> $BASH_ENV
                   echo 'export PATH=$PATH:/usr/local/go/bin:$GOPATH/bin' >> $BASH_ENV
+            - run:
+                name: Validate PR
+                command: |
+                  if [[ ! -f ~/.localCircleBuild ]]; then
+                    bash .devops/validate-pr.sh
+                  fi
+            - run:
+                name: Install jq
+                command: |
+                  curl -sSL -o /usr/local/bin/jq https://github.com/stedolan/jq/releases/download/jq-1.5/jq-linux64
+                  chmod +x /usr/local/bin/jq
             - run:
                 name: Calculate codebase version
                 command: |
@@ -78,22 +95,28 @@ jobs:
                 name: Deploy Edge (If staging)
                 command: |
                   set -ou pipefail
-                  if [ "${CIRCLE_BRANCH}" == "edge" ]; then
-                    bash .devops/deploy.sh staging
+                  if [[ ! -f ~/.localCircleBuild ]]; then
+                    if [ "${CIRCLE_BRANCH}" == "edge" ]; then
+                      bash .devops/deploy.sh staging
+                    fi
                   fi
             - run:
                 name: Deploy QA (If master)
                 command: |
                   set -ou pipefail
-                  if [ "${CIRCLE_BRANCH}" == "master" ]; then
-                    bash .devops/deploy.sh qa
-                    bash .devops/post-release.sh
+                  if [[ ! -f ~/.localCircleBuild ]]; then
+                    if [ "${CIRCLE_BRANCH}" == "master" ]; then
+                      bash .devops/deploy.sh qa
+                      bash .devops/post-release.sh
+                    fi
                   fi
             - run:
                 name: Deploy Production (If production)
                 command: |
                   set -ou pipefail
-                  if [ "${CIRCLE_BRANCH}" == "production" ]; then
-                    bash .devops/deploy.sh production
-                    bash .devops/post-release.sh
+                  if [[ ! -f ~/.localCircleBuild ]]; then
+                    if [ "${CIRCLE_BRANCH}" == "production" ]; then
+                      bash .devops/deploy.sh production
+                      bash .devops/post-release.sh
+                    fi
                   fi
