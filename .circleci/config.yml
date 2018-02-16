@@ -46,7 +46,10 @@ jobs:
                   echo 'export PATH=$PATH:/usr/local/go/bin:$GOPATH/bin' >> $BASH_ENV
             - run:
                 name: Validate PR
-                command: bash .devops/validate-pr.sh
+                command: |
+                  if [[ ! -f ~/.localCircleBuild ]]; then
+                    bash .devops/validate-pr.sh
+                  fi
             - run:
                 name: Install jq
                 command: |
@@ -92,22 +95,28 @@ jobs:
                 name: Deploy Edge (If staging)
                 command: |
                   set -ou pipefail
-                  if [ "${CIRCLE_BRANCH}" == "edge" ]; then
-                    bash .devops/deploy.sh staging
+                  if [[ ! -f ~/.localCircleBuild ]]; then
+                    if [ "${CIRCLE_BRANCH}" == "edge" ]; then
+                      bash .devops/deploy.sh staging
+                    fi
                   fi
             - run:
                 name: Deploy QA (If master)
                 command: |
                   set -ou pipefail
-                  if [ "${CIRCLE_BRANCH}" == "master" ]; then
-                    bash .devops/deploy.sh qa
-                    bash .devops/post-release.sh
+                  if [[ ! -f ~/.localCircleBuild ]]; then
+                    if [ "${CIRCLE_BRANCH}" == "master" ]; then
+                      bash .devops/deploy.sh qa
+                      bash .devops/post-release.sh
+                    fi
                   fi
             - run:
                 name: Deploy Production (If production)
                 command: |
                   set -ou pipefail
-                  if [ "${CIRCLE_BRANCH}" == "production" ]; then
-                    bash .devops/deploy.sh production
-                    bash .devops/post-release.sh
+                  if [[ ! -f ~/.localCircleBuild ]]; then
+                    if [ "${CIRCLE_BRANCH}" == "production" ]; then
+                      bash .devops/deploy.sh production
+                      bash .devops/post-release.sh
+                    fi
                   fi
