@@ -19,7 +19,9 @@ else
   cd ~ # Prevents codebase contamination.
   npm install --no-spin semver semver-extra > /dev/null 2>&1
   # Get PR number from the validation step.
-  PR_NUM=$(cat prnum.txt)
+  if [[ -f prnum.txt ]]; then
+    PR_NUM=$(cat prnum.txt)
+  fi
   # 1. Get all tags in the remote repo. Strip duplicate results for annotated tags.
   echo 'Getting latest production version...'
   TAGS=$(eval cd $CIRCLE_WORKING_DIRECTORY ; git ls-remote -q --tags | sed -E 's/[0-9a-f]{40}\trefs\/tags\/(.+)/\1/g;s/.+\^\{\}//g' | sed ':a;N;$!ba;s/\n/ /g')
