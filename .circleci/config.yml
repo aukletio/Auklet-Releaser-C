@@ -19,8 +19,16 @@ jobs:
             ##
             # SETUP
             ##
+            - run:
+                name: Flag local build
+                command: |
+                  if [[ "$CIRCLE_BUILD_NUM" == '' ]]; then
+                    touch ~/.localCircleBuild
+                  fi
+
             - add_ssh_keys
             - checkout
+
             - run:
                 name: Prepare OS
                 command: |

@@ -10,7 +10,7 @@ function abortIfModeNone {
 # When running CircleCI locally, don't do anything and use a dummy app version.
 # This skips unnecessary behaviors in a local build that won't work.
 NEW_VERSION=
-if [[ "$CIRCLE_BUILD_NUM" == '' || "$CIRCLE_BRANCH" == 'HEAD' ]]; then
+if [[ -f ~/.localCircleBuild ]]; then
   echo 'This is a local CircleCI build.'
   NEW_VERSION="0.1.0-a.local.circleci.build"
 else
