@@ -25,10 +25,8 @@ jobs:
                   if [[ "$CIRCLE_BUILD_NUM" == '' ]]; then
                     touch ~/.localCircleBuild
                   fi
-
             - add_ssh_keys
             - checkout
-
             - run:
                 name: Prepare OS
                 command: |
@@ -46,17 +44,14 @@ jobs:
                   chmod +x /usr/local/go/bin/dep
                   echo 'export GOPATH=$(cd ; pwd)/go' >> $BASH_ENV
                   echo 'export PATH=$PATH:/usr/local/go/bin:$GOPATH/bin' >> $BASH_ENV
-
             - run:
                 name: Validate PR
                 command: bash .devops/validate-pr.sh
-
             - run:
                 name: Install jq
                 command: |
                   curl -sSL -o /usr/local/bin/jq https://github.com/stedolan/jq/releases/download/jq-1.5/jq-linux64
                   chmod +x /usr/local/bin/jq
-
             - run:
                 name: Calculate codebase version
                 command: |
