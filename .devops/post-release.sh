@@ -40,6 +40,7 @@ while [ ! "$TAG_RESULT" == "$VERSION" ]; do
 done
 # Switch to the changelog branch.
 echo 'Generating changelog updates...'
+gem install github_changelog_generator -v 1.14.3 > /dev/null 2>&1
 git checkout changelog
 git branch -u origin/changelog changelog
 git pull
