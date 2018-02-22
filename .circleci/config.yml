@@ -11,8 +11,7 @@ jobs:
             # Docker images are based on Debian Jessie.
             #
             # Unfortunately, this means the build takes a
-            # little longer because we have to install NodeJS
-            # and Ruby ourselves.
+            # little longer because we have to install NodeJS.
             - image: circleci/buildpack-deps:xenial-browsers
         steps:
 
@@ -83,7 +82,7 @@ jobs:
             # SAVE CACHES
             ##
             - save_cache:
-                key: v3-dependency-cache-{{ checksum "Gopkg.lock" }}-{{ checksum "Gopkg.toml" }}
+                key: v3g dif-dependency-cache-{{ checksum "Gopkg.lock" }}-{{ checksum "Gopkg.toml" }}
                 paths:
                     - /home/circleci/go/pkg/dep/sources
 
