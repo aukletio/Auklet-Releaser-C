@@ -65,7 +65,7 @@ jobs:
             # RESTORE CACHES
             ##
             - restore_cache:
-                key: v2-dependency-cache-{{ checksum "Gopkg.lock" }}-{{ checksum "Gopkg.toml" }}
+                key: v3-dependency-cache-{{ checksum "Gopkg.lock" }}-{{ checksum "Gopkg.toml" }}
 
             ##
             # TESTS
@@ -73,8 +73,6 @@ jobs:
             - run:
                 name: Download Go dependencies
                 command: |
-                  pwd
-                  ls -al
                   dep ensure -v
             - run:
                 name: Run tests
@@ -85,9 +83,9 @@ jobs:
             # SAVE CACHES
             ##
             - save_cache:
-                key: v2-dependency-cache-{{ checksum "Gopkg.lock" }}-{{ checksum "Gopkg.toml" }}
+                key: v3-dependency-cache-{{ checksum "Gopkg.lock" }}-{{ checksum "Gopkg.toml" }}
                 paths:
-                    - /root/go/pkg/dep/sources
+                    - /home/circleci/go/pkg/dep/sources
 
             ##
             # DEPLOYMENT
