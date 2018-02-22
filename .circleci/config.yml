@@ -13,7 +13,7 @@ jobs:
             # Unfortunately, this means the build takes a
             # little longer because we have to install NodeJS
             # and Ruby ourselves.
-            - image: buildpack-deps:xenial-scm
+            - image: circleci/buildpack-deps:xenial-browsers
         steps:
 
             ##
@@ -30,13 +30,11 @@ jobs:
             - run:
                 name: Prepare OS
                 command: |
-                  echo 'Installing NodeJS/Ruby prerequisites and other compilation requirements...'
-                  apt-get update > /dev/null 2>&1
-                  apt-get -y install software-properties-common build-essential > /dev/null 2>&1
-                  apt-add-repository -y ppa:brightbox/ruby-ng > /dev/null 2>&1
+                  echo 'Installing NodeJS...'
                   curl -sL https://deb.nodesource.com/setup_8.x | bash - > /dev/null
-                  echo 'Installing Ruby and NodeJS...'
-                  apt-get -y install ruby2.2 nodejs > /dev/null 2>&1
+                  apt-get -y install nodejs > /dev/null 2>&1
+                  echo 'Installing C compilation requirements...'
+                  apt-get -y install software-properties-common build-essential > /dev/null 2>&1
                   echo 'Installing Go...'
                   curl -sSL https://redirector.gvt1.com/edgedl/go/go1.8.5.linux-amd64.tar.gz | tar xzf -
                   mv go /usr/local
