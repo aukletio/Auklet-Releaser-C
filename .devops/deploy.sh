@@ -25,7 +25,7 @@ do
   echo "OS/Arch: $GOOS/$arch"
   if [[ "$pkg" != "" ]]; then
     echo "Installing $pkg cross compilation toolchain..."
-    apt-get -y install $pkg > /dev/null 2>&1
+    sudo apt-get -y install $pkg > /dev/null 2>&1
     echo "$pkg cross compilation toolchain installed; proceeding with compilation..."
   fi
   if [[ "$arch" == "arm" ]]; then
@@ -41,7 +41,7 @@ do
 done < compile-combos.csv
 
 echo 'Installing AWS CLI...'
-apt-get -y install awscli > /dev/null 2>&1
+sudo apt-get -y install awscli > /dev/null 2>&1
 
 if [[ "$ENVDIR" == "production" ]]; then
   echo 'Erasing production profiler components in public S3...'
