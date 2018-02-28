@@ -1,7 +1,5 @@
 ---
 engines:
-  gnu-complexity:
-    enabled: true
   gofmt:
     enabled: true
   golint:

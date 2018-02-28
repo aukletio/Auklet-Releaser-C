@@ -5,54 +5,29 @@ if [[ "$1" == "" ]]; then
   exit 1
 fi
 ENVDIR=$1
-VERSION="$(cat VERSION)"
-VERSION_SIMPLE=$(cat VERSION | xargs | cut -f1 -d"+")
+VERSION="$(cat ~/.version)"
+VERSION_SIMPLE=$(cat ~/.version | xargs | cut -f1 -d"+")
 export TIMESTAMP="$(date --rfc-3339=seconds | sed 's/ /T/')"
 GO_LDFLAGS="-X main.Version=$VERSION -X main.BuildDate=$TIMESTAMP"
 
 echo 'Compiling releaser...'
-echo 'OS/Arch: linux/amd64'
-GOOS=linux GOARCH=amd64 go build -ldflags "$GO_LDFLAGS" -o release-$VERSION-linux-amd64 ./release
-echo 'OS/Arch: windows/amd64'
-GOOS=windows GOARCH=amd64 go build -ldflags "$GO_LDFLAGS" -o release-$VERSION-windows-amd64.exe ./release
+echo '=== linux/amd64 ==='
+GOOS=linux GOARCH=amd64 go build -ldflags "$GO_LDFLAGS" -o release-linux-amd64-$VERSION ./release
+echo '=== windows/amd64 ==='
+GOOS=windows GOARCH=amd64 go build -ldflags "$GO_LDFLAGS" -o release-windows-amd64-$VERSION.exe ./release
 echo
-
-echo 'Compiling wrapper/library combinations...'
-echo
-export GOOS=linux
-while IFS=, read arch cc ar pkg
-do
-  echo "OS/Arch: $GOOS/$arch"
-  if [[ "$pkg" != "" ]]; then
-    echo "Installing $pkg cross compilation toolchain..."
-    sudo apt-get -y install $pkg > /dev/null 2>&1
-    echo "$pkg cross compilation toolchain installed; proceeding with compilation..."
-  fi
-  if [[ "$arch" == "arm" ]]; then
-    # We don't support ARM 5 or 6.
-    export GOARM=7
-  fi
-  echo 'Compiling wrapper...'
-  GOARCH=$arch go build -ldflags "$GO_LDFLAGS" -o wrap-$VERSION-$GOOS-$arch ./wrap
-  echo 'Compiling library...'
-  CC=$cc AR=$ar TARNAME="libauklet-$VERSION-$GOOS-$arch.tgz" ./bt libpkg
-  echo "DONE: $GOOS/$arch"
-  echo
-done < compile-combos.csv
 
 echo 'Installing AWS CLI...'
-sudo apt-get -y install awscli > /dev/null 2>&1
+sudo apt -y install awscli > /dev/null 2>&1
 
 if [[ "$ENVDIR" == "production" ]]; then
-  echo 'Erasing production profiler components in public S3...'
+  echo 'Erasing production releaser binaries in public S3...'
   aws s3 rm s3://auklet/release/latest/ --recursive
-  aws s3 rm s3://auklet/wrap/latest/ --recursive
-  aws s3 rm s3://auklet/libauklet/latest/ --recursive
 fi
 
-echo 'Uploading profiler components to S3...'
+echo 'Uploading releaser binaries to S3...'
 # Iterate over each file and upload it to S3.
-for f in {release-,wrap-,libauklet-}*; do
+for f in {release-}*; do
   # Upload to the internal bucket.
   S3_LOCATION="s3://auklet-profiler/$ENVDIR/$VERSION/$f"
   aws s3 cp $f $S3_LOCATION
