@@ -1,0 +1,10 @@
+version: '2'
+
+services:
+  auklet:
+    build:
+      context: .
+      dockerfile: ./compose/auklet/Dockerfile
+    env_file: .env
+    volumes:
+      - .:/go/src/github.com/ESG-USA/Auklet-Releaser/app
