@@ -1,29 +1,13 @@
-# Auklet C/C++ Profiler
+# Auklet Releaser
 
-Auklet's IoT C/C++ profiler is built to run on any POSIX operating system. It
-has been validated on:
-
-- Ubuntu 16.04
-
-It consists of three components:
-
-## `libauklet.a`
-
-A C library that your program is linked against at compile time.
-
-## `release`
-
-A deploy-time command-line tool that sends symbol information from the profiled
-program to the backend.
-
-## `wrap`
-
-A command-line program that runs the program to be profiled and continuously
-sends live profile data to the backend.
+Auklet's IoT releaser (`release`) is a deploy-time command-line tool that sends
+to the Auklet backend the symbol information from any program compiled with the
+Auklet agent. The releaser is built to run on 64-bit Linux and Windows systems,
+and is intended for use in CI environments.
 
 # Go Setup
 
-`wrap` and `release` need at least Go 1.8 and [dep][godep] 0.3.2. See the
+`release` needs at least Go 1.8 and [dep][godep] 0.3.2. See the
 [getting started page][gs] to download Go. Then see [How to Write Go Code -
 Organization][org] to set up your system.
 
@@ -44,20 +28,17 @@ After setting up Go on your system, install `dep` by running:
 	curl -L -s https://github.com/golang/dep/releases/download/v0.3.2/dep-linux-amd64 -o $GOPATH/bin/dep
 	chmod +x $GOPATH/bin/dep
 
-If you want to build `wrap` and `release` on Mac OS X, you can install `dep` via
+If you want to build `release` on Mac OS X, you can install `dep` via
 Homebrew by running `brew install dep`, or by changing the above `curl` command
 to download `dep-darwin-amd64`.
 
 # Development Tools
 
 `autobuild` is an optional script that can be run in a separate terminal window.
-When source files change, it runs `./bt`, allowing the developer to find
-compile-time errors immediately without needing an IDE.
+When source files change, it runs `go install ./release`, allowing the
+developer to find compile-time errors immediately without needing an IDE.
 
 `autobuild` requires [entr](http://www.entrproject.org/).
-
-Developers can set the environment variable `AUKLET_DUMP=true` to see logs on
-stdout.
 
 # Build
 
@@ -65,23 +46,9 @@ To ensure you have all the correct dependencies, run
 
 	dep ensure
 
-To build and test all components, run
+To build and install the releaser to `$GOPATH/bin`, run
 
-	./bt
-
-In particular, this command:
-
-- Builds the executables `wrap` and `release` and installs them to `$GOPATH/bin`
-- Runs unit tests on `wrap` and `lib.c`
-- Builds the manual testing executables `x`, `x-raw` and `x-dbg`
-
-To compile and install the static library `libauklet.a` to `/usr/local/lib/`, run
-
-	./bt libinstall
-
-# Run Unit Tests
-
-	./bt test
+	go install ./release
 
 # Configure
 
@@ -90,10 +57,6 @@ An Auklet configuration is defined by the following environment variables.
 	AUKLET_APP_ID
 	AUKLET_API_KEY
 	AUKLET_BASE_URL
-	AUKLET_BROKERS
-	AUKLET_PROF_TOPIC
-	AUKLET_EVENT_TOPIC
-	AUKLET_LOG_TOPIC
 
 To view your current configuration, run `env | grep AUKLET`.
 
@@ -112,29 +75,15 @@ file, `.auklet`, and sourced from within `.env.staging`. For example:
 	$ cat .env.staging
 	. .auklet
 	export AUKLET_BASE_URL=https://api-staging.auklet.io/v1
-	export AUKLET_BROKERS=broker1,broker2,broker3
-	export AUKLET_PROF_TOPIC=z8u1-profiler
-	export AUKLET_EVENT_TOPIC=z8u1-events
-	export AUKLET_LOG_TOPIC=z8u1-logs
-
-## `AUKLET_BROKERS`
-
-A comma-delimited list of Kafka broker addresses. For example:
-
-	broker1,broker2,broker3
-
-## `AUKLET_EVENT_TOPIC`, `AUKLET_PROF_TOPIC` `AUKLET_LOG_TOPIC`
-
-Kafka topics to which `wrap` should send event, profile, and log data, respectively.
 
 ## `AUKLET_BASE_URL`
 
-A URL, without a trailing slash, to be used when creating and checking releases.
-It is accessed by both `wrap` and `release` commands. For example:
+A URL, without a trailing slash, to be used when creating releases.
+For example:
 
 	https://api-staging.auklet.io/v1
 
-If not defined, `wrap` and `release` default to the production endpoint.
+If not defined, this defaults to the production endpoint.
 
 # Assign a Configuration
 
@@ -144,21 +93,13 @@ If not defined, `wrap` and `release` default to the production endpoint.
 
 To release an executable called `x`, create an executable in the same directory
 called `x-dbg` that contains debug information. (`x` is not required to contain
-debug info.) Then run
+debug info.) Then, run
 
 	release x
 
-# Run an App
-
-	wrap ./x
-
 # Docker Setup
 
-The local environment has separate containers for the wrapper and release. All
-containers are indirectly based on Debian Jessie.
-
 1. Install Docker for Mac Beta.
-2. Build your environment with `docker-compose build`.
-3. To run the release locally, run `docker-compose run auklet /makeRelease`.
-4. To run the wrapper locally, run `docker-compose run auklet /runWrapper`.
-5. To run auklet inside a shell, run `docker-compose run auklet /bin/bash`.
+1. Build your environment with `docker-compose build`.
+1. To ensure you have all the correct dependencies, run `docker-compose run auklet dep ensure`.
+1. To build and install the releaser to `$GOPATH/bin`, run `docker-compose run auklet go install ./release`.
