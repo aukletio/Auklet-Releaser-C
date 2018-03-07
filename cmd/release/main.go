@@ -12,6 +12,8 @@ import (
 	"net/http"
 	"os"
 	"os/exec"
+
+	"github.com/ESG-USA/Auklet-Releaser/config"
 )
 
 // BuildDate is provided at compile-time; DO NOT MODIFY.
@@ -189,29 +191,6 @@ func (rel *Release) release(deployName string) {
 	log.Println("release():", deployName, rel.DeployHash)
 }
 
-var envar = map[string]string{
-	"BASE_URL": "https://api.auklet.io/v1",
-	"API_KEY":  "",
-	"APP_ID":   "",
-}
-
-func env() {
-	prefix := "AUKLET_"
-	ok := true
-	for k := range envar {
-		v := os.Getenv(prefix + k)
-		if v == "" && envar[k] == "" {
-			ok = false
-			log.Printf("empty envar %v\n", prefix+k)
-		} else {
-			envar[k] = v
-		}
-	}
-	if !ok {
-		log.Fatal("incomplete configuration")
-	}
-}
-
 func main() {
 	log.Printf("Auklet Releaser version %s (%s)\n", Version, BuildDate)
 	if len(os.Args) < 2 {
@@ -220,12 +199,14 @@ func main() {
 	deployName := os.Args[1]
 	debugName := deployName + "-dbg"
 
-	env()
-	url := envar["BASE_URL"] + "/releases/"
+	c := config.FromEnv()
+	if !c.Valid() {
+		log.Fatal("incomplete configuration")
+	}
+	url := c.BaseUrl + "/releases/"
 
 	rel := new(Release)
-	rel.AppID = envar["APP_ID"]
-	apikey := envar["API_KEY"]
+	rel.AppID = c.AppId
 	rel.symbolize(debugName)
 
 	// reject ELF pairs with disparate sections
@@ -248,11 +229,10 @@ func main() {
 	if err != nil {
 		panic(err)
 	}
-	req.Header = map[string][]string{
-		"content-type": {"application/json"},
-		"apikey":       {apikey},
-	}
+	req.Header.Add("content-type", "application/json")
+	req.Header.Add("Authentication", "JWT " + c.APIKey)
 
+	fmt.Println(req)
 	client := &http.Client{}
 	resp, err := client.Do(req)
 	if err != nil {

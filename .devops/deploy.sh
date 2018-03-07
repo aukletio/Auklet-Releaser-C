@@ -15,9 +15,9 @@ PREFIX='auklet-releaser'
 S3_BUCKET='auklet'
 S3_PREFIX='releaser'
 echo '=== linux/amd64 ==='
-GOOS=linux GOARCH=amd64 go build -ldflags "$GO_LDFLAGS" -o $PREFIX-linux-amd64-$VERSION ./release
+GOOS=linux GOARCH=amd64 go build -ldflags "$GO_LDFLAGS" -o $PREFIX-linux-amd64-$VERSION ./cmd/release
 echo '=== windows/amd64 ==='
-GOOS=windows GOARCH=amd64 go build -ldflags "$GO_LDFLAGS" -o $PREFIX-windows-amd64-$VERSION.exe ./release
+GOOS=windows GOARCH=amd64 go build -ldflags "$GO_LDFLAGS" -o $PREFIX-windows-amd64-$VERSION.exe ./cmd/release
 echo
 
 echo 'Installing AWS CLI...'
