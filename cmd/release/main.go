@@ -8,6 +8,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"io/ioutil"
 	"log"
 	"net/http"
 	"os"
@@ -37,7 +38,7 @@ type Symbol struct {
 
 // A Release represents a release of a customer's app to be sent to the backend.
 type Release struct {
-	AppID      string   `json:"app_id"`
+	AppID      string   `json:"application"`
 	DeployHash string   `json:"checksum"`
 	Dwarf      []Dwarf  `json:"dwarf"`
 	Symbols    []Symbol `json:"symbols"`
@@ -230,7 +231,7 @@ func main() {
 		panic(err)
 	}
 	req.Header.Add("content-type", "application/json")
-	req.Header.Add("Authentication", "JWT " + c.APIKey)
+	req.Header.Add("Authorization", "JWT " + c.APIKey)
 
 	fmt.Println(req)
 	client := &http.Client{}
@@ -238,15 +239,17 @@ func main() {
 	if err != nil {
 		panic(err)
 	}
+	log.Printf("appid: %v\n", rel.AppID)
+	log.Printf("checksum: %v\n", rel.DeployHash)
 	log.Print(resp.Status)
 	switch resp.StatusCode {
 	case 200:
 		log.Println("not created")
 	case 201: // created
-		log.Printf("appid: %v\n", rel.AppID)
-		log.Printf("checksum: %v\n", rel.DeployHash)
 	case 502: // bad gateway
 		log.Fatal(url)
 	default:
+		b, _ := ioutil.ReadAll(resp.Body)
+		log.Print(string(b))
 	}
 }
