@@ -48,6 +48,7 @@ type Release struct {
 // necessary for it to be used in an http.Request.
 type BytesReadCloser bytes.Reader
 
+// Close allows BytesReadClose to implement io.ReadCloser.
 func (s BytesReadCloser) Close() error {
 	return nil
 }
@@ -204,10 +205,10 @@ func main() {
 	if !c.Valid() {
 		log.Fatal("incomplete configuration")
 	}
-	url := c.BaseUrl + "/releases/"
+	url := c.BaseURL + "/v1/releases/"
 
 	rel := new(Release)
-	rel.AppID = c.AppId
+	rel.AppID = c.AppID
 	rel.symbolize(debugName)
 
 	// reject ELF pairs with disparate sections
@@ -231,7 +232,7 @@ func main() {
 		panic(err)
 	}
 	req.Header.Add("content-type", "application/json")
-	req.Header.Add("Authorization", "JWT " + c.APIKey)
+	req.Header.Add("Authorization", "JWT "+c.APIKey)
 
 	fmt.Println(req)
 	client := &http.Client{}
