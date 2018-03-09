@@ -8,10 +8,13 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"io/ioutil"
 	"log"
 	"net/http"
 	"os"
 	"os/exec"
+
+	"github.com/ESG-USA/Auklet-Releaser/config"
 )
 
 // BuildDate is provided at compile-time; DO NOT MODIFY.
@@ -35,7 +38,7 @@ type Symbol struct {
 
 // A Release represents a release of a customer's app to be sent to the backend.
 type Release struct {
-	AppID      string   `json:"app_id"`
+	AppID      string   `json:"application"`
 	DeployHash string   `json:"checksum"`
 	Dwarf      []Dwarf  `json:"dwarf"`
 	Symbols    []Symbol `json:"symbols"`
@@ -45,6 +48,7 @@ type Release struct {
 // necessary for it to be used in an http.Request.
 type BytesReadCloser bytes.Reader
 
+// Close allows BytesReadClose to implement io.ReadCloser.
 func (s BytesReadCloser) Close() error {
 	return nil
 }
@@ -189,29 +193,6 @@ func (rel *Release) release(deployName string) {
 	log.Println("release():", deployName, rel.DeployHash)
 }
 
-var envar = map[string]string{
-	"BASE_URL": "https://api.auklet.io/v1",
-	"API_KEY":  "",
-	"APP_ID":   "",
-}
-
-func env() {
-	prefix := "AUKLET_"
-	ok := true
-	for k := range envar {
-		v := os.Getenv(prefix + k)
-		if v == "" && envar[k] == "" {
-			ok = false
-			log.Printf("empty envar %v\n", prefix+k)
-		} else {
-			envar[k] = v
-		}
-	}
-	if !ok {
-		log.Fatal("incomplete configuration")
-	}
-}
-
 func main() {
 	log.Printf("Auklet Releaser version %s (%s)\n", Version, BuildDate)
 	if len(os.Args) < 2 {
@@ -220,12 +201,14 @@ func main() {
 	deployName := os.Args[1]
 	debugName := deployName + "-dbg"
 
-	env()
-	url := envar["BASE_URL"] + "/releases/"
+	c := config.FromEnv()
+	if !c.Valid() {
+		log.Fatal("incomplete configuration")
+	}
+	url := c.BaseURL + "/v1/releases/"
 
 	rel := new(Release)
-	rel.AppID = envar["APP_ID"]
-	apikey := envar["API_KEY"]
+	rel.AppID = c.AppID
 	rel.symbolize(debugName)
 
 	// reject ELF pairs with disparate sections
@@ -248,25 +231,26 @@ func main() {
 	if err != nil {
 		panic(err)
 	}
-	req.Header = map[string][]string{
-		"content-type": {"application/json"},
-		"apikey":       {apikey},
-	}
+	req.Header.Add("content-type", "application/json")
+	req.Header.Add("Authorization", "JWT "+c.APIKey)
 
+	fmt.Println(req)
 	client := &http.Client{}
 	resp, err := client.Do(req)
 	if err != nil {
 		panic(err)
 	}
+	log.Printf("appid: %v\n", rel.AppID)
+	log.Printf("checksum: %v\n", rel.DeployHash)
 	log.Print(resp.Status)
 	switch resp.StatusCode {
 	case 200:
 		log.Println("not created")
 	case 201: // created
-		log.Printf("appid: %v\n", rel.AppID)
-		log.Printf("checksum: %v\n", rel.DeployHash)
 	case 502: // bad gateway
 		log.Fatal(url)
 	default:
+		b, _ := ioutil.ReadAll(resp.Body)
+		log.Print(string(b))
 	}
 }
