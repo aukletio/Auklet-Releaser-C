@@ -35,7 +35,7 @@ to download `dep-darwin-amd64`.
 # Development Tools
 
 `autobuild` is an optional script that can be run in a separate terminal window.
-When source files change, it runs `go install ./release`, allowing the
+When source files change, it runs `go install ./cmd/release`, allowing the
 developer to find compile-time errors immediately without needing an IDE.
 
 `autobuild` requires [entr](http://www.entrproject.org/).
@@ -74,14 +74,14 @@ file, `.auklet`, and sourced from within `.env.staging`. For example:
 
 	$ cat .env.staging
 	. .auklet
-	export AUKLET_BASE_URL=https://api-staging.auklet.io/v1
+	export AUKLET_BASE_URL=https://api-staging.auklet.io
 
 ## `AUKLET_BASE_URL`
 
-A URL, without a trailing slash, to be used when creating releases.
-For example:
+A URL, without a trailing slash, to be used when creating releases. **It must
+not contain a trailing path.**  For example:
 
-	https://api-staging.auklet.io/v1
+	https://api-staging.auklet.io
 
 If not defined, this defaults to the production endpoint.
 
@@ -102,4 +102,4 @@ debug info.) Then, run
 1. Install Docker for Mac Beta.
 1. Build your environment with `docker-compose build`.
 1. To ensure you have all the correct dependencies, run `docker-compose run auklet dep ensure`.
-1. To build and install the releaser to `$GOPATH/bin`, run `docker-compose run auklet go install ./release`.
+1. To build and install the releaser to `$GOPATH/bin`, run `docker-compose run auklet go install ./cmd/release`.
