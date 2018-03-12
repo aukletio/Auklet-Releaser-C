@@ -13,10 +13,12 @@ type Config struct {
 	AppID   string
 }
 
-// Production returns a configuration as would be required in production.
-func Production() Config {
+// FromEnvWithStaticBaseURL creates a Config as would be required in a
+// production environment. The base URL is hardcoded in this configuration and
+// cannot be overridden by the end user.
+func FromEnvWithStaticBaseURL() Config {
 	return Config{
-		BaseURL: "https://api.auklet.io",
+		BaseURL: StaticBaseURL,
 		APIKey:  os.Getenv("AUKLET_API_KEY"),
 		AppID:   os.Getenv("AUKLET_APP_ID"),
 	}
