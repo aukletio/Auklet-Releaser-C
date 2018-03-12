@@ -18,7 +18,7 @@ import (
 )
 
 var (
-	cfg       config.Config
+	cfg config.Config
 )
 
 // A Dwarf represents a pared-down dwarf.LineEntry.
