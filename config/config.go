@@ -13,10 +13,10 @@ type Config struct {
 	AppID   string
 }
 
-// FromEnvWithStaticBaseURL creates a Config as would be required in a
-// production environment. The base URL is hardcoded in this configuration and
-// cannot be overridden by the end user.
-func FromEnvWithStaticBaseURL() Config {
+// ReleaseBuild creates a Config as would be required in a production
+// environment. The base URL is hardcoded in this configuration and cannot be
+// overridden by the end user.
+func ReleaseBuild() Config {
 	return Config{
 		BaseURL: StaticBaseURL,
 		APIKey:  os.Getenv("AUKLET_API_KEY"),
@@ -24,8 +24,8 @@ func FromEnvWithStaticBaseURL() Config {
 	}
 }
 
-// FromEnv returns a configuration defined solely from the environment.
-func FromEnv() (c Config) {
+// LocalBuild returns a configuration defined solely from the environment.
+func LocalBuild() (c Config) {
 	c = Config{
 		BaseURL: os.Getenv("AUKLET_BASE_URL"),
 		APIKey:  os.Getenv("AUKLET_API_KEY"),

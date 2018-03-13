@@ -200,9 +200,9 @@ func main() {
 	debugName := deployName + "-dbg"
 
 	if Version == "local-build" {
-		cfg = config.FromEnv()
+		cfg = config.LocalBuild()
 	} else {
-		cfg = config.FromEnvWithStaticBaseURL()
+		cfg = config.ReleaseBuild()
 	}
 	if !cfg.Valid() {
 		log.Fatal("incomplete configuration")
