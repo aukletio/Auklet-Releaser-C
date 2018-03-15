@@ -17,11 +17,9 @@ import (
 	"github.com/ESG-USA/Auklet-Releaser/config"
 )
 
-// BuildDate is provided at compile-time; DO NOT MODIFY.
-var BuildDate = "no timestamp"
-
-// Version is provided at compile-time; DO NOT MODIFY.
-var Version = "local-build"
+var (
+	cfg config.Config
+)
 
 // A Dwarf represents a pared-down dwarf.LineEntry.
 type Dwarf struct {
@@ -201,14 +199,18 @@ func main() {
 	deployName := os.Args[1]
 	debugName := deployName + "-dbg"
 
-	c := config.FromEnv()
-	if !c.Valid() {
+	if Version == "local-build" {
+		cfg = config.LocalBuild()
+	} else {
+		cfg = config.ReleaseBuild()
+	}
+	if !cfg.Valid() {
 		log.Fatal("incomplete configuration")
 	}
-	url := c.BaseURL + "/v1/releases/"
+	url := cfg.BaseURL + "/v1/releases/"
 
 	rel := new(Release)
-	rel.AppID = c.AppID
+	rel.AppID = cfg.AppID
 	rel.symbolize(debugName)
 
 	// reject ELF pairs with disparate sections
@@ -232,7 +234,7 @@ func main() {
 		panic(err)
 	}
 	req.Header.Add("content-type", "application/json")
-	req.Header.Add("Authorization", "JWT "+c.APIKey)
+	req.Header.Add("Authorization", "JWT "+cfg.APIKey)
 
 	fmt.Println(req)
 	client := &http.Client{}
