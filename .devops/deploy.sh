@@ -8,7 +8,14 @@ ENVDIR=$1
 VERSION="$(cat ~/.version)"
 VERSION_SIMPLE=$(cat ~/.version | xargs | cut -f1 -d"+")
 export TIMESTAMP="$(date --rfc-3339=seconds | sed 's/ /T/')"
-GO_LDFLAGS="-X main.Version=$VERSION -X main.BuildDate=$TIMESTAMP"
+if [[ "$1" == "staging" ]]; then
+  BASE_URL='https://api-staging.auklet.io'
+elif [[ "$1" == "qa" ]]; then
+  BASE_URL='https://api-qa.auklet.io'
+else
+  BASE_URL='https://api.auklet.io'
+fi
+GO_LDFLAGS="-X main.Version=$VERSION -X main.BuildDate=$TIMESTAMP -X github.com/ESG-USA/Auklet-Releaser/config.StaticBaseURL=$BASE_URL"
 
 echo 'Compiling releaser...'
 PREFIX='auklet-releaser'
