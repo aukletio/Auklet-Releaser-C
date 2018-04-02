@@ -13,6 +13,7 @@ import (
 	"net/http"
 	"os"
 	"os/exec"
+	"strings"
 
 	"github.com/ESG-USA/Auklet-Releaser/config"
 )
@@ -40,6 +41,7 @@ type Release struct {
 	DeployHash string   `json:"checksum"`
 	Dwarf      []Dwarf  `json:"dwarf"`
 	Symbols    []Symbol `json:"symbols"`
+	CommitHash string   `json:"commit_hash"`
 }
 
 // A BytesReadCloser is a bytes.Reader that satisfies io.ReadCloser, which is
@@ -175,6 +177,16 @@ func sectionsMatch(deployName, debugName string) bool {
 	return true
 }
 
+func (rel *Release) commitHash() {
+	c := exec.Command("git", "rev-parse", "HEAD")
+	out, err := c.CombinedOutput()
+	if err != nil {
+		log.Print(err)
+	} else {
+		rel.CommitHash = strings.TrimSpace(string(out))
+	}
+}
+
 func (rel *Release) release(deployName string) {
 	f, err := os.Open(deployName)
 	if err != nil {
@@ -219,6 +231,7 @@ func main() {
 	}
 
 	// create a release
+	rel.commitHash()
 	rel.release(deployName)
 
 	// emit
@@ -236,7 +249,7 @@ func main() {
 	req.Header.Add("content-type", "application/json")
 	req.Header.Add("Authorization", "JWT "+cfg.APIKey)
 
-	fmt.Println(req)
+	//fmt.Println(req)
 	client := &http.Client{}
 	resp, err := client.Do(req)
 	if err != nil {
