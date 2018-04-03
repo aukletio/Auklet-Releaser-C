@@ -35,13 +35,17 @@ type Symbol struct {
 	Value uint64
 }
 
-// A Release represents a release of a customer's app to be sent to the backend.
-type Release struct {
-	AppID      string   `json:"application"`
+type languageMeta struct {
 	DeployHash string   `json:"checksum"`
 	Dwarf      []Dwarf  `json:"dwarf"`
 	Symbols    []Symbol `json:"symbols"`
-	CommitHash string   `json:"commit_hash"`
+}
+
+// A Release represents a release of a customer's app to be sent to the backend.
+type Release struct {
+	AppID        string `json:"application"`
+	languageMeta `json:"language_meta"`
+	CommitHash   string `json:"commit_hash"`
 }
 
 // A BytesReadCloser is a bytes.Reader that satisfies io.ReadCloser, which is
@@ -239,7 +243,7 @@ func main() {
 	if err != nil {
 		panic(err)
 	}
-	//fmt.Println(string(b))
+	fmt.Println(string(b))
 
 	// Create a client to control request headers.
 	req, err := http.NewRequest("POST", url, bytes.NewReader(b))
