@@ -36,6 +36,7 @@ type Symbol struct {
 }
 
 type languageMeta struct {
+	TopLevel   string   `json:"absolute_path_prefix"`
 	DeployHash string   `json:"checksum"`
 	Dwarf      []Dwarf  `json:"dwarf"`
 	Symbols    []Symbol `json:"symbols"`
@@ -191,6 +192,16 @@ func (rel *Release) commitHash() {
 	}
 }
 
+func (rel *Release) topLevel() {
+	c := exec.Command("git", "rev-parse", "--show-toplevel")
+	out, err := c.CombinedOutput()
+	if err != nil {
+		log.Print(err)
+	} else {
+		rel.TopLevel = strings.TrimSpace(string(out))
+	}
+}
+
 func (rel *Release) release(deployName string) {
 	f, err := os.Open(deployName)
 	if err != nil {
@@ -236,6 +247,7 @@ func main() {
 
 	// create a release
 	rel.commitHash()
+	rel.topLevel()
 	rel.release(deployName)
 
 	// emit
