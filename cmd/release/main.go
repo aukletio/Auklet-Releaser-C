@@ -23,9 +23,9 @@ var (
 
 // A Dwarf represents a pared-down dwarf.LineEntry.
 type Dwarf struct {
-	Address uint64
-	Hash    string // git object hash
-	Line    int
+	Address  uint64
+	FileName string
+	Line     int
 }
 
 // A Symbol represents a pared-down elf.Symbol.
@@ -112,9 +112,9 @@ func (rel *Release) symbolize(debugpath string) {
 			_, err = os.Stat(le.File.Name)
 			if err == nil {
 				rel.Dwarf = append(rel.Dwarf, Dwarf{
-					Address: le.Address,
-					Hash:    hashobject(le.File.Name),
-					Line:    le.Line,
+					Address:  le.Address,
+					FileName: le.File.Name,
+					Line:     le.Line,
 				})
 			}
 		}
