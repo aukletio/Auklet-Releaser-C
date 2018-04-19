@@ -13,6 +13,7 @@ import (
 	"net/http"
 	"os"
 	"os/exec"
+	"strings"
 
 	"github.com/ESG-USA/Auklet-Releaser/config"
 )
@@ -34,12 +35,18 @@ type Symbol struct {
 	Value uint64
 }
 
-// A Release represents a release of a customer's app to be sent to the backend.
-type Release struct {
-	AppID      string   `json:"application"`
+type languageMeta struct {
+	TopLevel   string   `json:"absolute_path_prefix"`
 	DeployHash string   `json:"checksum"`
 	Dwarf      []Dwarf  `json:"dwarf"`
 	Symbols    []Symbol `json:"symbols"`
+}
+
+// A Release represents a release of a customer's app to be sent to the backend.
+type Release struct {
+	AppID        string `json:"application"`
+	languageMeta `json:"language_meta"`
+	CommitHash   string `json:"commit_hash"`
 }
 
 // A BytesReadCloser is a bytes.Reader that satisfies io.ReadCloser, which is
@@ -175,6 +182,26 @@ func sectionsMatch(deployName, debugName string) bool {
 	return true
 }
 
+func (rel *Release) commitHash() {
+	c := exec.Command("git", "rev-parse", "HEAD")
+	out, err := c.CombinedOutput()
+	if err != nil {
+		log.Print(err)
+	} else {
+		rel.CommitHash = strings.TrimSpace(string(out))
+	}
+}
+
+func (rel *Release) topLevel() {
+	c := exec.Command("git", "rev-parse", "--show-toplevel")
+	out, err := c.CombinedOutput()
+	if err != nil {
+		log.Print(err)
+	} else {
+		rel.TopLevel = strings.TrimSpace(string(out))
+	}
+}
+
 func (rel *Release) release(deployName string) {
 	f, err := os.Open(deployName)
 	if err != nil {
@@ -219,6 +246,8 @@ func main() {
 	}
 
 	// create a release
+	rel.commitHash()
+	rel.topLevel()
 	rel.release(deployName)
 
 	// emit
@@ -226,7 +255,7 @@ func main() {
 	if err != nil {
 		panic(err)
 	}
-	//fmt.Println(string(b))
+	fmt.Println(string(b))
 
 	// Create a client to control request headers.
 	req, err := http.NewRequest("POST", url, bytes.NewReader(b))
@@ -236,7 +265,7 @@ func main() {
 	req.Header.Add("content-type", "application/json")
 	req.Header.Add("Authorization", "JWT "+cfg.APIKey)
 
-	fmt.Println(req)
+	//fmt.Println(req)
 	client := &http.Client{}
 	resp, err := client.Do(req)
 	if err != nil {
