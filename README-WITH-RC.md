@@ -1,5 +1,13 @@
 # Changelog
 
+## Merged But Unreleased
+
+**Implemented enhancements:**
+
+- APM-1233 Add file name to release object [#13](https://github.com/ESG-USA/Auklet-Releaser-C/pull/13) ([kdsch](https://github.com/kdsch))
+
+## [0.5.0](https://github.com/ESG-USA/Auklet-Releaser-C/tree/0.5.0)
+
 ### [0.5.0-rc.1](https://github.com/ESG-USA/Auklet-Releaser-C/tree/0.5.0-rc.1)
 
 **Implemented enhancements:**

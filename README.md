@@ -4,6 +4,12 @@
 
 **Implemented enhancements:**
 
+- APM-1233 Add file name to release object [#13](https://github.com/ESG-USA/Auklet-Releaser-C/pull/13) ([kdsch](https://github.com/kdsch))
+
+## [0.5.0](https://github.com/ESG-USA/Auklet-Releaser-C/tree/0.5.0)
+
+**Implemented enhancements:**
+
 - APM-1192 Change the C Agent Releaser's JSON [#12](https://github.com/ESG-USA/Auklet-Releaser-C/pull/12) ([kdsch](https://github.com/kdsch))
 
 **DevOps changes:**
