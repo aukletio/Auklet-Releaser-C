@@ -1,6 +1,6 @@
 # Changelog
 
-## Merged But Unreleased
+## [0.6.0](https://github.com/ESG-USA/Auklet-Releaser-C/tree/0.6.0)
 
 **Implemented enhancements:**
 
