@@ -66,6 +66,21 @@ jobs:
                 name: Run tests
                 command: |
                   echo 'WARNING: this repo has no tests!'
+            - run:
+                name: Run Whitesource
+                command: |
+                  set -ou pipefail
+                  if [[ ! -f ~/.localCircleBuild ]]; then
+                    echo 'Initializing...'
+                    export WHITESOURCE_PROJECT_NAME='Auklet-Releaser-C'
+                    export WHITESOURCE_PROJECT_VERSION='1.0.0'
+                    cd .devops
+                    npm install --no-spin follow-redirects@1.5.0 > /dev/null 2>&1
+                    node whitesource.js $(eval cd $CIRCLE_WORKING_DIRECTORY ; pwd)
+                    rm -rf node_modules package-lock.json
+                  else
+                    echo 'This is a local build; skipping WhiteSource.'
+                  fi
 
             ##
             # SAVE CACHES
