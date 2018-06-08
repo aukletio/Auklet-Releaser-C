@@ -15,6 +15,8 @@ import (
 	"os/exec"
 	"strings"
 
+	"github.com/gobuffalo/packr"
+
 	"github.com/ESG-USA/Auklet-Releaser-C/config"
 )
 
@@ -59,7 +61,24 @@ func (s BytesReadCloser) Close() error {
 }
 
 func usage() {
-	log.Fatalf("usage: %v deployfile\n", os.Args[0])
+	fmt.Printf("usage: %v deployfile\n", os.Args[0])
+	fmt.Printf("view OSS licenses: %v --licenses\n", os.Args[0])
+}
+
+func licenses() {
+	licensesBox := packr.NewBox("./licenses")
+	licenses := licensesBox.List()
+	// Print the Auklet license first, then iterate over all the others.
+	format := "License for %v\n-------------------------\n%v"
+	fmt.Printf(format, "Auklet Releaser", licensesBox.String("LICENSE"))
+	for _, l := range licenses {
+		if l != "LICENSE" {
+			ownerName := strings.Split(l, "--")
+			fmt.Printf("\n\n\n")
+			header := fmt.Sprintf("package: %v/%v", ownerName[0], ownerName[1])
+			fmt.Printf(format, header, licensesBox.String(l))
+		}
+	}
 }
 
 func (rel *Release) symbolize(debugpath string) {
@@ -219,10 +238,15 @@ func (rel *Release) release(deployName string) {
 }
 
 func main() {
-	log.Printf("Auklet Releaser version %s (%s)\n", Version, BuildDate)
 	if len(os.Args) < 2 {
 		usage()
+		os.Exit(1)
 	}
+	if os.Args[1] == "--licenses" {
+		licenses()
+		os.Exit(1)
+	}
+	log.Printf("Auklet Releaser version %s (%s)\n", Version, BuildDate)
 	deployName := os.Args[1]
 	debugName := deployName + "-dbg"
 
