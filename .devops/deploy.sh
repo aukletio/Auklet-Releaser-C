@@ -15,7 +15,7 @@ elif [[ "$1" == "qa" ]]; then
 else
   BASE_URL='https://api.auklet.io'
 fi
-GO_LDFLAGS="-X main.Version=$VERSION -X main.BuildDate=$TIMESTAMP -X github.com/ESG-USA/Auklet-Releaser/config.StaticBaseURL=$BASE_URL"
+GO_LDFLAGS="-X main.Version=$VERSION -X main.BuildDate=$TIMESTAMP -X github.com/ESG-USA/Auklet-Releaser-C/config.StaticBaseURL=$BASE_URL"
 
 echo 'Compiling releaser...'
 PREFIX='auklet-releaser'

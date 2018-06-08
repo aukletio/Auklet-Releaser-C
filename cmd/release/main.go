@@ -15,7 +15,7 @@ import (
 	"os/exec"
 	"strings"
 
-	"github.com/ESG-USA/Auklet-Releaser/config"
+	"github.com/ESG-USA/Auklet-Releaser-C/config"
 )
 
 var (
