@@ -1,0 +1,16 @@
+This is not the license for this codebase. DO NOT DISTRIBUTE THIS BINARY.
+
+This file gets replaced at build/deploy-time with the LICENSE file in the
+repository root.
+
+During the CI build/deploy, licenses for all dependencies (as found by running
+"dep status") are downloaded from GitHub and embedded into the binary, ensuring
+that they are presented to the end user when this command is executed. If the
+license for one or more dependencies cannot be retrieved this way, the CI build
+will log this and fail. You will see a message such as:
+
+Shopify/sarama: not found!
+
+If you see a message like this, you can fix it by creating a file named
+"$OWNER--$NAME" (no extension) in this directory with the license text. In the
+above example, you would create a file named "Shopify--sarama".
