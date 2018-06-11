@@ -1,5 +1,22 @@
 # Changelog
 
+## Merged But Unreleased
+
+**Implemented enhancements:**
+
+- License under Apache 2.0 / harvest dependency licenses [#27](https://github.com/ESG-USA/Auklet-Releaser-C/pull/27) ([rjenkinsjr](https://github.com/rjenkinsjr))
+
+**DevOps changes:**
+
+- Push prod branch to aukletio [#28](https://github.com/ESG-USA/Auklet-Releaser-C/pull/28) ([rjenkinsjr](https://github.com/rjenkinsjr))
+- Add WhiteSource integration [#26](https://github.com/ESG-USA/Auklet-Releaser-C/pull/26) ([rjenkinsjr](https://github.com/rjenkinsjr))
+- Fix prod PR update script [#25](https://github.com/ESG-USA/Auklet-Releaser-C/pull/25) ([rjenkinsjr](https://github.com/rjenkinsjr))
+- Fix changelog generation syntax [#24](https://github.com/ESG-USA/Auklet-Releaser-C/pull/24) ([rjenkinsjr](https://github.com/rjenkinsjr))
+- TS-419: Stop using GitHub API for gathering commit lists [#23](https://github.com/ESG-USA/Auklet-Releaser-C/pull/23) ([rjenkinsjr](https://github.com/rjenkinsjr))
+- TS-417: update prod release PR after QA release finishes [#22](https://github.com/ESG-USA/Auklet-Releaser-C/pull/22) ([rjenkinsjr](https://github.com/rjenkinsjr))
+- APM-1329: Fix GitHub API abuse rate limits [#21](https://github.com/ESG-USA/Auklet-Releaser-C/pull/21) ([rjenkinsjr](https://github.com/rjenkinsjr))
+- Stop building for Windows [#19](https://github.com/ESG-USA/Auklet-Releaser-C/pull/19) ([rjenkinsjr](https://github.com/rjenkinsjr))
+
 ## [0.6.0](https://github.com/ESG-USA/Auklet-Releaser-C/tree/0.6.0)
 
 **Implemented enhancements:**
