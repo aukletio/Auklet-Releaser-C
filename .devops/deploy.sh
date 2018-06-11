@@ -15,16 +15,29 @@ elif [[ "$1" == "qa" ]]; then
 else
   BASE_URL='https://api.auklet.io'
 fi
-GO_LDFLAGS="-X main.Version=$VERSION -X main.BuildDate=$TIMESTAMP -X github.com/ESG-USA/Auklet-Releaser/config.StaticBaseURL=$BASE_URL"
+
+echo 'Gathering license files for dependencies...'
+REPO_DIR=$(eval cd $CIRCLE_WORKING_DIRECTORY ; pwd)
+LICENSES_DIR="$REPO_DIR/cmd/release/licenses"
+cp LICENSE $LICENSES_DIR
+cd .devops
+npm install --no-spin follow-redirects@1.5.0 > /dev/null 2>&1
+node licenses.js "$REPO_DIR" "$LICENSES_DIR"
+rm -rf node_modules package-lock.json
+cd ..
+echo
+
+echo 'Generating packed resource files...'
+curl -sSL https://github.com/gobuffalo/packr/releases/download/v1.11.0/packr_1.11.0_linux_amd64.tar.gz | tar -xz packr
+./packr -v -z
+echo
 
 echo 'Compiling releaser...'
+GO_LDFLAGS="-X main.Version=$VERSION -X main.BuildDate=$TIMESTAMP -X github.com/ESG-USA/Auklet-Releaser-C/config.StaticBaseURL=$BASE_URL"
 PREFIX='auklet-releaser'
 S3_BUCKET='auklet'
 S3_PREFIX='releaser'
-echo '=== linux/amd64 ==='
 GOOS=linux GOARCH=amd64 go build -ldflags "$GO_LDFLAGS" -o $PREFIX-linux-amd64-$VERSION ./cmd/release
-echo '=== windows/amd64 ==='
-GOOS=windows GOARCH=amd64 go build -ldflags "$GO_LDFLAGS" -o $PREFIX-windows-amd64-$VERSION.exe ./cmd/release
 echo
 
 echo 'Installing AWS CLI...'
@@ -51,3 +64,17 @@ for f in ${PREFIX}-*; do
     aws s3 cp $S3_LOCATION s3://$S3_BUCKET/$S3_PREFIX/latest/$LATEST_NAME
   fi
 done
+
+# Push to public GitHub repo.
+# The hostname "aukletio.github.com" is intentional and it matches the "ssh-config-aukletio" file.
+if [[ "$ENVDIR" == "production" ]]; then
+  echo 'Pushing production branch to github.com/aukletio...'
+  mv ~/.ssh/config ~/.ssh/config-bak
+  cp .devops/ssh-config-aukletio ~/.ssh/config
+  chmod 400 ~/.ssh/config
+  git remote add aukletio git@aukletio.github.com:aukletio/Auklet-Releaser-C.git
+  git push aukletio HEAD:master
+  git remote rm aukletio
+  rm -f ~/.ssh/config
+  mv ~/.ssh/config-bak ~/.ssh/config
+fi
