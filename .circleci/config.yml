@@ -6,7 +6,7 @@ jobs:
             TZ: "/usr/share/zoneinfo/America/Detroit"
         working_directory: ~/go/src/github.com/ESG-USA/Auklet-Releaser-C
         docker:
-            - image: circleci/golang:1.8.7-jessie-browsers
+            - image: circleci/golang:1.8.7-jessie
         steps:
 
             ##
