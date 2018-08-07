@@ -28,8 +28,9 @@ exec('dep status -json', { cwd: repoDir }, (error, stdout, stderr) => {
     // Get the project name.
     var fullName = dep.ProjectRoot;
     // Remap non-GitHub project names.
-    if (fullName === 'golang.org/x/sys') fullName = 'github.com/golang/sys';
-    if (fullName === 'golang.org/x/net') fullName = 'github.com/golang/net';
+    if (fullName.startsWith('golang.org/x/')) {
+      fullName = `github.com/golang/${fullName.replace('golang.org/x/', '')}`
+    }
     if (fullName === 'google.golang.org/appengine') fullName = 'github.com/golang/appengine';
     // Get the project owner and name.
     var owner = fullName.substring(fullName.indexOf('/') + 1);
