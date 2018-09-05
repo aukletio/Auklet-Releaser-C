@@ -32,6 +32,8 @@ If you want to build `release` on Mac OS X, you can install `dep` via
 Homebrew by running `brew install dep`, or by changing the above `curl` command
 to download `dep-darwin-amd64`.
 
+After cloning this repo and setting up your Go environment, run this command to enable pre-commit gofmt checking: `git config core.hookspath .githooks`.
+
 # Development Tools
 
 `autobuild` is an optional script that can be run in a separate terminal window.
