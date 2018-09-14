@@ -20,10 +20,6 @@ import (
 	"github.com/ESG-USA/Auklet-Releaser-C/config"
 )
 
-var (
-	cfg config.Config
-)
-
 // A Dwarf represents a pared-down dwarf.LineEntry.
 type Dwarf struct {
 	Address  uint64
@@ -218,6 +214,19 @@ func (rel *Release) release(deployName string) {
 	log.Println("release():", deployName, rel.DeployHash)
 }
 
+func getConfig() config.Config {
+	var cfg config.Config
+	if Version == "local-build" {
+		cfg = config.LocalBuild()
+	} else {
+		cfg = config.ReleaseBuild()
+	}
+	if !cfg.Valid() {
+		log.Fatal("incomplete configuration")
+	}
+	return cfg
+}
+
 func main() {
 	if len(os.Args) < 2 {
 		usage()
@@ -231,14 +240,7 @@ func main() {
 	deployName := os.Args[1]
 	debugName := deployName + "-dbg"
 
-	if Version == "local-build" {
-		cfg = config.LocalBuild()
-	} else {
-		cfg = config.ReleaseBuild()
-	}
-	if !cfg.Valid() {
-		log.Fatal("incomplete configuration")
-	}
+	cfg := getConfig()
 	url := cfg.BaseURL + "/v1/releases/"
 
 	rel := new(Release)
