@@ -281,10 +281,14 @@ func post(rel *Release, cfg config.Config) {
 
 var (
 	viewLicenses bool
+	version string
+	release string
 )
 
 func init() {
 	flag.BoolVar(&viewLicenses, "licenses", false, "view OSS licenses")
+	flag.StringVar(&release, "release", "", "override Git commit hash with user-defined release identifier")
+	flag.StringVar(&version, "version", "", "user-defined version string")
 }
 
 func main() {
