@@ -227,24 +227,10 @@ func getConfig() config.Config {
 	return cfg
 }
 
-func main() {
-	if len(os.Args) < 2 {
-		usage()
-		os.Exit(1)
-	}
-	if os.Args[1] == "--licenses" {
-		licenses()
-		os.Exit(1)
-	}
-	log.Printf("Auklet Releaser version %s (%s)\n", Version, BuildDate)
-	deployName := os.Args[1]
-	debugName := deployName + "-dbg"
-
-	cfg := getConfig()
-	url := cfg.BaseURL + "/v1/releases/"
-
+func newRelease(deployName, appID string) *Release {
 	rel := new(Release)
-	rel.AppID = cfg.AppID
+	rel.AppID = appID
+	debugName := deployName + "-dbg"
 	rel.symbolize(debugName)
 
 	// reject ELF pairs with disparate sections
@@ -252,19 +238,19 @@ func main() {
 		os.Exit(1)
 	}
 
-	// create a release
 	rel.commitHash()
 	rel.topLevel()
 	rel.release(deployName)
+	return rel
+}
 
-	// emit
+func post(rel *Release, cfg config.Config) {
 	b, err := json.MarshalIndent(rel, "", "    ")
 	if err != nil {
 		panic(err)
 	}
-	fmt.Println(string(b))
 
-	// Create a client to control request headers.
+	url := cfg.BaseURL + "/v1/releases/"
 	req, err := http.NewRequest("POST", url, bytes.NewReader(b))
 	if err != nil {
 		panic(err)
@@ -272,12 +258,11 @@ func main() {
 	req.Header.Add("content-type", "application/json")
 	req.Header.Add("Authorization", "JWT "+cfg.APIKey)
 
-	//fmt.Println(req)
-	client := &http.Client{}
-	resp, err := client.Do(req)
+	resp, err := http.DefaultClient.Do(req)
 	if err != nil {
 		panic(err)
 	}
+
 	log.Printf("appid: %v\n", rel.AppID)
 	log.Printf("checksum: %v\n", rel.DeployHash)
 	log.Print(resp.Status)
@@ -291,4 +276,20 @@ func main() {
 		b, _ := ioutil.ReadAll(resp.Body)
 		log.Print(string(b))
 	}
+}
+
+func main() {
+	if len(os.Args) < 2 {
+		usage()
+		os.Exit(1)
+	}
+	if os.Args[1] == "--licenses" {
+		licenses()
+		os.Exit(1)
+	}
+	log.Printf("Auklet Releaser version %s (%s)\n", Version, BuildDate)
+
+	cfg := getConfig()
+	rel := newRelease(os.Args[1], cfg.AppID)
+	post(rel, cfg)
 }
