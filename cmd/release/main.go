@@ -6,6 +6,7 @@ import (
 	"debug/dwarf"
 	"debug/elf"
 	"encoding/json"
+	"flag"
 	"fmt"
 	"io"
 	"io/ioutil"
@@ -278,15 +279,26 @@ func post(rel *Release, cfg config.Config) {
 	}
 }
 
+var (
+	viewLicenses bool
+)
+
+func init() {
+	flag.BoolVar(&viewLicenses, "licenses", false, "view OSS licenses")
+}
+
 func main() {
-	if len(os.Args) < 2 {
-		usage()
-		os.Exit(1)
-	}
-	if os.Args[1] == "--licenses" {
+	flag.Parse()
+	if viewLicenses {
 		licenses()
 		os.Exit(1)
 	}
+
+	if len(flag.Args()) == 0 {
+		usage()
+		os.Exit(1)
+	}
+
 	log.Printf("Auklet Releaser version %s (%s)\n", Version, BuildDate)
 
 	cfg := getConfig()
