@@ -51,15 +51,6 @@ type Release struct {
 	CommitHash   string `json:"commit_hash"`
 }
 
-// A BytesReadCloser is a bytes.Reader that satisfies io.ReadCloser, which is
-// necessary for it to be used in an http.Request.
-type BytesReadCloser bytes.Reader
-
-// Close allows BytesReadClose to implement io.ReadCloser.
-func (s BytesReadCloser) Close() error {
-	return nil
-}
-
 func usage() {
 	fmt.Printf("usage: %v deployfile\n", os.Args[0])
 	fmt.Printf("view OSS licenses: %v --licenses\n", os.Args[0])
@@ -145,16 +136,6 @@ func (rel *Release) symbolize(debugpath string) {
 			}
 		}
 	}
-}
-
-func hashobject(path string) string {
-	c := exec.Command("git", "hash-object", path)
-	out, err := c.CombinedOutput()
-	if err != nil {
-		// don't have git, or bad path
-		log.Panic(err)
-	}
-	return string(out[:len(out)-1])
 }
 
 func hash(s *elf.Section) []byte {
