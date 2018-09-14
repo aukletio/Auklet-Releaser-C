@@ -45,7 +45,8 @@ type languageMeta struct {
 type Release struct {
 	AppID        string `json:"application"`
 	languageMeta `json:"language_meta"`
-	CommitHash   string `json:"commit_hash"`
+	Release      *string `json:"release"`
+	Version      *string `json:"version"`
 }
 
 func usage() {
@@ -183,10 +184,11 @@ func (rel *Release) commitHash() {
 	c := exec.Command("git", "rev-parse", "HEAD")
 	out, err := c.CombinedOutput()
 	if err != nil {
-		log.Print(err)
-	} else {
-		rel.CommitHash = strings.TrimSpace(string(out))
+		return
 	}
+
+	hash := strings.TrimSpace(string(out))
+	rel.Release = &hash
 }
 
 func (rel *Release) topLevel() {
@@ -228,7 +230,7 @@ func getConfig() config.Config {
 	return cfg
 }
 
-func newRelease(deployName, appID string) *Release {
+func newRelease(deployName, appID, release, version string) *Release {
 	rel := new(Release)
 	rel.AppID = appID
 	debugName := deployName + "-dbg"
@@ -239,7 +241,16 @@ func newRelease(deployName, appID string) *Release {
 		os.Exit(1)
 	}
 
-	rel.commitHash()
+	if release == "" {
+		rel.commitHash()
+	} else {
+		rel.Release = &release
+	}
+
+	if version == "" {
+		rel.Version = &version
+	}
+
 	rel.topLevel()
 	rel.release(deployName)
 	return rel
@@ -281,8 +292,8 @@ func post(rel *Release, cfg config.Config) {
 
 var (
 	viewLicenses bool
-	version string
-	release string
+	version      string
+	release      string
 )
 
 func init() {
@@ -307,6 +318,6 @@ func main() {
 	log.Printf("Auklet Releaser version %s (%s)\n", Version, BuildDate)
 
 	cfg := getConfig()
-	rel := newRelease(args[0], cfg.AppID)
+	rel := newRelease(args[0], cfg.AppID, release, version)
 	post(rel, cfg)
 }
