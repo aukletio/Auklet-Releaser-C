@@ -194,11 +194,18 @@ func (rel *Release) commitHash() {
 func (rel *Release) topLevel() {
 	c := exec.Command("git", "rev-parse", "--show-toplevel")
 	out, err := c.CombinedOutput()
+	if err == nil {
+		rel.TopLevel = strings.TrimSpace(string(out))
+		return
+	}
+
+	wd, err := os.Getwd()
 	if err != nil {
 		log.Print(err)
-	} else {
-		rel.TopLevel = strings.TrimSpace(string(out))
+		return
 	}
+
+	rel.TopLevel = wd
 }
 
 func (rel *Release) release(deployName string) {
