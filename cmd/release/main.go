@@ -294,6 +294,7 @@ func main() {
 		os.Exit(1)
 	}
 
+	args := flag.Args()
 	if len(flag.Args()) == 0 {
 		usage()
 		os.Exit(1)
@@ -302,6 +303,6 @@ func main() {
 	log.Printf("Auklet Releaser version %s (%s)\n", Version, BuildDate)
 
 	cfg := getConfig()
-	rel := newRelease(os.Args[1], cfg.AppID)
+	rel := newRelease(args[0], cfg.AppID)
 	post(rel, cfg)
 }
