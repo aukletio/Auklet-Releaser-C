@@ -1,5 +1,20 @@
 # Changelog
 
+### [0.8.0-rc.1](https://github.com/ESG-USA/Auklet-Releaser-C/tree/0.8.0-rc.1)
+
+**Implemented enhancements:**
+
+- APM-1593 C/C++ Releaser App Versioning Update [#36](https://github.com/ESG-USA/Auklet-Releaser-C/pull/36) ([kdsch](https://github.com/kdsch))
+
+**DevOps changes:**
+
+- Add gofmt hook [#35](https://github.com/ESG-USA/Auklet-Releaser-C/pull/35) ([rjenkinsjr](https://github.com/rjenkinsjr))
+- Generalize gathering of core Golang licenses [#33](https://github.com/ESG-USA/Auklet-Releaser-C/pull/33) ([rjenkinsjr](https://github.com/rjenkinsjr))
+- Fix some missing license texts [#32](https://github.com/ESG-USA/Auklet-Releaser-C/pull/32) ([rjenkinsjr](https://github.com/rjenkinsjr))
+- Fix CircleCI Docker image [#31](https://github.com/ESG-USA/Auklet-Releaser-C/pull/31) ([rjenkinsjr](https://github.com/rjenkinsjr))
+
+## [0.7.0](https://github.com/ESG-USA/Auklet-Releaser-C/tree/0.7.0)
+
 ### [0.7.0-rc.1](https://github.com/ESG-USA/Auklet-Releaser-C/tree/0.7.0-rc.1)
 
 **Implemented enhancements:**
