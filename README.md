@@ -6,6 +6,10 @@
 
 - APM-1593 C/C++ Releaser App Versioning Update [#36](https://github.com/ESG-USA/Auklet-Releaser-C/pull/36) ([kdsch](https://github.com/kdsch))
 
+**Fixed bugs:**
+
+- cmd/release: omit version field if empty [#39](https://github.com/ESG-USA/Auklet-Releaser-C/pull/39) ([kdsch](https://github.com/kdsch))
+
 **DevOps changes:**
 
 - Add gofmt hook [#35](https://github.com/ESG-USA/Auklet-Releaser-C/pull/35) ([rjenkinsjr](https://github.com/rjenkinsjr))
