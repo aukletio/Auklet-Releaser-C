@@ -1,5 +1,7 @@
 # Changelog
 
+## [0.8.0](https://github.com/ESG-USA/Auklet-Releaser-C/tree/0.8.0)
+
 ### [0.8.0-rc.2](https://github.com/ESG-USA/Auklet-Releaser-C/tree/0.8.0-rc.2)
 
 **Fixed bugs:**
