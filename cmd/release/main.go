@@ -46,7 +46,7 @@ type Release struct {
 	AppID        string `json:"application"`
 	languageMeta `json:"language_meta"`
 	Release      *string `json:"release"`
-	Version      *string `json:"version"`
+	Version      *string `json:"version,omitempty"`
 }
 
 func usage() {
@@ -254,7 +254,7 @@ func newRelease(deployName, appID, release, version string) *Release {
 		rel.Release = &release
 	}
 
-	if version == "" {
+	if version != "" {
 		rel.Version = &version
 	}
 
@@ -268,6 +268,7 @@ func post(rel *Release, cfg config.Config) {
 	if err != nil {
 		panic(err)
 	}
+	fmt.Println(string(b))
 
 	url := cfg.BaseURL + "/v1/releases/"
 	req, err := http.NewRequest("POST", url, bytes.NewReader(b))
