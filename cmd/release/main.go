@@ -6,6 +6,7 @@ import (
 	"debug/dwarf"
 	"debug/elf"
 	"encoding/json"
+	"flag"
 	"fmt"
 	"io"
 	"io/ioutil"
@@ -18,10 +19,6 @@ import (
 	"github.com/gobuffalo/packr"
 
 	"github.com/ESG-USA/Auklet-Releaser-C/config"
-)
-
-var (
-	cfg config.Config
 )
 
 // A Dwarf represents a pared-down dwarf.LineEntry.
@@ -48,16 +45,8 @@ type languageMeta struct {
 type Release struct {
 	AppID        string `json:"application"`
 	languageMeta `json:"language_meta"`
-	CommitHash   string `json:"commit_hash"`
-}
-
-// A BytesReadCloser is a bytes.Reader that satisfies io.ReadCloser, which is
-// necessary for it to be used in an http.Request.
-type BytesReadCloser bytes.Reader
-
-// Close allows BytesReadClose to implement io.ReadCloser.
-func (s BytesReadCloser) Close() error {
-	return nil
+	Release      *string `json:"release"`
+	Version      *string `json:"version,omitempty"`
 }
 
 func usage() {
@@ -147,16 +136,6 @@ func (rel *Release) symbolize(debugpath string) {
 	}
 }
 
-func hashobject(path string) string {
-	c := exec.Command("git", "hash-object", path)
-	out, err := c.CombinedOutput()
-	if err != nil {
-		// don't have git, or bad path
-		log.Panic(err)
-	}
-	return string(out[:len(out)-1])
-}
-
 func hash(s *elf.Section) []byte {
 	r := s.Open()
 	h := sha512.New512_224()
@@ -205,20 +184,28 @@ func (rel *Release) commitHash() {
 	c := exec.Command("git", "rev-parse", "HEAD")
 	out, err := c.CombinedOutput()
 	if err != nil {
-		log.Print(err)
-	} else {
-		rel.CommitHash = strings.TrimSpace(string(out))
+		return
 	}
+
+	hash := strings.TrimSpace(string(out))
+	rel.Release = &hash
 }
 
 func (rel *Release) topLevel() {
 	c := exec.Command("git", "rev-parse", "--show-toplevel")
 	out, err := c.CombinedOutput()
+	if err == nil {
+		rel.TopLevel = strings.TrimSpace(string(out))
+		return
+	}
+
+	wd, err := os.Getwd()
 	if err != nil {
 		log.Print(err)
-	} else {
-		rel.TopLevel = strings.TrimSpace(string(out))
+		return
 	}
+
+	rel.TopLevel = wd
 }
 
 func (rel *Release) release(deployName string) {
@@ -237,19 +224,8 @@ func (rel *Release) release(deployName string) {
 	log.Println("release():", deployName, rel.DeployHash)
 }
 
-func main() {
-	if len(os.Args) < 2 {
-		usage()
-		os.Exit(1)
-	}
-	if os.Args[1] == "--licenses" {
-		licenses()
-		os.Exit(1)
-	}
-	log.Printf("Auklet Releaser version %s (%s)\n", Version, BuildDate)
-	deployName := os.Args[1]
-	debugName := deployName + "-dbg"
-
+func getConfig() config.Config {
+	var cfg config.Config
 	if Version == "local-build" {
 		cfg = config.LocalBuild()
 	} else {
@@ -258,10 +234,13 @@ func main() {
 	if !cfg.Valid() {
 		log.Fatal("incomplete configuration")
 	}
-	url := cfg.BaseURL + "/v1/releases/"
+	return cfg
+}
 
+func newRelease(deployName, appID, release, version string) *Release {
 	rel := new(Release)
-	rel.AppID = cfg.AppID
+	rel.AppID = appID
+	debugName := deployName + "-dbg"
 	rel.symbolize(debugName)
 
 	// reject ELF pairs with disparate sections
@@ -269,19 +248,28 @@ func main() {
 		os.Exit(1)
 	}
 
-	// create a release
-	rel.commitHash()
+	if release == "" {
+		rel.commitHash()
+	} else {
+		rel.Release = &release
+	}
+
+	if version != "" {
+		rel.Version = &version
+	}
+
 	rel.topLevel()
 	rel.release(deployName)
+	return rel
+}
 
-	// emit
+func post(rel *Release, cfg config.Config) {
 	b, err := json.MarshalIndent(rel, "", "    ")
 	if err != nil {
 		panic(err)
 	}
-	fmt.Println(string(b))
 
-	// Create a client to control request headers.
+	url := cfg.BaseURL + "/v1/releases/"
 	req, err := http.NewRequest("POST", url, bytes.NewReader(b))
 	if err != nil {
 		panic(err)
@@ -289,12 +277,11 @@ func main() {
 	req.Header.Add("content-type", "application/json")
 	req.Header.Add("Authorization", "JWT "+cfg.APIKey)
 
-	//fmt.Println(req)
-	client := &http.Client{}
-	resp, err := client.Do(req)
+	resp, err := http.DefaultClient.Do(req)
 	if err != nil {
 		panic(err)
 	}
+
 	log.Printf("appid: %v\n", rel.AppID)
 	log.Printf("checksum: %v\n", rel.DeployHash)
 	log.Print(resp.Status)
@@ -308,4 +295,36 @@ func main() {
 		b, _ := ioutil.ReadAll(resp.Body)
 		log.Print(string(b))
 	}
+}
+
+var (
+	viewLicenses bool
+	version      string
+	release      string
+)
+
+func init() {
+	flag.BoolVar(&viewLicenses, "licenses", false, "view OSS licenses")
+	flag.StringVar(&release, "release", "", "override Git commit hash with user-defined release identifier")
+	flag.StringVar(&version, "version", "", "user-defined version string")
+}
+
+func main() {
+	flag.Parse()
+	if viewLicenses {
+		licenses()
+		os.Exit(1)
+	}
+
+	args := flag.Args()
+	if len(flag.Args()) == 0 {
+		usage()
+		os.Exit(1)
+	}
+
+	log.Printf("Auklet Releaser version %s (%s)\n", Version, BuildDate)
+
+	cfg := getConfig()
+	rel := newRelease(args[0], cfg.AppID, release, version)
+	post(rel, cfg)
 }
