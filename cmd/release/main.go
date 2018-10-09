@@ -268,7 +268,6 @@ func post(rel *Release, cfg config.Config) {
 	if err != nil {
 		panic(err)
 	}
-	fmt.Println(string(b))
 
 	url := cfg.BaseURL + "/v1/releases/"
 	req, err := http.NewRequest("POST", url, bytes.NewReader(b))
