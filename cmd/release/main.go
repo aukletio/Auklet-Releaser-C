@@ -45,8 +45,8 @@ type languageMeta struct {
 type Release struct {
 	AppID        string `json:"application"`
 	languageMeta `json:"language_meta"`
-	CommitHash   string `json:"commit_hash"`
-	CheckSum     string `json:"release"`
+	CommitHash   string  `json:"commit_hash"`
+	CheckSum     string  `json:"release"`
 	Version      *string `json:"version,omitempty"`
 }
 
