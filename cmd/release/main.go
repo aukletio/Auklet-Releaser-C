@@ -36,7 +36,6 @@ type Symbol struct {
 
 type languageMeta struct {
 	TopLevel   string   `json:"absolute_path_prefix"`
-	DeployHash string   `json:"checksum"` // remove?
 	Dwarf      []Dwarf  `json:"dwarf"`
 	Symbols    []Symbol `json:"symbols"`
 }
