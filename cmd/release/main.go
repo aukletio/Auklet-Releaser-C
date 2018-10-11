@@ -35,9 +35,9 @@ type Symbol struct {
 }
 
 type languageMeta struct {
-	TopLevel   string   `json:"absolute_path_prefix"`
-	Dwarf      []Dwarf  `json:"dwarf"`
-	Symbols    []Symbol `json:"symbols"`
+	TopLevel string   `json:"absolute_path_prefix"`
+	Dwarf    []Dwarf  `json:"dwarf"`
+	Symbols  []Symbol `json:"symbols"`
 }
 
 // A Release represents a release of a customer's app to be sent to the backend.
