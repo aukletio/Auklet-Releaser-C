@@ -1,5 +1,11 @@
 # Changelog
 
+### [0.8.1-rc.1](https://github.com/ESG-USA/Auklet-Releaser-C/tree/0.8.1-rc.1)
+
+**Fixed bugs:**
+
+- cmd/release: various schema adjustments [#41](https://github.com/ESG-USA/Auklet-Releaser-C/pull/41) ([kdsch](https://github.com/kdsch))
+
 ## [0.8.0](https://github.com/ESG-USA/Auklet-Releaser-C/tree/0.8.0)
 
 ### [0.8.0-rc.2](https://github.com/ESG-USA/Auklet-Releaser-C/tree/0.8.0-rc.2)
