@@ -35,17 +35,17 @@ type Symbol struct {
 }
 
 type languageMeta struct {
-	TopLevel   string   `json:"absolute_path_prefix"`
-	DeployHash string   `json:"checksum"`
-	Dwarf      []Dwarf  `json:"dwarf"`
-	Symbols    []Symbol `json:"symbols"`
+	TopLevel string   `json:"absolute_path_prefix"`
+	Dwarf    []Dwarf  `json:"dwarf"`
+	Symbols  []Symbol `json:"symbols"`
 }
 
 // A Release represents a release of a customer's app to be sent to the backend.
 type Release struct {
 	AppID        string `json:"application"`
 	languageMeta `json:"language_meta"`
-	Release      *string `json:"release"`
+	CommitHash   string  `json:"commit_hash"`
+	CheckSum     string  `json:"release"`
 	Version      *string `json:"version,omitempty"`
 }
 
@@ -187,8 +187,7 @@ func (rel *Release) commitHash() {
 		return
 	}
 
-	hash := strings.TrimSpace(string(out))
-	rel.Release = &hash
+	rel.CommitHash = strings.TrimSpace(string(out))
 }
 
 func (rel *Release) topLevel() {
@@ -219,9 +218,7 @@ func (rel *Release) release(deployName string) {
 	if _, err := io.Copy(dh, f); err != nil {
 		log.Fatal(err)
 	}
-	deployhash := dh.Sum(nil)
-	rel.DeployHash = fmt.Sprintf("%x", deployhash)
-	log.Println("release():", deployName, rel.DeployHash)
+	rel.CheckSum = fmt.Sprintf("%x", dh.Sum(nil))
 }
 
 func getConfig() config.Config {
@@ -237,7 +234,7 @@ func getConfig() config.Config {
 	return cfg
 }
 
-func newRelease(deployName, appID, release, version string) *Release {
+func newRelease(deployName, appID, version string) *Release {
 	rel := new(Release)
 	rel.AppID = appID
 	debugName := deployName + "-dbg"
@@ -248,11 +245,7 @@ func newRelease(deployName, appID, release, version string) *Release {
 		os.Exit(1)
 	}
 
-	if release == "" {
-		rel.commitHash()
-	} else {
-		rel.Release = &release
-	}
+	rel.commitHash()
 
 	if version != "" {
 		rel.Version = &version
@@ -283,7 +276,7 @@ func post(rel *Release, cfg config.Config) {
 	}
 
 	log.Printf("appid: %v\n", rel.AppID)
-	log.Printf("checksum: %v\n", rel.DeployHash)
+	log.Printf("checksum: %v\n", rel.CheckSum)
 	log.Print(resp.Status)
 	switch resp.StatusCode {
 	case 200:
@@ -300,12 +293,10 @@ func post(rel *Release, cfg config.Config) {
 var (
 	viewLicenses bool
 	version      string
-	release      string
 )
 
 func init() {
 	flag.BoolVar(&viewLicenses, "licenses", false, "view OSS licenses")
-	flag.StringVar(&release, "release", "", "override Git commit hash with user-defined release identifier")
 	flag.StringVar(&version, "version", "", "user-defined version string")
 }
 
@@ -325,6 +316,6 @@ func main() {
 	log.Printf("Auklet Releaser version %s (%s)\n", Version, BuildDate)
 
 	cfg := getConfig()
-	rel := newRelease(args[0], cfg.AppID, release, version)
+	rel := newRelease(args[0], cfg.AppID, version)
 	post(rel, cfg)
 }
