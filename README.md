@@ -1,11 +1,8 @@
 # Auklet for C
 
-<a href="https://www.apache.org/licenses/LICENSE-2.0" alt="Apache page link -- Apache 2.0 License">
-<img src="https://img.shields.io/pypi/l/auklet.svg" /></a>
-<a href="https://codeclimate.com/repos/5a96cefc514d3a60340008cb/maintainability">
-<img src="https://api.codeclimate.com/v1/badges/5a96cefc514d3a60340008cb/maintainability" /></a>
-<a href="https://codeclimate.com/repos/5a96cefc514d3a60340008cb/test_coverage" alt="Test Coverage">
-<img src="https://api.codeclimate.com/v1/badges/5a96cefc514d3a60340008cb/test_coverage" /></a>
+<a href="https://www.apache.org/licenses/LICENSE-2.0" alt="Apache page link -- Apache 2.0 License"><img src="https://img.shields.io/pypi/l/auklet.svg" /></a>
+<a href="https://codeclimate.com/repos/5a96cefc514d3a60340008cb/maintainability"><img src="https://api.codeclimate.com/v1/badges/fdcc057ce9f2d33d7ade/maintainability" /></a>
+<a href="https://codeclimate.com/repos/5a96cefc514d3a60340008cb/test_coverage"><img src="https://api.codeclimate.com/v1/badges/fdcc057ce9f2d33d7ade/test_coverage" /></a>
 
 Auklet is a profiler for IoT and embedded Linux apps. Like conventional 
 benchtop C/C++ profilers, it is implemented as a library that you can link 
