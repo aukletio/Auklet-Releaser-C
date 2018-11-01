@@ -11,9 +11,10 @@ Ubuntu Core, Raspbian, QNX, etc).
 ## Features
 
 [auklet_site]: https://app.auklet.io
-[auklet_releaser]: https://github.com/aukletio/Auklet-Releaser-C
+[auklet_client]: https://github.com/aukletio/Auklet-Client-C
 [auklet_agent]: https://github.com/aukletio/Auklet-Agent-C
 [mail_auklet]: mailto:hello@auklet.io
+[latest_releaser]: https://s3.amazonaws.com/auklet/releaser/latest/auklet-releaser-linux-amd64-latest
 
 - Automatic report of unhandled exceptions
 - Automatic Function performance issue reporting
@@ -36,15 +37,11 @@ contact the team at [hello@auklet.io][mail_auklet].
 
 Before an application is released to Auklet, the Auklet library, **libauklet.a** 
 needs to be integrated with the application. See the README for the [Auklet 
-Agent](https://github.com/aukletio/Auklet-Agent-C) for integration instructions.
+Agent][auklet_agent] for integration instructions.
 
 ## Quickstart
 
 ### Getting Started
-
-[auklet_site]: https://app.auklet.io
-[auklet_agent]: https://www.github.com/aukletio/
-[latest_releaser]: https://s3.amazonaws.com/auklet/releaser/latest/auklet-releaser-linux-amd64-latest
 
 1. Follow the [C/C++ Agent Quickstart Guide][auklet_agent] to integrate the 
    C/C++ agent that will monitor performance issues in your app and securely 
@@ -77,10 +74,10 @@ Application-dbg. Application-dbg does not need to actually contain debug info.
         
 
 Your code is almost ready to be analyzed by Auklet! Check out the README on the 
-[Auklet Client's](https://github.com/aukletio/Auklet-Client-C) repository for
+[Auklet Client's][auklet_client] repository for
  instructions of how to run your application with Auklet. 
  
- ## Advanced Setup
+ ## Advanced Settings
  
  ### Releasing a Stripped Application
  
