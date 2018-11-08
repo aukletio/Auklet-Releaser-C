@@ -22,17 +22,6 @@ Ubuntu Core, Raspbian, QNX, etc).
 issues
 - Ability to define data usage restriction
 
-## Compliance
-
-Auklet is an edge first application performance monitor; therefore, starting 
-with version 1.0.0 we maintain the following compliance levels:
-
-- Automotive Safety Integrity Level B (ASIL B)
-
-If there are additional compliances that your industry requires please 
-contact the team at [hello@auklet.io][mail_auklet].
-
-
 ## Prerequisites
 
 Before an application is released to Auklet, the Auklet library, **libauklet.a** 
