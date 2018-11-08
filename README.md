@@ -16,7 +16,7 @@ Ubuntu Core, Raspbian, QNX, etc).
 [mail_auklet]: mailto:hello@auklet.io
 [latest_releaser]: https://s3.amazonaws.com/auklet/releaser/latest/auklet-releaser-linux-amd64-latest
 
-- Automatic report of unhandled exceptions
+- Automatic crash reporting
 - Automatic Function performance issue reporting
 - Location, system architecture, and system metrics identification for all 
 issues
