@@ -23,9 +23,9 @@ issues
 
 ## Prerequisites
 
-Before an application is released to Auklet, the Auklet library, **libauklet.a** 
-needs to be integrated with the application. See the README for the [Auklet 
-Agent][auklet_agent] for integration instructions.
+Before creating a new release, the Auklet library, **libauklet.a**  needs to 
+be integrated with the application. See the README for the 
+[Auklet Agent][auklet_agent] for integration instructions.
 
 ## Quickstart
 
@@ -35,15 +35,15 @@ Agent][auklet_agent] for integration instructions.
    C/C++ agent that will monitor performance issues in your app and securely 
    transmit the information to the client
 
-1. Create an Auklet configuration with the following environment variables 
-provided by your application on the [Auklet website][auklet_site]. 
+1. Set the following environment variables in the environment you will be 
+creating releases from (CI environment, build server, local system, etc)
 
     - AUKLET_APP_ID
     - AUKLET_API_KEY
 
-1. Download the [latest releaser][latest_releaser] to your 64-bit work 
-environment and set its permissions to allow execution
+1. Add the following commands to your build/CI environment
  
+        curl https://s3.amazonaws.com/auklet/releaser/latest/auklet-releaser-linux-amd64-latest > release
         chmod +x release
     
 1. If you do not already have a debug version of your application, you'll 
@@ -52,18 +52,14 @@ example, "Application" create an executable in the same directory called
 Application-dbg. Application-dbg does not need to actually contain debug info.
 
         cp Application{,-dbg}
- 
-1. Initialize the application's environment variables
         
-1. Then you can create a release. For an application named "Application" that
- would look like
+1. Then you can create a release.
 
-        release Application
+        release <InsertYourApplication>
         
-
 Your code is almost ready to be analyzed by Auklet! Check out the README on the 
-[Auklet Client's][auklet_client] repository for
- instructions of how to run your application with Auklet. 
+[Auklet Client's][auklet_client] repository for instructions of how to run 
+your application with Auklet. 
  
  ## Advanced Settings
  
@@ -73,4 +69,4 @@ If you want to release a stripped executable (one without debug info),
 copy the debuggable executable before running `strip`
 
     cp Application{,-dbg}
-    strip Application
+    strip <InsertYourApplication>
