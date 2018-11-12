@@ -14,18 +14,17 @@ changes. Syntax should follow guidelines set in
 [https://suckless.org/coding_style/](https://suckless.org/coding_style/).
 
 
-If you have found a bug please check the submitted issues. If you do not see 
-your issue listed please open a new issue and we will respond as quickly as 
+If you have found a bug, please check the submitted issues. If you do not see 
+your bug listed, please open a new issue, and we will respond as quickly as 
 possible. 
 
-If you've found a security related bug, please email our team 
-directly at [hello@auklet.io](mailto:hello@auklet.io). 
+If you've found a security related bug, please do not create an issue or PR. 
+Instead, email our team directly at [hello@auklet.io](mailto:hello@auklet.io).
 
 # Working on the Auklet C Releaser
-
 ## Go Setup
 
-`release` needs at least Go 1.8 and [dep][godep] 0.3.2. See the
+The Auklet releaser needs at least Go 1.8 and [dep][godep] 0.3.2. See the
 [getting started page][gs] to download Go. Then see [How to Write Go Code -
 Organization][org] to set up your system.
 
@@ -46,19 +45,11 @@ After setting up Go on your system, install `dep` by running:
 	curl -L -s https://github.com/golang/dep/releases/download/v0.3.2/dep-linux-amd64 -o $GOPATH/bin/dep
 	chmod +x $GOPATH/bin/dep
 
-If you want to build `release` on Mac OS X, you can install `dep` via
+If you want to build the releaser on Mac OS X, you can install `dep` via
 Homebrew by running `brew install dep`, or by changing the above `curl` command
 to download `dep-darwin-amd64`.
 
 After cloning this repo and setting up your Go environment, run this command to enable pre-commit gofmt checking: `git config core.hookspath .githooks`.
-
-## Development Tools
-
-`autobuild` is an optional script that can be run in a separate terminal window.
-When source files change, it runs `go install ./cmd/release`, allowing the
-developer to find compile-time errors immediately without needing an IDE.
-
-`autobuild` requires [entr](http://www.entrproject.org/).
 
 ## Build
 
@@ -88,8 +79,8 @@ among developers, so it is suggested that they be defined in a separate
 file, `.env`. For example:
 
 	$ cat .env
-	export AUKLET_APP_ID=5171dbff-c0ea-98ee-e70e-dd0af1f9fcdf
-	export AUKLET_API_KEY=SM49BAMCA0...
+	export AUKLET_APP_ID=ABCDEF1234...
+	export AUKLET_API_KEY=ABCDEF1234...
 
 ## Assign a Configuration
 
@@ -98,7 +89,7 @@ file, `.env`. For example:
 ## Release an App
 
 To release an executable called `x`, create an executable in the same directory
-called `x-dbg` that contains debug information. (`x` is not required to contain
+called `x-dbg` that contains debug information (`x` is not required to contain
 debug info.) Then, run
 
 	release x
