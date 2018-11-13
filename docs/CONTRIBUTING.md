@@ -19,7 +19,7 @@ your bug listed, please open a new issue, and we will respond as quickly as
 possible. 
 
 If you've found a security related bug, please do not create an issue or PR. 
-Instead, email our team directly at [hello@auklet.io](mailto:hello@auklet.io).
+Instead, email our team directly at [security@auklet.io](mailto:security@auklet.io).
 
 # Working on the Auklet C Releaser
 ## Go Setup
@@ -53,11 +53,11 @@ After cloning this repo and setting up your Go environment, run this command to 
 
 ## Build
 
-To ensure you have all the correct dependencies, run
+To ensure you have all the correct dependencies, run:
 
 	dep ensure
 
-To build and install the releaser to `$GOPATH/bin`, run
+To build and install the releaser to `$GOPATH/bin`, run:
 
 	go install ./release
 
@@ -90,7 +90,7 @@ file, `.env`. For example:
 
 To release an executable called `x`, create an executable in the same directory
 called `x-dbg` that contains debug information (`x` is not required to contain
-debug info.) Then, run
+debug info.) Then, run:
 
 	release x
 
