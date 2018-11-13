@@ -1,107 +1,73 @@
-# Auklet Releaser
+# Auklet for C
 
-Auklet's IoT releaser (`release`) is a deploy-time command-line tool that sends
-to the Auklet backend the symbol information from any program compiled with the
-Auklet agent. The releaser is built to run on 64-bit Linux and Windows systems,
-and is intended for use in CI environments.
+<a href="https://www.apache.org/licenses/LICENSE-2.0" alt="Apache page link -- Apache 2.0 License"><img src="https://img.shields.io/pypi/l/auklet.svg" /></a>
+<a href="https://codeclimate.com/repos/5a96cefc514d3a60340008cb/maintainability"><img src="https://api.codeclimate.com/v1/badges/fdcc057ce9f2d33d7ade/maintainability" /></a>
 
-# Go Setup
+This is the C releaser for Auklet. It officially supports C and C++, and runs
+on most POSIX-based operating systems (Debian, Ubuntu Core, Raspbian, QNX, etc).
 
-`release` needs at least Go 1.8 and [dep][godep] 0.3.2. See the
-[getting started page][gs] to download Go. Then see [How to Write Go Code -
-Organization][org] to set up your system.
+## Features
 
-[godep]: https://github.com/golang/dep
-[gs]: https://golang.org/doc/install
-[org]: https://golang.org/doc/code.html#Organization
+[auklet_site]: https://app.auklet.io
+[auklet_client]: https://github.com/aukletio/Auklet-Client-C
+[auklet_agent]: https://github.com/aukletio/Auklet-Agent-C
+[mail_auklet]: mailto:hello@auklet.io
+[latest_releaser]: https://s3.amazonaws.com/auklet/releaser/latest/auklet-releaser-linux-amd64-latest
 
-Conventionally, your `~/.profile` should contain the following:
+- Automatic crash reporting
+- Automatic function performance issue reporting
+- Location, system architecture, and system metrics identification for all 
+issues
+- Ability to define data usage restrictions
 
-	export GOPATH=$HOME/go
-	export PATH=$PATH:$GOPATH/bin
+## Requirements
 
-The first line tells Go where your workspace is located. The second makes sure
-that the shell will know about executables built with `go install`.
+You will need a 64-bit (x86-64) Linux machine to run the Auklet releaser. 
+Also, to successfully run the releaser, you'll need to have created an 
+application on the [Auklet Website][auklet_site].
 
-After setting up Go on your system, install `dep` by running:
+## Prerequisites
 
-	curl -L -s https://github.com/golang/dep/releases/download/v0.3.2/dep-linux-amd64 -o $GOPATH/bin/dep
-	chmod +x $GOPATH/bin/dep
+Before an application can send data to Auklet, it needs to be integrated with 
+the Auklet library, **libauklet.a**. See the README for the 
+[Auklet Agent][auklet_agent] for integration instructions.
 
-If you want to build `release` on Mac OS X, you can install `dep` via
-Homebrew by running `brew install dep`, or by changing the above `curl` command
-to download `dep-darwin-amd64`.
+## Quickstart
 
-After cloning this repo and setting up your Go environment, run this command to enable pre-commit gofmt checking: `git config core.hookspath .githooks`.
+### Getting Started
 
-# Development Tools
+1. Follow the [C/C++ Agent Quickstart Guide][auklet_agent] to integrate the 
+   C/C++ agent.
 
-`autobuild` is an optional script that can be run in a separate terminal window.
-When source files change, it runs `go install ./cmd/release`, allowing the
-developer to find compile-time errors immediately without needing an IDE.
+1. Set the following environment variables in the environment from which you 
+will be creating releases (CI environment, build server, local system, etc):
+    - `AUKLET_APP_ID`
+    - `AUKLET_API_KEY`
+1. Add the following commands to your build/CI environment:
+ 
+        curl https://s3.amazonaws.com/auklet/releaser/latest/auklet-releaser-linux-amd64-latest > release
+        chmod +x release
+    
+1. If you do not already have a debug version of your application, you'll 
+need to create a -dbg file. Application-dbg does not need to actually contain
+ debug info.
 
-`autobuild` requires [entr](http://www.entrproject.org/).
+        cp <InsertYourApplication>{,-dbg}
+        
+1. Then you can create a release.
 
-# Build
+        release <InsertYourApplication>
+        
+Your code is almost ready to be analyzed by Auklet! Check out the README on the 
+[Auklet Client's][auklet_client] repository for instructions of how to run 
+your application with Auklet. 
+ 
+ ## Advanced Settings
+ 
+ ### Releasing a Stripped Application
+ 
+If you want to release a stripped executable (one without debug info), 
+copy the debuggable executable before running `strip`:
 
-To ensure you have all the correct dependencies, run
-
-	dep ensure
-
-To build and install the releaser to `$GOPATH/bin`, run
-
-	go install ./release
-
-# Configure
-
-An Auklet configuration is defined by the following environment variables.
-
-	AUKLET_APP_ID
-	AUKLET_API_KEY
-	AUKLET_BASE_URL
-
-To view your current configuration, run `env | grep AUKLET`.
-
-To make it easier to manage multiple configurations, it is suggested to define
-the envars in a shell script named after the configuration; for example,
-`.env.staging`.
-
-The variables `AUKLET_API_KEY` and `AUKLET_APP_ID` are likely to be different
-among developers, so it is suggested that they be defined in a separate
-file, `.auklet`, and sourced from within `.env.staging`. For example:
-
-	$ cat .auklet
-	export AUKLET_APP_ID=5171dbff-c0ea-98ee-e70e-dd0af1f9fcdf
-	export AUKLET_API_KEY=SM49BAMCA0...
-
-	$ cat .env.staging
-	. .auklet
-	export AUKLET_BASE_URL=https://api-staging.auklet.io
-
-## `AUKLET_BASE_URL`
-
-A URL, without a trailing slash, to be used when creating releases. **It must
-not contain a trailing path.**  For example:
-
-	https://api-staging.auklet.io
-
-If not defined, this defaults to the production endpoint.
-
-# Assign a Configuration
-
-	. .env.staging
-
-# Release an App
-
-To release an executable called `x`, create an executable in the same directory
-called `x-dbg` that contains debug information. (`x` is not required to contain
-debug info.) Then, run
-
-	release x
-
-# Docker Setup
-
-1. Install Docker for Mac Beta.
-1. Build your environment with `docker-compose build`.
-1. To ensure you have all the correct dependencies, run `docker-compose run auklet dep ensure`.
-1. To build and install the releaser to `$GOPATH/bin`, run `docker-compose run auklet go install ./cmd/release`.
+    cp <InsertYourApplication>{,-dbg}
+    strip <InsertYourApplication>
