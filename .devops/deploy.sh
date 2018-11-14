@@ -33,7 +33,7 @@ curl -sSL https://github.com/gobuffalo/packr/releases/download/v1.11.0/packr_1.1
 echo
 
 echo 'Compiling releaser...'
-GO_LDFLAGS="-X main.Version=$VERSION -X main.BuildDate=$TIMESTAMP -X github.com/ESG-USA/Auklet-Releaser-C/config.StaticBaseURL=$BASE_URL"
+GO_LDFLAGS="-X main.Version=$VERSION -X main.BuildDate=$TIMESTAMP -X github.com/aukletio/Auklet-Releaser-C/config.StaticBaseURL=$BASE_URL"
 PREFIX='auklet-releaser'
 S3_BUCKET='auklet'
 S3_PREFIX='releaser'
