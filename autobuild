@@ -1,5 +1,0 @@
-#!/bin/sh
-# http://www.entrproject.org/
-while true; do
-	ls cmd/release/*.go | entr -dcs 'go install ./cmd/release';
-done
