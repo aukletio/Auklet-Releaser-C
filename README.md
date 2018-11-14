@@ -1,5 +1,15 @@
 # Changelog
 
+## Merged But Unreleased
+
+**Implemented enhancements:**
+
+- 1.0.0 Documentation [#44](https://github.com/ESG-USA/Auklet-Releaser-C/pull/44) ([nchoch](https://github.com/nchoch))
+
+**DevOps changes:**
+
+- Remove autobuild script [#46](https://github.com/ESG-USA/Auklet-Releaser-C/pull/46) ([rjenkinsjr](https://github.com/rjenkinsjr))
+
 ## [0.8.1](https://github.com/ESG-USA/Auklet-Releaser-C/tree/0.8.1)
 
 **Fixed bugs:**
