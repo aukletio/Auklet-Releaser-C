@@ -18,7 +18,7 @@ import (
 
 	"github.com/gobuffalo/packr"
 
-	"github.com/ESG-USA/Auklet-Releaser-C/config"
+	"github.com/aukletio/Auklet-Releaser-C/config"
 )
 
 // A Dwarf represents a pared-down dwarf.LineEntry.
