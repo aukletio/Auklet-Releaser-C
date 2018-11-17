@@ -21,13 +21,13 @@ type Config struct {
 func GetConfig(fromcli string) Config {
 	var baseURL string
 	if fromcli != "" {
-		baseURL := fromcli
+		baseURL = fromcli
 	} else {
 		fromenv := os.Getenv("AUKLET_BASE_URL")
 		if fromenv != "" {
-			baseURL := fromenv
+			baseURL = fromenv
 		} else {
-			baseURL := Production
+			baseURL = Production
 		}
 	}
 	return Config{

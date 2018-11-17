@@ -222,12 +222,6 @@ func (rel *Release) release(deployName string) {
 }
 
 func getConfig(baseURL string) config.Config {
-	var cfg config.Config
-	if Version == "local-build" {
-		cfg = config.LocalBuild()
-	} else {
-		cfg = config.ReleaseBuild()
-	}
 	cfg := config.GetConfig(baseURL)
 	if !cfg.Valid() {
 		log.Fatal("incomplete configuration")
