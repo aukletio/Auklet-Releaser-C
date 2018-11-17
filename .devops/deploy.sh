@@ -8,13 +8,6 @@ TARGET_ENV=$1
 VERSION="$(cat ~/.version)"
 VERSION_SIMPLE=$(cat VERSION | xargs | cut -f1 -d"+")
 export TIMESTAMP="$(date --rfc-3339=seconds | sed 's/ /T/')"
-if [[ "$TARGET_ENV" == "beta" ]]; then
-  BASE_URL='https://api-staging.auklet.io'
-elif [[ "$TARGET_ENV" == "rc" ]]; then
-  BASE_URL='https://api-qa.auklet.io'
-else
-  BASE_URL='https://api.auklet.io'
-fi
 
 echo 'Gathering license files for dependencies...'
 REPO_DIR=$(eval cd $CIRCLE_WORKING_DIRECTORY ; pwd)
@@ -33,7 +26,7 @@ curl -sSL https://github.com/gobuffalo/packr/releases/download/v1.11.0/packr_1.1
 echo
 
 echo 'Compiling releaser...'
-GO_LDFLAGS="-X main.Version=$VERSION -X main.BuildDate=$TIMESTAMP -X github.com/aukletio/Auklet-Releaser-C/config.StaticBaseURL=$BASE_URL"
+GO_LDFLAGS="-X main.Version=$VERSION -X main.BuildDate=$TIMESTAMP"
 PREFIX='auklet-releaser'
 S3_PREFIX='auklet/c/releaser'
 GOOS=linux GOARCH=amd64 go build -ldflags "$GO_LDFLAGS" -o $PREFIX-linux-amd64-$VERSION_SIMPLE ./cmd/release
