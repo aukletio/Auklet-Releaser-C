@@ -6,6 +6,7 @@ if [[ "$1" == "" ]]; then
 fi
 TARGET_ENV=$1
 VERSION="$(cat ~/.version)"
+VERSION_SIMPLE=$(cat VERSION | xargs | cut -f1 -d"+")
 export TIMESTAMP="$(date --rfc-3339=seconds | sed 's/ /T/')"
 if [[ "$TARGET_ENV" == "beta" ]]; then
   BASE_URL='https://api-staging.auklet.io'
@@ -35,7 +36,7 @@ echo 'Compiling releaser...'
 GO_LDFLAGS="-X main.Version=$VERSION -X main.BuildDate=$TIMESTAMP -X github.com/aukletio/Auklet-Releaser-C/config.StaticBaseURL=$BASE_URL"
 PREFIX='auklet-releaser'
 S3_PREFIX='auklet/c/releaser'
-GOOS=linux GOARCH=amd64 go build -ldflags "$GO_LDFLAGS" -o $PREFIX-linux-amd64-$VERSION ./cmd/release
+GOOS=linux GOARCH=amd64 go build -ldflags "$GO_LDFLAGS" -o $PREFIX-linux-amd64-$VERSION_SIMPLE ./cmd/release
 echo
 
 echo 'Installing AWS CLI...'
@@ -50,11 +51,11 @@ echo 'Uploading C releaser binaries to S3...'
 # Iterate over each file and upload it to S3.
 for f in ${PREFIX}-*; do
   # Upload to the internal bucket.
-  S3_LOCATION="s3://$S3_PREFIX/$VERSION/$f"
+  S3_LOCATION="s3://$S3_PREFIX/$VERSION_SIMPLE/$f"
   aws s3 cp $f $S3_LOCATION
   # Copy to the "latest" dir for production builds.
   if [[ "$TARGET_ENV" == "release" ]]; then
-    LATEST_NAME="${f/$VERSION/latest}"
+    LATEST_NAME="${f/$VERSION_SIMPLE/latest}"
     aws s3 cp $S3_LOCATION s3://$S3_PREFIX/latest/$LATEST_NAME
   fi
 done
