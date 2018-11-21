@@ -2,21 +2,20 @@
 
 ## Standards
 
-Auklet is an edge first application performance monitor; therefore, starting 
+Auklet is an edge first application performance monitor; therefore, starting
 with version 1.0.0 the following compliance levels are to be maintained:
 
 - Automotive Safety Integrity Level B (ASIL B)
 
 ## Submissions
 
-If you have found a bug, please check the submitted issues. If you do not see
-your bug listed, please open a new issue, and we will respond as quickly as 
-possible.
+If you have found a bug, please go to https://help.auklet.io and click the blue
+button in the lower-right corner to report it to our support team.
 
 We are not accepting outside contributions at this time. If you have a feature
-request or idea, please open a new issue. 
+request or idea, please open a new issue.
 
-If you've found a security related bug, please do not create an issue or PR. 
+If you've found a security related bug, please do not create an issue or PR.
 Instead, email our team directly at [security@auklet.io](mailto:security@auklet.io).
 
 # Working on the Auklet C Releaser
