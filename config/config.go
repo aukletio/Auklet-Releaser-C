@@ -6,6 +6,9 @@ import (
 	"os"
 )
 
+// Production defines the base URL for the production environment.
+const Production = "https://api.auklet.io"
+
 // A Config represents parameters of a releaser invocation.
 type Config struct {
 	BaseURL string
@@ -13,25 +16,25 @@ type Config struct {
 	AppID   string
 }
 
-// ReleaseBuild creates a Config as would be required in a production
-// environment. The base URL is hardcoded in this configuration and cannot be
-// overridden by the end user.
-func ReleaseBuild() Config {
+// GetConfig returns a config object whose BaseURL is dependent upon CLI args
+// or env vars.
+func GetConfig(fromcli string) Config {
+	var baseURL string
+	if fromcli != "" {
+		baseURL = fromcli
+	} else {
+		fromenv := os.Getenv("AUKLET_BASE_URL")
+		if fromenv != "" {
+			baseURL = fromenv
+		} else {
+			baseURL = Production
+		}
+	}
 	return Config{
-		BaseURL: StaticBaseURL,
+		BaseURL: baseURL,
 		APIKey:  os.Getenv("AUKLET_API_KEY"),
 		AppID:   os.Getenv("AUKLET_APP_ID"),
 	}
-}
-
-// LocalBuild returns a configuration defined solely from the environment.
-func LocalBuild() (c Config) {
-	c = Config{
-		BaseURL: os.Getenv("AUKLET_BASE_URL"),
-		APIKey:  os.Getenv("AUKLET_API_KEY"),
-		AppID:   os.Getenv("AUKLET_APP_ID"),
-	}
-	return
 }
 
 // Valid returns true if c has no empty fields, false otherwise.

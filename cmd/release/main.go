@@ -221,13 +221,8 @@ func (rel *Release) release(deployName string) {
 	rel.CheckSum = fmt.Sprintf("%x", dh.Sum(nil))
 }
 
-func getConfig() config.Config {
-	var cfg config.Config
-	if Version == "local-build" {
-		cfg = config.LocalBuild()
-	} else {
-		cfg = config.ReleaseBuild()
-	}
+func getConfig(baseURL string) config.Config {
+	cfg := config.GetConfig(baseURL)
 	if !cfg.Valid() {
 		log.Fatal("incomplete configuration")
 	}
@@ -293,11 +288,13 @@ func post(rel *Release, cfg config.Config) {
 var (
 	viewLicenses bool
 	version      string
+	baseURL      string
 )
 
 func init() {
 	flag.BoolVar(&viewLicenses, "licenses", false, "view OSS licenses")
 	flag.StringVar(&version, "version", "", "user-defined version string")
+	flag.StringVar(&baseURL, "base-url", "", "Auklet API URL; do not change unless instructed by support")
 }
 
 func main() {
@@ -315,7 +312,7 @@ func main() {
 
 	log.Printf("Auklet Releaser version %s (%s)\n", Version, BuildDate)
 
-	cfg := getConfig()
+	cfg := getConfig(baseURL)
 	rel := newRelease(args[0], cfg.AppID, version)
 	post(rel, cfg)
 }
