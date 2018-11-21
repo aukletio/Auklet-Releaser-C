@@ -4,7 +4,7 @@ jobs:
     build:
         environment:
             TZ: "/usr/share/zoneinfo/America/Detroit"
-        working_directory: ~/go/src/github.com/ESG-USA/Auklet-Releaser-C
+        working_directory: ~/go/src/github.com/aukletio/Auklet-Releaser-C
         docker:
             - image: circleci/golang:1.8.7-jessie
         steps:
@@ -13,10 +13,13 @@ jobs:
             # SETUP
             ##
             - run:
-                name: Flag local build
+                name: Flag local/PR builds
                 command: |
                   if [[ "$CIRCLE_BUILD_NUM" == '' ]]; then
                     touch ~/.localCircleBuild
+                  fi
+                  if [[ "$CIRCLE_PR_USERNAME" != '' ]]; then
+                    touch ~/.prCircleBuild
                   fi
             - add_ssh_keys
             - checkout
@@ -33,12 +36,6 @@ jobs:
                   echo 'export GOPATH=$(cd ; pwd)/go' >> $BASH_ENV
                   echo 'export PATH=$GOPATH/bin:$PATH' >> $BASH_ENV
             - run:
-                name: Validate PR
-                command: |
-                  if [[ ! -f ~/.localCircleBuild ]]; then
-                    bash .devops/validate-pr.sh
-                  fi
-            - run:
                 name: Install jq
                 command: |
                   sudo curl -sSL -o /usr/local/bin/jq https://github.com/stedolan/jq/releases/download/jq-1.5/jq-linux64
@@ -46,7 +43,6 @@ jobs:
             - run:
                 name: Calculate codebase version
                 command: |
-                  git config --global user.email "$ESGBOT_GIT_EMAIL" && git config --global user.name "$ESGBOT_GIT_NAME"
                   bash .devops/calculate-app-version.sh
 
             ##
@@ -70,7 +66,7 @@ jobs:
                 name: Run Whitesource
                 command: |
                   set -ou pipefail
-                  if [[ ! -f ~/.localCircleBuild ]]; then
+                  if [[ ! -f ~/.localCircleBuild && ! -f ~/.prCircleBuild ]]; then
                     echo 'Initializing...'
                     export WHITESOURCE_PROJECT_NAME='Auklet-Releaser-C'
                     export WHITESOURCE_PROJECT_VERSION='1.0.0'
@@ -79,7 +75,7 @@ jobs:
                     node whitesource.js $(eval cd $CIRCLE_WORKING_DIRECTORY ; pwd)
                     rm -rf node_modules package-lock.json
                   else
-                    echo 'This is a local build; skipping WhiteSource.'
+                    echo 'This is a local/PR build; skipping WhiteSource.'
                   fi
 
             ##
@@ -94,34 +90,34 @@ jobs:
             # DEPLOYMENT
             ##
             - run:
-                name: Deploy Edge (If staging)
-                command: |
-                  set -ou pipefail
-                  if [[ ! -f ~/.localCircleBuild ]]; then
-                    if [ "${CIRCLE_BRANCH}" == "edge" ]; then
-                      bash .devops/deploy.sh staging
-                    fi
-                  fi
-            - run:
-                name: Deploy QA (If master)
+                name: Deploy Beta (master)
                 command: |
                   set -ou pipefail
                   if [[ ! -f ~/.localCircleBuild ]]; then
                     if [ "${CIRCLE_BRANCH}" == "master" ]; then
-                      bash .devops/deploy.sh qa
+                      bash .devops/deploy.sh beta
+                    fi
+                  fi
+            - run:
+                name: Deploy RC (rc)
+                command: |
+                  set -ou pipefail
+                  if [[ ! -f ~/.localCircleBuild ]]; then
+                    if [ "${CIRCLE_BRANCH}" == "rc" ]; then
+                      bash .devops/deploy.sh rc
                       bash .devops/post-release.sh
-                      # Need to checkout master again so we can run more scripts.
-                      git checkout master
+                      # Need to checkout rc again so we can run more scripts.
+                      git checkout rc
                       bash .devops/updateProdReleasePr.sh
                     fi
                   fi
             - run:
-                name: Deploy Production (If production)
+                name: Deploy Production (release)
                 command: |
                   set -ou pipefail
                   if [[ ! -f ~/.localCircleBuild ]]; then
-                    if [ "${CIRCLE_BRANCH}" == "production" ]; then
-                      bash .devops/deploy.sh production
+                    if [ "${CIRCLE_BRANCH}" == "release" ]; then
+                      bash .devops/deploy.sh release
                       bash .devops/post-release.sh
                     fi
                   fi
