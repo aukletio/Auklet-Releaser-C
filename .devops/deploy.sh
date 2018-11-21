@@ -6,7 +6,7 @@ if [[ "$1" == "" ]]; then
 fi
 TARGET_ENV=$1
 VERSION="$(cat ~/.version)"
-VERSION_SIMPLE=$(cat VERSION | xargs | cut -f1 -d"+")
+VERSION_SIMPLE="$(cat ~/.version | xargs | cut -f1 -d"+")"
 export TIMESTAMP="$(date --rfc-3339=seconds | sed 's/ /T/')"
 
 echo 'Gathering license files for dependencies...'
