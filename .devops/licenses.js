@@ -47,7 +47,7 @@ exec('dep status -json', { cwd: repoDir }, (error, stdout, stderr) => {
         host: 'api.github.com',
         path: `/repos/${ownerName}/license?access_token=${process.env.CHANGELOG_GITHUB_TOKEN}`,
         headers: {
-          'User-Agent': 'esg-usa-bot',
+          'User-Agent': process.env.BOT_GIT_USERNAME,
           // Get the raw license text.
           'Accept': 'application/vnd.github.VERSION.raw'
         }
