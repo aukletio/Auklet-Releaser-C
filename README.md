@@ -1,7 +1,8 @@
 # Auklet for C
 
 <a href="https://www.apache.org/licenses/LICENSE-2.0" alt="Apache page link -- Apache 2.0 License"><img src="https://img.shields.io/pypi/l/auklet.svg" /></a>
-<a href="https://codeclimate.com/repos/5a96cefc514d3a60340008cb/maintainability"><img src="https://api.codeclimate.com/v1/badges/fdcc057ce9f2d33d7ade/maintainability" /></a>
+[![Maintainability](https://api.codeclimate.com/v1/badges/0f87ae34820ee2c45980/maintainability)](https://codeclimate.com/github/aukletio/Auklet-Releaser-C/maintainability)
+
 
 This is the C releaser for Auklet. It officially supports C and C++, and runs
 on most POSIX-based operating systems (Debian, Ubuntu Core, Raspbian, QNX, etc).
