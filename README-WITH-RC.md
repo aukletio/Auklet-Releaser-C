@@ -1,5 +1,13 @@
 # Changelog
 
+## Merged But Unreleased
+
+**DevOps changes:**
+
+- Update instructions for bug reports [#5](https://github.com/aukletio/Auklet-Releaser-C/pull/5) ([rjenkinsjr](https://github.com/rjenkinsjr))
+
+## [0.10.0](https://github.com/aukletio/Auklet-Releaser-C/tree/0.10.0)
+
 ### [0.10.0-rc.1](https://github.com/aukletio/Auklet-Releaser-C/tree/0.10.0-rc.1)
 
 **Implemented enhancements:**
